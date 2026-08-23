@@ -64,15 +64,15 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
     const cleanPhone = reg.phone.replace(/[^0-9]/g, '');
     const phoneWithCode = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
     const message = encodeURIComponent(
-      `Hey ${reg.name}! Your registration for Aegis Drone Workshop (Booking ID: ${reg.id}) is confirmed. See you at the flight lab!`
+      `Hey ${reg.name}! Your registration for Aegis Drone Workshop (${reg.cohort_label || 'Batch 1'} - Booking ID: ${reg.id}) is confirmed. See you at the flight lab!`
     );
     window.open(`https://wa.me/${phoneWithCode}?text=${message}`, '_blank');
   };
 
   const exportCSV = () => {
-    const headers = 'Booking ID,Student Name,Email,Phone,College,Year,Amount,Status,Date\n';
+    const headers = 'Booking ID,Cohort,Student Name,Email,Phone,College,Year,Amount,Status,Date\n';
     const rows = filtered
-      .map((r) => `"${r.id}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`)
+      .map((r) => `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`)
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -108,7 +108,7 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
         <table className="w-full text-left text-xs">
           <thead className="bg-[#181818] border-b border-[#242424] text-gray-400 font-mono uppercase">
             <tr>
-              <th className="p-3.5">ID</th>
+              <th className="p-3.5">Booking / Cohort</th>
               <th className="p-3.5">Student</th>
               <th className="p-3.5">College</th>
               <th className="p-3.5">Fee</th>
@@ -126,7 +126,12 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
             ) : (
               filtered.map((reg) => (
                 <tr key={reg.id} className="hover:bg-[#181818]/60 transition-colors">
-                  <td className="p-3.5 font-bold text-neon">{reg.id}</td>
+                  <td className="p-3.5 font-bold text-neon font-mono space-y-1">
+                    <div>{reg.id}</div>
+                    <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon uppercase">
+                      {reg.cohort_label || `Batch ${reg.batch_number || 1}`}
+                    </span>
+                  </td>
                   <td className="p-3.5 font-sans">
                     <div className="font-semibold text-white">{reg.name}</div>
                     <div className="text-[11px] text-gray-500 font-mono">{reg.email}</div>
