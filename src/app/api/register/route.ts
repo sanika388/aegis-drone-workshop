@@ -12,69 +12,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required attendee fields' }, { status: 400 });
     }
 
-    // 1. Fetch workshop rules & batch capacity size
-    const { data: workshop, error: workshopError } = await supabase
-      .from('workshops')
-      .select('*')
-      .eq('id', workshopId)
-      .single();
+    // Call atomic PostgreSQL procedure
+    const { data, error } = await supabase.rpc('register_student_atomic', {
+      p_workshop_id: workshopId,
+      p_full_name: fullName.trim(),
+      p_email: email.trim().toLowerCase(),
+      p_phone: phone.trim(),
+      p_college: college.trim(),
+      p_academic_year: academicYear || 'SE - Second Year',
+    });
 
-    if (workshopError || !workshop) {
-      return NextResponse.json({ error: 'Workshop track not found' }, { status: 404 });
-    }
-
-    if (workshop.status === 'completed') {
-      return NextResponse.json({ error: 'This workshop has concluded.' }, { status: 400 });
-    }
-
-    // 2. Count total registered attendees for this core workshop
-    const { count, error: countError } = await supabase
-      .from('registrations')
-      .select('*', { count: 'exact', head: true })
-      .eq('workshop_id', workshopId);
-
-    if (countError) throw countError;
-
-    const totalCurrentStudents = count || 0;
-    const batchCapacity = workshop.batch_size_limit || workshop.max_capacity || 20;
-
-    // 3. Auto Calculate Batch Number (1-20 -> Batch 1, 21-40 -> Batch 2, etc.)
-    const assignedBatchNum = Math.floor(totalCurrentStudents / batchCapacity) + 1;
-    const cohortLabel = `Batch ${assignedBatchNum}`;
-
-    // 4. Generate unique Booking ID
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const bookingId = `AEGIS-B${assignedBatchNum}-${randomSuffix}`;
-
-    // 5. Insert registration with auto-assigned batch
-    const { data: registration, error: regError } = await supabase
-      .from('registrations')
-      .insert([
-        {
-          id: bookingId,
-          workshop_id: workshopId,
-          full_name: fullName.trim(),
-          email: email.trim().toLowerCase(),
-          phone: phone.trim(),
-          college: college.trim(),
-          academic_year: academicYear || 'SE - Second Year',
-          amount_paid: workshop.fee,
-          payment_status: 'pending',
-          email_sent: false,
-          batch_number: assignedBatchNum,
-          cohort_label: cohortLabel,
-        },
-      ])
-      .select()
-      .single();
-
-    if (regError) throw regError;
+    if (error) throw error;
 
     return NextResponse.json({
       success: true,
-      registration,
-      assignedBatch: cohortLabel,
-      bookingId,
+      bookingId: data.booking_id,
+      assignedBatch: data.cohort_label,
+      batchNumber: data.batch_number,
+      fee: data.fee,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

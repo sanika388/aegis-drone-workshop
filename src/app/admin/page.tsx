@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, IndianRupee, Layers, LogOut, Clock, ExternalLink } from 'lucide-react';
+import { Users, IndianRupee, Layers, LogOut, Clock, ExternalLink, Radio } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import WorkshopLifecycleTab from './components/WorkshopLifecycleTab';
@@ -28,8 +28,29 @@ export default function AdminDashboardPage() {
     }
   }, [router]);
 
+  // Realtime subscription setup
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const channel = supabase
+      .channel('realtime_registrations')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'registrations' },
+        () => {
+          // Auto sync dataset on any live registration change
+          fetchMasterData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated]);
+
   const fetchMasterData = async () => {
-    // 1. Fetch the single Master Pitch workshop
+    // 1. Fetch master pitch
     const { data: workshopData } = await supabase
       .from('workshops')
       .select('*')
@@ -41,7 +62,7 @@ export default function AdminDashboardPage() {
       setMasterWorkshop(workshopData);
     }
 
-    // 2. Fetch all registrations for this master pitch
+    // 2. Fetch all registrations
     const { data: regData } = await supabase
       .from('registrations')
       .select('*')
@@ -94,8 +115,8 @@ export default function AdminDashboardPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-white font-mono uppercase">Aegis Flight Command Center</h1>
-            <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px] uppercase font-mono">
-              Master Pitch Engine
+            <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px] uppercase font-mono flex items-center gap-1">
+              <Radio className="w-3 h-3 animate-pulse" /> Live Telemetry
             </span>
           </div>
           <p className="text-xs text-gray-400 font-mono mt-1">
@@ -150,7 +171,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Global Intake Stats */}
+      {/* Global Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
@@ -185,7 +206,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Tab Views */}
+      {/* Tab Content Routing */}
       {activeTab === 'manage' && (
         <WorkshopLifecycleTab
           selectedBatch={masterWorkshop.id}
