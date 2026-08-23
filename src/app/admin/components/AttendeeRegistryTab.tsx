@@ -48,7 +48,21 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
 
       if (error) throw error;
 
+      // Fail-safe dynamic group link resolution
       if (nextStatus === 'confirmed') {
+        const { data: workshopData } = await supabase
+          .from('workshops')
+          .select('title, venue, date, whatsapp_group_link, cohort_whatsapp_links')
+          .limit(1)
+          .single();
+
+        const assignedBatchNum = String(reg.batch_number || 1);
+        const cohortMap = workshopData?.cohort_whatsapp_links || {};
+        const fallbackCommunity = workshopData?.whatsapp_group_link || '';
+        
+        // Use batch-specific link if available; otherwise use the master fallback community link
+        const targetWhatsappLink = cohortMap[assignedBatchNum] || fallbackCommunity;
+
         await fetch('/api/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -56,10 +70,11 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
             studentName: reg.name,
             studentEmail: reg.email,
             bookingId: reg.id,
-            workshopTitle: `Aegis Drone Workshop (${reg.cohort_label || 'Batch 1'})`,
+            workshopTitle: `${workshopData?.title || 'Aegis Drone Workshop'} (${reg.cohort_label || 'Batch 1'})`,
             amount: reg.amount,
-            venue: 'GCOERC Avionics Lab, Nashik',
-            date: 'September Month',
+            venue: workshopData?.venue || 'GCOERC Avionics Lab, Nashik',
+            date: workshopData?.date || 'September Month',
+            whatsappLink: targetWhatsappLink,
           }),
         });
       }
