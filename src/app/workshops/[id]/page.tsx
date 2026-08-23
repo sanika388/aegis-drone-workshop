@@ -18,12 +18,11 @@ export default function WorkshopRegistrationPage() {
     phone: '',
     college: '',
     academicYear: 'SE - Second Year',
-    batchPreference: 'Batch 1 (First 20 Seats - ₹300)',
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // New Workshop Modal State
+  // Add / Create Workshop Modal State
   const [showAddModal, setShowAddModal] = useState(false);
   const [newWorkshop, setNewWorkshop] = useState({
     id: '',
@@ -43,7 +42,7 @@ export default function WorkshopRegistrationPage() {
 
     async function loadData() {
       try {
-        const { data: workshopData, error } = await supabase
+        const { data: workshopData } = await supabase
           .from('workshops')
           .select('*')
           .eq('id', requestedWorkshopId)
@@ -110,7 +109,7 @@ export default function WorkshopRegistrationPage() {
 
     try {
       const registrationId = 'AEGIS-' + Math.floor(100000 + Math.random() * 900000);
-      const calculatedFee = formData.batchPreference.includes('₹300') ? 300 : 500;
+      const entryFee = Number(workshop?.fee || 300);
 
       const { error: insertErr } = await supabase.from('registrations').insert([
         {
@@ -121,10 +120,10 @@ export default function WorkshopRegistrationPage() {
           phone: formData.phone,
           college: formData.college,
           academic_year: formData.academicYear,
-          custom_data: { batch: formData.batchPreference },
-          amount_paid: calculatedFee,
+          custom_data: formData,
+          amount_paid: entryFee,
           payment_status: 'confirmed',
-          razorpay_payment_id: 'PRE_LAUNCH_PASS',
+          razorpay_payment_id: 'DIRECT_PASS_CONFIRMED',
         },
       ]);
 
@@ -133,7 +132,7 @@ export default function WorkshopRegistrationPage() {
       router.push(
         `/receipt/${registrationId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
           formData.fullName
-        )}&email=${encodeURIComponent(formData.email)}&amount=${calculatedFee}`
+        )}&email=${encodeURIComponent(formData.email)}&amount=${entryFee}`
       );
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
@@ -167,7 +166,7 @@ export default function WorkshopRegistrationPage() {
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-neon/30 text-neon hover:bg-neon hover:text-black font-mono text-xs transition-all cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Add / Launch Workshop</span>
+          <span>Add Workshop Track</span>
         </button>
       </div>
 
@@ -212,24 +211,22 @@ export default function WorkshopRegistrationPage() {
 
             <div className="bg-[#1a1a1a] border border-amber-500/30 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-amber-300 font-mono">
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>Note: Drone hardware is for live lab practicals and testing (20 seats / batch).</span>
+              <span>Note: Hands-on practical tasks are performed on dedicated lab hardware (20 seats / batch).</span>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Registration Checkout Form */}
+        {/* Right Column: Clean Registration Checkout Form */}
         <div className="lg:col-span-5">
           <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
             <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
               <div>
-                <h2 className="text-base font-bold text-white font-mono uppercase">Batch Seat Pass</h2>
-                <p className="text-[10px] text-gray-400 font-mono">20 SEATS PER BATCH</p>
+                <h2 className="text-base font-bold text-white font-mono uppercase">Attendee Checkout</h2>
+                <p className="text-[10px] text-gray-400 font-mono">CONFIRMED SEAT PASS</p>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-gray-500 font-mono uppercase line-through mr-1.5">₹1000</span>
-                <span className="text-2xl font-black text-neon font-mono">
-                  {formData.batchPreference.includes('₹300') ? '₹300' : '₹500'}
-                </span>
+                <span className="text-2xl font-black text-neon font-mono">₹{workshop?.fee || 300}</span>
               </div>
             </div>
 
@@ -297,22 +294,6 @@ export default function WorkshopRegistrationPage() {
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-gray-400">Batch & Offer Slot *</label>
-                <select
-                  value={formData.batchPreference}
-                  onChange={(e) => setFormData({ ...formData, batchPreference: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-neon/40 focus:border-neon outline-none text-neon text-xs font-mono"
-                >
-                  <option value="Batch 1 (First 10 Students - ₹300 [70% OFF])">
-                    Batch 1: First 10 Early Birds (₹300 - 70% OFF)
-                  </option>
-                  <option value="Batch 2 (Next 10 Students - ₹500 [50% OFF])">
-                    Batch 2: Standard Slot (₹500 - 50% OFF)
-                  </option>
-                </select>
-              </div>
-
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -323,9 +304,7 @@ export default function WorkshopRegistrationPage() {
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>
-                      Claim Seat ({formData.batchPreference.includes('₹300') ? '₹300' : '₹500'})
-                    </span>
+                    <span>Claim Seat Pass (₹{workshop?.fee || 300})</span>
                   </>
                 )}
               </button>
@@ -339,7 +318,7 @@ export default function WorkshopRegistrationPage() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#121212] border border-neon/50 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-[0_0_50px_rgba(0,255,102,0.15)]">
             <div className="flex items-center justify-between border-b border-[#242424] pb-3">
-              <h3 className="text-base font-bold text-white font-mono">Create New Workshop Track</h3>
+              <h3 className="text-base font-bold text-white font-mono">Create Workshop Track</h3>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="text-gray-400 hover:text-white transition-colors cursor-pointer"
@@ -350,11 +329,11 @@ export default function WorkshopRegistrationPage() {
 
             <form onSubmit={handleCreateWorkshop} className="space-y-3.5 text-xs font-mono">
               <div className="space-y-1">
-                <label className="text-gray-400">Workshop URL Slug (e.g. drone-batch-2)</label>
+                <label className="text-gray-400">URL Slug (e.g. drone-batch-2)</label>
                 <input
                   type="text"
                   required
-                  placeholder="drone-september-batch-2"
+                  placeholder="drone-batch-2"
                   value={newWorkshop.id}
                   onChange={(e) => setNewWorkshop({ ...newWorkshop, id: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
