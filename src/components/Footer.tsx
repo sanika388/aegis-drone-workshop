@@ -1,25 +1,26 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, MapPin, ExternalLink, Cpu } from 'lucide-react';
+import { Mail, MapPin, ExternalLink, Cpu, MessageSquare, Phone } from 'lucide-react';
 
 export default function Footer() {
   return (
     <footer className="bg-[#0a0a0a] border-t border-[#242424] text-gray-400 text-sm">
+      {/* Main Footer Content */}
       <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-12 gap-10">
         {/* Startup Info */}
         <div className="md:col-span-5 space-y-4">
           <div className="flex items-center gap-3">
             <div className="relative w-28 h-28 shrink-0 flex items-center justify-center">
-  <Image
-    src="/logo.png"
-    alt="Aegis Drone Logo"
-    width={250}
-    height={250}
-    className="w-full h-full object-contain drop-shadow-[0_0_24px_rgba(0,255,102,0.7)]"
-    priority
-    unoptimized
-  />
-</div>
+              <Image
+                src="/logo.png"
+                alt="Aegis Drone Logo"
+                width={250}
+                height={250}
+                className="w-full h-full object-contain drop-shadow-[0_0_24px_rgba(0,255,102,0.7)]"
+                priority
+                unoptimized
+              />
+            </div>
             <span className="text-neon font-black text-lg tracking-wider">
               AEGIS<span className="text-white font-light">DRONES</span>
             </span>
@@ -85,8 +86,54 @@ export default function Footer() {
         </div>
       </div>
 
+      {/* Irisforge Ownership & Engineering Banner */}
+      <div className="border-t border-[#1a1a1a] bg-[#070707] py-4 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 rounded-md overflow-hidden bg-black/60 border border-[#2a2a2a] shrink-0">
+              <Image
+                src="/irisforge-logo.png"
+                alt="Irisforge Studio"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-zinc-300 font-medium tracking-tight">
+                Architected & Engineered by <span className="text-white font-bold tracking-wide">Irisforge</span>
+              </p>
+              <p className="text-[10px] text-zinc-500 font-mono">
+                Precision Systems Architecture • Full-Stack Engineering
+              </p>
+            </div>
+          </div>
+
+          {/* Irisforge Direct Actions */}
+          <div className="flex items-center gap-2.5">
+            <a
+              href="tel:+917620350524"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#141414] hover:bg-[#1f1f1f] text-[11px] text-zinc-300 hover:text-white border border-[#262626] transition-colors"
+            >
+              <Phone className="w-3 h-3 text-cyan-400" />
+              <span>+91 76203 50524</span>
+            </a>
+
+            <a
+              href="https://wa.me/917620350524?text=Hi%20Irisforge,%20I%20saw%20the%20Aegis%20Drone%20Workshop%20portal%20and%20would%20like%20to%20discuss%20a%20project."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded bg-[#141414] hover:bg-[#1f1f1f] text-[11px] text-zinc-300 hover:text-white border border-[#262626] transition-colors"
+            >
+              <MessageSquare className="w-3 h-3 text-emerald-400" />
+              <span>WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Copyright Bar */}
-      <div className="border-t border-[#181818] py-4">
+      <div className="border-t border-[#141414] py-3.5 bg-black">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-[11px] text-gray-500 font-mono">
           <p>© {new Date().getFullYear()} Aegis Drones Workshop. All rights reserved.</p>
           <p className="text-neon/80">Secured Digital Verification & Receipt Access</p>
