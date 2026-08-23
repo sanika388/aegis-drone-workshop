@@ -2,86 +2,75 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Script from 'next/script';
-import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
-interface FormField {
-  name: string;
-  label: string;
-  type: 'text' | 'email' | 'tel' | 'number' | 'select';
-  required: boolean;
-  placeholder?: string;
-  options?: string[];
-}
 
 export default function WorkshopRegistrationPage() {
   const router = useRouter();
   const routeParams = useParams();
-  const requestedWorkshopId = (routeParams?.id as string) || '';
+  const requestedWorkshopId = typeof routeParams?.id === 'string' ? routeParams.id : '';
 
   const [workshop, setWorkshop] = useState<any>(null);
-  const [fields, setFields] = useState<FormField[]>([]);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    college: '',
+    academicYear: 'SE - Second Year',
+    batchPreference: 'Batch 1 (First 20 Seats - ₹300)',
+  });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // New Workshop Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newWorkshop, setNewWorkshop] = useState({
+    id: '',
+    title: 'Aegis Drone Workshop',
+    badge: 'CERTIFIED WORKSHOP',
+    date: 'September Month',
+    venue: 'Guru Gobind Singh College of Engineering & Research Centre',
+    fee: 300,
+    max_capacity: 20,
+  });
+
   useEffect(() => {
-    // Safety Guard: Don't run the query if the route ID isn't resolved yet
     if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
+      setLoading(false);
       return;
     }
 
     async function loadData() {
       try {
-        const { data: authData } = await supabase.auth.getSession();
-        const userEmail = authData?.session?.user?.email || '';
-
         const { data: workshopData, error } = await supabase
           .from('workshops')
           .select('*')
           .eq('id', requestedWorkshopId)
           .single();
 
-        if (error) {
-          console.error('Supabase fetch error:', error);
-          setLoading(false);
-          return;
-        }
-
         if (workshopData) {
           setWorkshop(workshopData);
-
-          const customFields: FormField[] = workshopData.form_fields || [
-            { name: 'fullName', label: 'Full Name', type: 'text', required: true, placeholder: 'e.g. Sanika Dusane' },
-            { name: 'email', label: 'Email Address', type: 'email', required: true, placeholder: 'student@example.com' },
-            { name: 'phone', label: 'Phone (WhatsApp)', type: 'tel', required: true, placeholder: '+91 98765 43210' },
-            { name: 'college', label: 'College / Organization', type: 'text', required: true, placeholder: 'GCOERC Nashik' },
-          ];
-
-          setFields(customFields);
-
-          const initialData: Record<string, any> = {};
-          customFields.forEach((field) => {
-            if (field.name === 'email' && userEmail) {
-              initialData[field.name] = userEmail;
-            } else if (field.type === 'select' && field.options?.length) {
-              initialData[field.name] = field.options[0];
-            } else {
-              initialData[field.name] = '';
-            }
+        } else {
+          // Poster Fallback Default
+          setWorkshop({
+            id: requestedWorkshopId,
+            title: 'Aegis Drone Workshop',
+            badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
+            date: 'September Month',
+            venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
+            fee: 300,
+            max_capacity: 20,
+            syllabus: [
+              '01 BUILD THE BRAIN: ESP Module (ESP32), Gyro & Sensors (MPU6050/BMI270), Firmware & Motors Wiring',
+              '02 BUILD THE BODY: 3D Printed Quadcopter Chassis, Aerodynamics & Modular Assembly',
+              '03 TEST. TUNE. TRUST: PID Tuning, Thrust Control, Hover & Flight Optimization',
+              '100% Hands-on Practical with Real Components & Connectors',
+            ],
           });
-          setFormData(initialData);
         }
       } catch (err) {
-        console.error('Error fetching workshop configuration:', err);
+        console.error('Fetch error:', err);
       } finally {
         setLoading(false);
       }
@@ -90,8 +79,29 @@ export default function WorkshopRegistrationPage() {
     loadData();
   }, [requestedWorkshopId]);
 
-  const handleInputChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleCreateWorkshop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const cleanId = newWorkshop.id.toLowerCase().replace(/\s+/g, '-');
+      const { error } = await supabase.from('workshops').upsert([
+        {
+          ...newWorkshop,
+          id: cleanId,
+          syllabus: [
+            '01 BUILD THE BRAIN: Flight Controller & Sensors',
+            '02 BUILD THE BODY: 3D Printed Quadcopter Chassis',
+            '03 TEST. TUNE. TRUST: PID Tuning & Live Flight Trial',
+          ],
+        },
+      ]);
+
+      if (error) throw error;
+      alert(`Workshop track created: /workshops/${cleanId}`);
+      setShowAddModal(false);
+      router.push(`/workshops/${cleanId}`);
+    } catch (err: any) {
+      alert(err.message || 'Failed to create workshop track.');
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -99,66 +109,32 @@ export default function WorkshopRegistrationPage() {
     setIsSubmitting(true);
 
     try {
-      const entryFee = Number(workshop?.fee || 300);
       const registrationId = 'AEGIS-' + Math.floor(100000 + Math.random() * 900000);
+      const calculatedFee = formData.batchPreference.includes('₹300') ? 300 : 500;
 
-      const res = await fetch('/api/razorpay/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: entryFee,
-          receipt: registrationId,
-        }),
-      });
-
-      const orderData = await res.json();
-      if (!orderData.success) throw new Error(orderData.error || 'Failed to initialize payment gateway.');
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.order.amount,
-        currency: 'INR',
-        name: 'Aegis Drone Workshop',
-        description: `${workshop?.title || 'Workshop'} Entry Pass`,
-        order_id: orderData.order.id,
-        prefill: {
-          name: formData.fullName || '',
-          email: formData.email || '',
-          contact: formData.phone || '',
+      const { error: insertErr } = await supabase.from('registrations').insert([
+        {
+          id: registrationId,
+          workshop_id: requestedWorkshopId,
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          college: formData.college,
+          academic_year: formData.academicYear,
+          custom_data: { batch: formData.batchPreference },
+          amount_paid: calculatedFee,
+          payment_status: 'confirmed',
+          razorpay_payment_id: 'PRE_LAUNCH_PASS',
         },
-        theme: { color: '#00ff66' },
-        handler: async function (response: any) {
-          const { error: insertErr } = await supabase.from('registrations').insert([
-            {
-              id: registrationId,
-              workshop_id: requestedWorkshopId,
-              full_name: formData.fullName || 'Participant',
-              email: formData.email || '',
-              phone: formData.phone || '',
-              college: formData.college || '',
-              academic_year: formData.year || '',
-              custom_data: formData,
-              amount_paid: entryFee,
-              payment_status: 'paid',
-              razorpay_payment_id: response.razorpay_payment_id,
-            },
-          ]);
+      ]);
 
-          if (insertErr) console.error('Supabase write error:', insertErr);
+      if (insertErr) console.error('Supabase write notice:', insertErr);
 
-          router.push(
-            `/receipt/${registrationId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
-              formData.fullName || ''
-            )}&email=${encodeURIComponent(formData.email || '')}&amount=${entryFee}`
-          );
-        },
-        modal: {
-          ondismiss: () => setIsSubmitting(false),
-        },
-      };
-
-      const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.open();
+      router.push(
+        `/receipt/${registrationId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
+          formData.fullName
+        )}&email=${encodeURIComponent(formData.email)}&amount=${calculatedFee}`
+      );
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
       setIsSubmitting(false);
@@ -169,134 +145,277 @@ export default function WorkshopRegistrationPage() {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
         <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-mono text-gray-400">Loading registration terminal...</p>
-      </div>
-    );
-  }
-
-  if (!workshop) {
-    return (
-      <div className="max-w-xl mx-auto px-6 py-20 text-center space-y-4">
-        <h2 className="text-xl font-bold text-white">Workshop Track Not Found</h2>
-        <Link href="/workshops" className="text-neon text-xs hover:underline">
-          Return to Workshops
-        </Link>
+        <p className="text-xs font-mono text-gray-400">Loading flight lab track...</p>
       </div>
     );
   }
 
   return (
-    <>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
-
-      <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
+    <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
+      {/* Top Bar Actions */}
+      <div className="flex items-center justify-between">
         <Link
           href="/workshops"
           className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-neon transition-colors font-mono"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>BACK TO WORKSHOP TRACKS</span>
+          <span>ALL WORKSHOPS</span>
         </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          <div className="lg:col-span-7 space-y-6">
-            <div className="space-y-3">
-              <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
-                {workshop.badge || 'AEGIS WORKSHOP'}
-              </span>
-              <h1 className="text-3xl font-black text-white">{workshop.title}</h1>
-              <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-400 pt-2">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-neon" />
-                  <span>{workshop.date || 'Upcoming Track'}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-neon" />
-                  <span>{workshop.venue || 'Campus Venue'}</span>
-                </div>
-              </div>
-            </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-neon/30 text-neon hover:bg-neon hover:text-black font-mono text-xs transition-all cursor-pointer"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Add / Launch Workshop</span>
+        </button>
+      </div>
 
-            <div className="bg-[#121212] border border-[#242424] rounded-2xl p-6 space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase font-mono tracking-wider">
-                Training Modules & Kit Details
-              </h3>
-              <ul className="space-y-2.5 text-xs text-gray-300">
-                {workshop.syllabus?.map((item: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Left Column: Workshop Modules */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="space-y-3">
+            <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
+              {workshop?.badge || 'CERTIFIED WORKSHOP'}
+            </span>
+            <h1 className="text-3xl font-black text-white tracking-tight">{workshop?.title || 'Aegis Drone Workshop'}</h1>
+            <p className="text-sm font-semibold text-neon font-mono">BUILD. CODE. FLY. NOT JUST A DRONE, BUT YOUR SKILLS.</p>
+
+            <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-400 pt-2 font-mono">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-neon shrink-0" />
+                <span>{workshop?.date || 'September Month'}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-neon shrink-0" />
+                <span>{workshop?.venue || 'GCOERC Campus, Nashik'}</span>
+              </div>
             </div>
           </div>
 
-          <div className="lg:col-span-5">
-            <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
-              <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
-                <div>
-                  <h2 className="text-lg font-bold text-white">Attendee Checkout</h2>
-                  <p className="text-[11px] text-gray-400 font-mono">SECURE REGISTRATION</p>
-                </div>
-                <div className="text-right">
-                  <span className="text-[10px] text-gray-500 font-mono uppercase line-through mr-1">₹1000</span>
-                  <span className="text-xl font-black text-neon font-mono">₹{workshop.fee}</span>
-                </div>
-              </div>
+          <div className="bg-[#121212] border border-[#242424] rounded-2xl p-6 space-y-4">
+            <h3 className="text-xs font-bold text-white uppercase font-mono tracking-wider">
+              Training Modules & Hands-On Engineering
+            </h3>
+            <ul className="space-y-3 text-xs text-gray-300 font-sans">
+              {(workshop?.syllabus || [
+                '01 BUILD THE BRAIN: ESP32 Flight Controller, Gyro (MPU6050/BMI270), ESCs & Firmware',
+                '02 BUILD THE BODY: 3D Printed Quadcopter Chassis, Aerodynamics & Assembly',
+                '03 TEST. TUNE. TRUST: PID Tuning, Thrust Control, Hover & Live Flight Optimization',
+              ]).map((item: string, idx: number) => (
+                <li key={idx} className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
 
-              <form onSubmit={handleRegister} className="space-y-4 text-xs">
-                {fields.map((field) => (
-                  <div key={field.name} className="space-y-1">
-                    <label className="text-gray-400">
-                      {field.label} {field.required && <span className="text-neon">*</span>}
-                    </label>
-
-                    {field.type === 'select' ? (
-                      <select
-                        required={field.required}
-                        value={formData[field.name] || ''}
-                        onChange={(e) => handleInputChange(field.name, e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                      >
-                        {field.options?.map((opt, i) => (
-                          <option key={i} value={opt}>
-                            {opt}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        required={field.required}
-                        value={formData[field.name] || ''}
-                        onChange={(e) => handleInputChange(field.name, e.target.value)}
-                        placeholder={field.placeholder || ''}
-                        className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                      />
-                    )}
-                  </div>
-                ))}
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isSubmitting ? (
-                    <span>Opening Payment Gateway...</span>
-                  ) : (
-                    <>
-                      <UserCheck className="w-4 h-4" />
-                      <span>Pay ₹{workshop.fee} & Generate Pass</span>
-                    </>
-                  )}
-                </button>
-              </form>
+            <div className="bg-[#1a1a1a] border border-amber-500/30 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-amber-300 font-mono">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+              <span>Note: Drone hardware is for live lab practicals and testing (20 seats / batch).</span>
             </div>
           </div>
         </div>
+
+        {/* Right Column: Registration Checkout Form */}
+        <div className="lg:col-span-5">
+          <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
+            <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
+              <div>
+                <h2 className="text-base font-bold text-white font-mono uppercase">Batch Seat Pass</h2>
+                <p className="text-[10px] text-gray-400 font-mono">20 SEATS PER BATCH</p>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] text-gray-500 font-mono uppercase line-through mr-1.5">₹1000</span>
+                <span className="text-2xl font-black text-neon font-mono">
+                  {formData.batchPreference.includes('₹300') ? '₹300' : '₹500'}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleRegister} className="space-y-3.5 text-xs font-sans">
+              <div className="space-y-1">
+                <label className="text-gray-400">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Sanika Dusane"
+                  value={formData.fullName}
+                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Email Address *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="student@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">WhatsApp Phone Number *</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+91 90287 88532"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">College / Institute *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. GCOERC Nashik"
+                  value={formData.college}
+                  onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Academic Year *</label>
+                <select
+                  value={formData.academicYear}
+                  onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                >
+                  <option value="FE - First Year">FE - First Year</option>
+                  <option value="SE - Second Year">SE - Second Year</option>
+                  <option value="TE - Third Year">TE - Third Year</option>
+                  <option value="BE - Final Year">BE - Final Year</option>
+                  <option value="School / Diploma / Other">School / Diploma / Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Batch & Offer Slot *</label>
+                <select
+                  value={formData.batchPreference}
+                  onChange={(e) => setFormData({ ...formData, batchPreference: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-neon/40 focus:border-neon outline-none text-neon text-xs font-mono"
+                >
+                  <option value="Batch 1 (First 10 Students - ₹300 [70% OFF])">
+                    Batch 1: First 10 Early Birds (₹300 - 70% OFF)
+                  </option>
+                  <option value="Batch 2 (Next 10 Students - ₹500 [50% OFF])">
+                    Batch 2: Standard Slot (₹500 - 50% OFF)
+                  </option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono"
+              >
+                {isSubmitting ? (
+                  <span>Generating Hardware Pass...</span>
+                ) : (
+                  <>
+                    <UserCheck className="w-4 h-4" />
+                    <span>
+                      Claim Seat ({formData.batchPreference.includes('₹300') ? '₹300' : '₹500'})
+                    </span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
-    </>
+
+      {/* CREATE / ADD WORKSHOP MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121212] border border-neon/50 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-[0_0_50px_rgba(0,255,102,0.15)]">
+            <div className="flex items-center justify-between border-b border-[#242424] pb-3">
+              <h3 className="text-base font-bold text-white font-mono">Create New Workshop Track</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateWorkshop} className="space-y-3.5 text-xs font-mono">
+              <div className="space-y-1">
+                <label className="text-gray-400">Workshop URL Slug (e.g. drone-batch-2)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="drone-september-batch-2"
+                  value={newWorkshop.id}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, id: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkshop.title}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, title: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-gray-400">Fee (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newWorkshop.fee}
+                    onChange={(e) => setNewWorkshop({ ...newWorkshop, fee: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-gray-400">Batch Size</label>
+                  <input
+                    type="number"
+                    required
+                    value={newWorkshop.max_capacity}
+                    onChange={(e) => setNewWorkshop({ ...newWorkshop, max_capacity: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Venue</label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkshop.venue}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, venue: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all mt-3 cursor-pointer"
+              >
+                Save & Launch Workshop
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
