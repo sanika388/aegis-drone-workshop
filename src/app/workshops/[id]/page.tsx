@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle, Plus, X } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -22,18 +22,6 @@ export default function WorkshopRegistrationPage() {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Add / Create Workshop Modal State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newWorkshop, setNewWorkshop] = useState({
-    id: '',
-    title: 'Aegis Drone Workshop',
-    badge: 'CERTIFIED WORKSHOP',
-    date: 'September Month',
-    venue: 'Guru Gobind Singh College of Engineering & Research Centre',
-    fee: 300,
-    max_capacity: 20,
-  });
-
   useEffect(() => {
     if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
       setLoading(false);
@@ -51,7 +39,6 @@ export default function WorkshopRegistrationPage() {
         if (workshopData) {
           setWorkshop(workshopData);
         } else {
-          // Poster Fallback Default
           setWorkshop({
             id: requestedWorkshopId,
             title: 'Aegis Drone Workshop',
@@ -77,31 +64,6 @@ export default function WorkshopRegistrationPage() {
 
     loadData();
   }, [requestedWorkshopId]);
-
-  const handleCreateWorkshop = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const cleanId = newWorkshop.id.toLowerCase().replace(/\s+/g, '-');
-      const { error } = await supabase.from('workshops').upsert([
-        {
-          ...newWorkshop,
-          id: cleanId,
-          syllabus: [
-            '01 BUILD THE BRAIN: Flight Controller & Sensors',
-            '02 BUILD THE BODY: 3D Printed Quadcopter Chassis',
-            '03 TEST. TUNE. TRUST: PID Tuning & Live Flight Trial',
-          ],
-        },
-      ]);
-
-      if (error) throw error;
-      alert(`Workshop track created: /workshops/${cleanId}`);
-      setShowAddModal(false);
-      router.push(`/workshops/${cleanId}`);
-    } catch (err: any) {
-      alert(err.message || 'Failed to create workshop track.');
-    }
-  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,8 +113,7 @@ export default function WorkshopRegistrationPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
-      {/* Top Bar Actions */}
-      <div className="flex items-center justify-between">
+      <div>
         <Link
           href="/workshops"
           className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-neon transition-colors font-mono"
@@ -160,18 +121,9 @@ export default function WorkshopRegistrationPage() {
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>ALL WORKSHOPS</span>
         </Link>
-
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#181818] border border-neon/30 text-neon hover:bg-neon hover:text-black font-mono text-xs transition-all cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Workshop Track</span>
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        {/* Left Column: Workshop Modules */}
         <div className="lg:col-span-7 space-y-6">
           <div className="space-y-3">
             <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
@@ -216,7 +168,6 @@ export default function WorkshopRegistrationPage() {
           </div>
         </div>
 
-        {/* Right Column: Clean Registration Checkout Form */}
         <div className="lg:col-span-5">
           <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
             <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
@@ -312,89 +263,6 @@ export default function WorkshopRegistrationPage() {
           </div>
         </div>
       </div>
-
-      {/* CREATE / ADD WORKSHOP MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#121212] border border-neon/50 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-[0_0_50px_rgba(0,255,102,0.15)]">
-            <div className="flex items-center justify-between border-b border-[#242424] pb-3">
-              <h3 className="text-base font-bold text-white font-mono">Create Workshop Track</h3>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateWorkshop} className="space-y-3.5 text-xs font-mono">
-              <div className="space-y-1">
-                <label className="text-gray-400">URL Slug (e.g. drone-batch-2)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="drone-batch-2"
-                  value={newWorkshop.id}
-                  onChange={(e) => setNewWorkshop({ ...newWorkshop, id: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-gray-400">Title</label>
-                <input
-                  type="text"
-                  required
-                  value={newWorkshop.title}
-                  onChange={(e) => setNewWorkshop({ ...newWorkshop, title: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-gray-400">Fee (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newWorkshop.fee}
-                    onChange={(e) => setNewWorkshop({ ...newWorkshop, fee: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-gray-400">Batch Size</label>
-                  <input
-                    type="number"
-                    required
-                    value={newWorkshop.max_capacity}
-                    onChange={(e) => setNewWorkshop({ ...newWorkshop, max_capacity: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-gray-400">Venue</label>
-                <input
-                  type="text"
-                  required
-                  value={newWorkshop.venue}
-                  onChange={(e) => setNewWorkshop({ ...newWorkshop, venue: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all mt-3 cursor-pointer"
-              >
-                Save & Launch Workshop
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
