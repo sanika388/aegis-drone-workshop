@@ -853,63 +853,124 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TAB 3: ABOUT SHOWCASE IMAGE ASSET MANAGER */}
-      {activeTab === 'gallery' && selectedBatch && (
-        <div className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-6">
-          <div>
-            <h2 className="text-base font-bold text-white font-mono uppercase flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-neon" /> About Page Showcase Gallery ({selectedBatch})
-            </h2>
-            <p className="text-xs text-gray-400 font-mono mt-1">
-              Add lab photos or drone showcase snapshots. If empty, the About page automatically falls back to drone schematics.
-            </p>
-          </div>
+      {/* TAB 3: ABOUT SHOWCASE DIRECT FILE EXPLORER UPLOAD */}
+{activeTab === 'gallery' && selectedBatch && (
+  <div className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-6">
+    <div>
+      <h2 className="text-base font-bold text-white font-mono uppercase flex items-center gap-2">
+        <ImageIcon className="w-4 h-4 text-neon" /> About Page Showcase Gallery ({selectedBatch})
+      </h2>
+      <p className="text-xs text-gray-400 font-mono mt-1">
+        Select and upload drone hardware photos directly from your device. When empty, the About page automatically displays dynamic flight schematics.
+      </p>
+    </div>
 
-          <div className="flex gap-2">
-            <input
-              type="url"
-              placeholder="Paste Image URL (e.g. https://images.unsplash.com/... or Supabase public URL)"
-              value={newGalleryUrl}
-              onChange={(e) => setNewGalleryUrl(e.target.value)}
-              className="flex-1 px-3.5 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white font-mono"
-            />
+    {/* Direct File Explorer Dropzone */}
+    <label className="border-2 border-dashed border-[#2e2e2e] hover:border-neon rounded-2xl p-8 text-center space-y-3 cursor-pointer transition-all bg-[#0a0a0a] block group hover:bg-[#0e0e0e]">
+      <div className="w-12 h-12 rounded-full bg-neon/10 border border-neon/30 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+        <UploadCloud className="w-6 h-6 text-neon" />
+      </div>
+      <div>
+        <p className="text-sm text-white font-bold font-mono">
+          {isUploading ? 'Uploading selected assets...' : 'Click to Browse Files / Photos'}
+        </p>
+        <p className="text-[11px] text-gray-400 font-mono mt-1">
+          Supports PNG, JPG, JPEG, WEBP (Select multiple images directly)
+        </p>
+      </div>
+
+      <input
+        type="file"
+        multiple
+        accept="image/png,image/jpeg,image/jpg,image/webp"
+        onChange={async (e) => {
+          const files = e.target.files;
+          if (!files || files.length === 0 || !selectedBatch) return;
+
+          setIsUploading(true);
+          try {
+            const uploadedUrls: string[] = [];
+            for (let i = 0; i < files.length; i++) {
+              const url = await uploadAegisAsset(files[i], 'gallery');
+              uploadedUrls.push(url);
+            }
+
+            const currentImages = batchForm[selectedBatch]?.gallery_images || [];
+            const newImagesList = [...currentImages, ...uploadedUrls];
+
+            setBatchForm((prev) => ({
+              ...prev,
+              [selectedBatch]: {
+                ...prev[selectedBatch],
+                gallery_images: newImagesList,
+              },
+            }));
+
+            // Auto-persist directly to Supabase
+            await supabase
+              .from('workshops')
+              .update({ gallery_images: newImagesList })
+              .eq('id', selectedBatch);
+
+            alert(`Successfully uploaded ${uploadedUrls.length} image(s)!`);
+          } catch (err: any) {
+            alert(err.message || 'Error uploading files');
+          } finally {
+            setIsUploading(false);
+          }
+        }}
+        className="hidden"
+        disabled={isUploading}
+      />
+    </label>
+
+    {/* Live Image Grid */}
+    <div className="space-y-2">
+      <div className="flex justify-between items-center text-xs font-mono text-gray-400">
+        <span>Active Showcase Images ({(batchForm[selectedBatch]?.gallery_images || []).length})</span>
+        <span>Click ✕ to remove</span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {(batchForm[selectedBatch]?.gallery_images || []).map((imgUrl: string, idx: number) => (
+          <div key={idx} className="relative group rounded-xl overflow-hidden border border-[#242424] aspect-video bg-[#0a0a0a]">
+            <img src={imgUrl} alt="Showcase upload" className="w-full h-full object-cover" />
             <button
-              onClick={handleAddGalleryImage}
-              className="px-4 py-2.5 rounded-lg bg-neon text-black font-bold font-mono text-xs hover:bg-[#00cc52] transition-all cursor-pointer shrink-0"
+              type="button"
+              onClick={async () => {
+                const currentImages = batchForm[selectedBatch]?.gallery_images || [];
+                const updatedList = currentImages.filter((_: any, i: number) => i !== idx);
+
+                setBatchForm((prev) => ({
+                  ...prev,
+                  [selectedBatch]: {
+                    ...prev[selectedBatch],
+                    gallery_images: updatedList,
+                  },
+                }));
+
+                await supabase
+                  .from('workshops')
+                  .update({ gallery_images: updatedList })
+                  .eq('id', selectedBatch);
+              }}
+              className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/80 border border-red-900/50 text-red-400 hover:bg-red-900/60 hover:text-white transition-all cursor-pointer"
+              title="Remove image"
             >
-              Add Photo
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
+        ))}
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-            {(batchForm[selectedBatch]?.gallery_images || []).map((imgUrl: string, idx: number) => (
-              <div key={idx} className="relative group rounded-xl overflow-hidden border border-[#242424] aspect-video bg-[#0a0a0a]">
-                <img src={imgUrl} alt="Gallery item" className="w-full h-full object-cover" />
-                <button
-                  onClick={() => handleRemoveGalleryImage(idx)}
-                  className="absolute top-2 right-2 p-1.5 rounded-md bg-black/80 text-red-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-            {(batchForm[selectedBatch]?.gallery_images || []).length === 0 && (
-              <div className="col-span-full p-8 border-2 border-dashed border-[#242424] rounded-xl text-center text-xs text-gray-500 font-mono">
-                No custom photos added yet. Sleek SVG schematics are actively displayed on /about.
-              </div>
-            )}
+        {(batchForm[selectedBatch]?.gallery_images || []).length === 0 && (
+          <div className="col-span-full p-8 border border-[#1f1f1f] bg-[#0a0a0a] rounded-xl text-center text-xs text-gray-500 font-mono">
+            No uploaded lab photos found. Default flight schematics are active on the About page.
           </div>
-
-          <button
-            onClick={saveBatchSettings}
-            disabled={isSaving}
-            className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all flex items-center justify-center gap-2 cursor-pointer font-mono uppercase tracking-wider"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Showcase Configuration</span>
-          </button>
-        </div>
-      )}
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* CREATE WORKSHOP MODAL */}
       {showAddModal && (
