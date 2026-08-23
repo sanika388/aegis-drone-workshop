@@ -34,7 +34,7 @@ export default function HomePage() {
       <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-2xl p-4 relative overflow-hidden">
         <div className="relative w-full aspect-[3/4] rounded-xl overflow-hidden bg-[#0a0a0a]">
           <Image
-            src="/poster.jpeg"
+            src="/poster.png"
             alt="Aegis Drone Workshop Poster"
             fill
             className="object-contain"
