@@ -1,51 +1,83 @@
-import { Shield, Zap, Target, Award } from 'lucide-react';
+'use client';
 
-export default function AboutPage() {
-  const highlights = [
-    {
-      icon: Shield,
-      title: 'Real Hardware Mastery',
-      desc: 'No theoretical simulations. Work directly with STM32 flight controllers, ESCs, brushless motors, and telemetry.',
-    },
-    {
-      icon: Zap,
-      title: 'Rapid Prototyping',
-      desc: 'Understand 3D quadcopter frame geometry, weight distribution, and component soldering.',
-    },
-    {
-      icon: Target,
-      title: 'Live Flight Trials',
-      desc: 'Calibrate gyros, bind receivers, configure fail-safes, and take your drone to the sky on flight day.',
-    },
-    {
-      icon: Award,
-      title: 'Industry Certification',
-      desc: 'Receive verified workshop completion credentials issued by Aegis Drones.',
-    },
-  ];
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { Cpu, Shield, Radio, Layers } from 'lucide-react';
+
+export default function AboutShowcasePage() {
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadShowcase() {
+      const { data } = await supabase
+        .from('workshops')
+        .select('gallery_images')
+        .not('gallery_images', 'is', null)
+        .limit(1);
+
+      if (data && data.length > 0 && data[0].gallery_images?.length > 0) {
+        setGalleryImages(data[0].gallery_images);
+      }
+      setLoading(false);
+    }
+    loadShowcase();
+  }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-16 space-y-12">
-      <div className="space-y-4">
-        <h1 className="text-4xl font-extrabold text-white">About Aegis Drones</h1>
-        <p className="text-gray-400 text-lg leading-relaxed">
-          Aegis Drones is dedicated to training the next generation of aerospace and embedded engineers through intensive, hands-on workshop bootcamps.
+    <div className="max-w-6xl mx-auto px-6 py-16 space-y-12">
+      {/* Header */}
+      <div className="space-y-3">
+        <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-neon/10 border border-neon/30">
+          Aegis Autonomous Flight Lab
+        </span>
+        <h1 className="text-4xl font-extrabold text-white">Avionics & Lab Engineering</h1>
+        <p className="text-sm text-gray-400 font-mono max-w-2xl">
+          Hardware-in-the-loop firmware programming, ESC telemetry calibration, and rapid chassis assembly at GCOERC.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {highlights.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <div key={index} className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-3">
-              <div className="w-10 h-10 rounded-lg bg-[#181818] border border-[#2e2e2e] flex items-center justify-center text-neon">
-                <Icon className="w-5 h-5" />
+      {/* Dynamic Gallery or Schematics Fallback */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-white font-mono uppercase flex items-center gap-2">
+          <Layers className="w-4 h-4 text-neon" /> Lab Showcase & Flight Hardware
+        </h2>
+
+        {galleryImages.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {galleryImages.map((src, index) => (
+              <div key={index} className="aspect-video rounded-2xl overflow-hidden border border-[#242424] bg-[#121212]">
+                <img src={src} alt={`Lab asset ${index + 1}`} className="w-full h-full object-cover" />
               </div>
-              <h2 className="text-lg font-bold text-white">{item.title}</h2>
-              <p className="text-sm text-gray-400 leading-relaxed">{item.desc}</p>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="p-6 rounded-2xl bg-[#121212] border border-[#242424] space-y-3">
+              <Cpu className="w-8 h-8 text-neon" />
+              <h3 className="text-base font-bold text-white">ESP32 Avionics Core</h3>
+              <p className="text-xs text-gray-400 font-mono">
+                Dual-core telemetry processing, real-time gyro loop calculations, and wireless command bridge.
+              </p>
             </div>
-          );
-        })}
+            <div className="p-6 rounded-2xl bg-[#121212] border border-[#242424] space-y-3">
+              <Radio className="w-8 h-8 text-neon" />
+              <h3 className="text-base font-bold text-white">9-DOF Sensor Fusion</h3>
+              <p className="text-xs text-gray-400 font-mono">
+                MPU6050 & BMI270 accelerometer/gyro filtering for stable indoor hover stabilization.
+              </p>
+            </div>
+            <div className="p-6 rounded-2xl bg-[#121212] border border-[#242424] space-y-3">
+              <Shield className="w-8 h-8 text-neon" />
+              <h3 className="text-base font-bold text-white">Quadcopter Airframe</h3>
+              <p className="text-xs text-gray-400 font-mono">
+                Carbon-reinforced modular chassis designed for impact resilience and rapid component swaps.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

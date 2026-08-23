@@ -36,7 +36,7 @@ function AuthContent() {
       const redirectUrl =
         typeof window !== 'undefined'
           ? `${window.location.origin}/workshops`
-          : 'https://aegis-drone-workshop-ky4d.vercel.app/workshops';
+          : 'https://aegis-drone-workshop.vercel.app/workshops';
 
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
@@ -56,7 +56,7 @@ function AuthContent() {
     }
   };
 
-  // Admin Login Handler
+  // Admin Login Handler with Secure Cookie Session
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -64,8 +64,12 @@ function AuthContent() {
 
     setTimeout(() => {
       if (adminEmail === 'admin@aegisdrone.com' && adminPassword === 'admin123') {
+        // Set Edge Middleware session cookie
+        document.cookie = 'aegis_admin_session=authenticated; path=/; max-age=86400; SameSite=Lax; Secure';
         localStorage.setItem('aegis_admin_auth', 'true');
-        router.push('/admin');
+        
+        const redirectTarget = searchParams.get('redirect') || '/admin';
+        router.push(redirectTarget);
       } else {
         setError('Invalid admin credentials. Use admin@aegisdrone.com / admin123');
         setLoading(false);

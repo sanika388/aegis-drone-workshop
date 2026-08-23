@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient';
 import WorkshopLifecycleTab from './components/WorkshopLifecycleTab';
 import AttendeeRegistryTab from './components/AttendeeRegistryTab';
 import MediaShowcaseTab from './components/MediaShowcaseTab';
+import CreateTrackModal from './components/CreateTrackModal';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function AdminDashboardPage() {
   const [batches, setBatches] = useState<any[]>([]);
   const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     const adminSession = localStorage.getItem('aegis_admin_auth');
@@ -30,7 +32,11 @@ export default function AdminDashboardPage() {
 
   const fetchData = async () => {
     // Fetch Batches
-    const { data: batchData } = await supabase.from('workshops').select('*').order('created_at', { ascending: true });
+    const { data: batchData } = await supabase
+      .from('workshops')
+      .select('*')
+      .order('created_at', { ascending: true });
+
     if (batchData && batchData.length > 0) {
       setBatches(batchData);
       setSelectedBatch((prev) => (batchData.some((b) => b.id === prev) ? prev : batchData[0].id));
@@ -40,7 +46,11 @@ export default function AdminDashboardPage() {
     }
 
     // Fetch Registrations
-    const { data: regData } = await supabase.from('registrations').select('*').order('registered_at', { ascending: false });
+    const { data: regData } = await supabase
+      .from('registrations')
+      .select('*')
+      .order('registered_at', { ascending: false });
+
     if (regData) {
       setRegistrations(
         regData.map((r) => ({
@@ -60,6 +70,7 @@ export default function AdminDashboardPage() {
   };
 
   const handleLogout = () => {
+    document.cookie = 'aegis_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     localStorage.removeItem('aegis_admin_auth');
     router.replace('/auth?role=admin');
   };
@@ -96,6 +107,14 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCreateOpen(true)}
+            className="px-3.5 py-2 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.2)]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Launch Track</span>
+          </button>
+
           <div className="flex bg-[#121212] p-1 rounded-lg border border-[#242424]">
             <button
               onClick={() => setActiveTab('manage')}
@@ -211,6 +230,16 @@ export default function AdminDashboardPage() {
           onRefresh={fetchData}
         />
       )}
+
+      {/* Track Creation Modal */}
+      <CreateTrackModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        onCreated={(newSlug) => {
+          fetchData();
+          setSelectedBatch(newSlug);
+        }}
+      />
     </div>
   );
 }
