@@ -1,7 +1,7 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Script from 'next/script';
 import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin } from 'lucide-react';
 import Link from 'next/link';
@@ -22,14 +22,10 @@ interface FormField {
   options?: string[];
 }
 
-export default function WorkshopRegistrationPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
+export default function WorkshopRegistrationPage() {
   const router = useRouter();
-  const requestedWorkshopId = resolvedParams.id;
+  const routeParams = useParams();
+  const requestedWorkshopId = (routeParams?.id as string) || '';
 
   const [workshop, setWorkshop] = useState<any>(null);
   const [fields, setFields] = useState<FormField[]>([]);
@@ -38,6 +34,11 @@ export default function WorkshopRegistrationPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    // Safety Guard: Don't run the query if the route ID isn't resolved yet
+    if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
+      return;
+    }
+
     async function loadData() {
       try {
         const { data: authData } = await supabase.auth.getSession();
@@ -49,7 +50,13 @@ export default function WorkshopRegistrationPage({
           .eq('id', requestedWorkshopId)
           .single();
 
-        if (!error && workshopData) {
+        if (error) {
+          console.error('Supabase fetch error:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (workshopData) {
           setWorkshop(workshopData);
 
           const customFields: FormField[] = workshopData.form_fields || [
@@ -112,7 +119,7 @@ export default function WorkshopRegistrationPage({
         amount: orderData.order.amount,
         currency: 'INR',
         name: 'Aegis Drone Workshop',
-        description: `${workshop.title} Entry Pass`,
+        description: `${workshop?.title || 'Workshop'} Entry Pass`,
         order_id: orderData.order.id,
         prefill: {
           name: formData.fullName || '',
