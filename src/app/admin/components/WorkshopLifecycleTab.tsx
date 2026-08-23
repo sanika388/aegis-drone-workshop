@@ -1,7 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { IndianRupee, Save, UploadCloud, Users, Image as ImageIcon, MessageSquare, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { 
+  IndianRupee, 
+  Save, 
+  UploadCloud, 
+  Users, 
+  MessageSquare, 
+  Plus, 
+  Trash2, 
+  ShieldAlert,
+  Loader2
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabaseClient';
 import { uploadAegisAsset } from '@/lib/uploadHelper';
 
@@ -47,6 +58,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
     const keys = Object.keys(formData.cohort_whatsapp_links).map(Number);
     const nextBatch = keys.length > 0 ? Math.max(...keys) + 1 : 1;
     handleLinkChange(String(nextBatch), '');
+    toast.info(`Added Cohort Slot for Batch ${nextBatch}`);
   };
 
   const handlePrepopulate10 = () => {
@@ -57,12 +69,14 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
       }
     }
     setFormData((prev) => ({ ...prev, cohort_whatsapp_links: updated }));
+    toast.success('Pre-populated Batch 1–10 slots');
   };
 
   const handleRemoveBatchSlot = (batchNum: string) => {
     const updated = { ...formData.cohort_whatsapp_links };
     delete updated[batchNum];
     setFormData((prev) => ({ ...prev, cohort_whatsapp_links: updated }));
+    toast.info(`Removed Batch ${batchNum} slot`);
   };
 
   const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,14 +84,15 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
     if (!file || !selectedBatch) return;
 
     setIsUploadingPoster(true);
+    const toastId = toast.loading('Uploading homepage circular poster...');
     try {
       const publicUrl = await uploadAegisAsset(file, 'circulars');
       setFormData((prev) => ({ ...prev, homepage_poster_url: publicUrl }));
       await supabase.from('workshops').update({ homepage_poster_url: publicUrl }).eq('id', selectedBatch);
-      alert('Homepage notice/poster uploaded successfully!');
+      toast.success('Homepage notice poster uploaded successfully!', { id: toastId });
       onRefresh();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message || 'Failed to upload poster', { id: toastId });
     } finally {
       setIsUploadingPoster(false);
     }
@@ -85,6 +100,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
 
   const handleSaveAll = async () => {
     setIsSaving(true);
+    const toastId = toast.loading('Saving workshop lifecycle parameters...');
     try {
       const { error } = await supabase.from('workshops').update({
         title: formData.title,
@@ -100,10 +116,10 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
       }).eq('id', selectedBatch);
 
       if (error) throw error;
-      alert('Workshop settings, fallback community, and cohort links saved!');
+      toast.success('Workshop telemetry & batch links saved!', { id: toastId });
       onRefresh();
     } catch (err: any) {
-      alert(err.message);
+      toast.error(err.message || 'Failed to save configuration', { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -123,7 +139,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
 
           <div className="bg-[#0a0a0a] border border-[#1f1f1f] p-4 rounded-xl space-y-3">
             <div className="flex justify-between items-center text-xs font-mono">
-              <span className="text-gray-400">Current Fee:</span>
+              <span className="text-gray-400">Active Entry Fee:</span>
               <span className="text-xl font-black text-neon">₹{formData.fee}</span>
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -131,7 +147,10 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => setFormData({ ...formData, fee: preset })}
+                  onClick={() => {
+                    setFormData({ ...formData, fee: preset });
+                    toast.info(`Active fee set to ₹${preset}`);
+                  }}
                   className={`py-2 rounded-lg border text-xs font-mono font-bold transition-all cursor-pointer ${
                     formData.fee === preset
                       ? 'bg-neon text-black border-neon'
@@ -146,7 +165,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
 
           <div className="space-y-1">
             <label className="text-xs font-mono text-gray-400 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-neon" /> Capacity Limit Per Batch (Auto-Spillover)
+              <Users className="w-3.5 h-3.5 text-neon" /> Capacity Limit Per Cohort
             </label>
             <input
               type="number"
@@ -159,7 +178,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
           {/* Master Fallback Community Link */}
           <div className="space-y-1 bg-[#161208] border border-amber-900/40 p-3 rounded-lg">
             <label className="text-xs font-mono text-amber-400 flex items-center gap-1.5 font-bold">
-              <ShieldAlert className="w-3.5 h-3.5" /> Fail-Safe / Master Community Link (Fallback)
+              <ShieldAlert className="w-3.5 h-3.5" /> Fail-Safe Fallback Community Link
             </label>
             <input
               type="url"
@@ -169,12 +188,12 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
               className="w-full px-3 py-1.5 rounded bg-[#0a0a0a] border border-amber-900/60 text-xs text-white font-mono outline-none focus:border-amber-400"
             />
             <p className="text-[10px] text-gray-400 font-mono">
-              Used automatically if a student registers into a new batch (e.g. Batch 8) before you paste its specific link.
+              Auto-dispatched if an attendee spills into an unconfigured batch.
             </p>
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-mono text-gray-400">Live Registration Notice</label>
+            <label className="text-xs font-mono text-gray-400">Live Registration Notice Banner</label>
             <textarea
               rows={2}
               value={formData.notice}
@@ -192,7 +211,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
                 <MessageSquare className="w-4 h-4 text-neon" /> Pre-Configured Cohort Links
               </h3>
               <p className="text-[11px] text-gray-400 font-mono mt-0.5">
-                Paste invites for upcoming batches in advance.
+                Paste invite links for future spillover batches in advance.
               </p>
             </div>
             <div className="flex items-center gap-1.5">
@@ -214,7 +233,7 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
             </div>
           </div>
 
-          <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+          <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
             {Object.keys(formData.cohort_whatsapp_links || {})
               .sort((a, b) => Number(a) - Number(b))
               .map((batchNum) => (
@@ -254,9 +273,9 @@ export default function WorkshopLifecycleTab({ selectedBatch, batchData, onRefre
           <button
             onClick={handleSaveAll}
             disabled={isSaving}
-            className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all flex items-center justify-center gap-2 cursor-pointer font-mono uppercase tracking-wider mt-2"
+            className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all flex items-center justify-center gap-2 cursor-pointer font-mono uppercase tracking-wider mt-2 disabled:opacity-50"
           >
-            <Save className="w-4 h-4" />
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span>{isSaving ? 'Saving...' : 'Save All Settings & Batch Links'}</span>
           </button>
         </div>

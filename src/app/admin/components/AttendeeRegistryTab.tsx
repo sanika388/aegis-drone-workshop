@@ -10,9 +10,9 @@ import {
   CheckSquare, 
   Square, 
   Send, 
-  Radio, 
   CheckCheck,
-  ShieldCheck 
+  Cpu,
+  UserCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabaseClient';
@@ -51,14 +51,12 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
         r.college?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-  // Toggle Single Selection
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  // Select All in Filtered View
   const toggleSelectAll = () => {
     if (selectedIds.length === filtered.length && filtered.length > 0) {
       setSelectedIds([]);
@@ -67,7 +65,7 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
     }
   };
 
-  // Single Status Toggle & Dispatch
+  // Payment Status Toggle
   const handleToggleStatus = async (reg: any) => {
     const nextStatus = reg.status === 'confirmed' ? 'pending' : 'confirmed';
     setLoadingId(reg.id);
@@ -120,7 +118,41 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
     }
   };
 
-  // Bulk Confirmation & Batch Email Dispatch
+  // Live Lab Attendance Check-In Toggle
+  const handleToggleAttendance = async (reg: any) => {
+    const nextAttended = !reg.attended;
+    try {
+      const { error } = await supabase
+        .from('registrations')
+        .update({ attended: nextAttended })
+        .eq('id', reg.id);
+
+      if (error) throw error;
+      toast.success(nextAttended ? `${reg.name} Checked In at Lab` : `${reg.name} Check-In Reverted`);
+      onRefresh();
+    } catch (err: any) {
+      toast.error('Check-in failed: ' + err.message);
+    }
+  };
+
+  // Hardware Kit Issued Toggle
+  const handleToggleKit = async (reg: any) => {
+    const nextKit = !reg.kit_issued;
+    try {
+      const { error } = await supabase
+        .from('registrations')
+        .update({ kit_issued: nextKit })
+        .eq('id', reg.id);
+
+      if (error) throw error;
+      toast.success(nextKit ? `Kit Handed to ${reg.name}` : `Kit Status Reset for ${reg.name}`);
+      onRefresh();
+    } catch (err: any) {
+      toast.error('Kit update failed: ' + err.message);
+    }
+  };
+
+  // Bulk Confirmation
   const handleBulkConfirm = async () => {
     if (selectedIds.length === 0) return;
     setIsBulkProcessing(true);
@@ -143,7 +175,6 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
       const cohortMap = workshopData?.cohort_whatsapp_links || {};
       const fallbackCommunity = workshopData?.whatsapp_group_link || '';
 
-      // Concurrent Email Dispatch
       await Promise.all(
         selectedAttendees.map((reg) => {
           const assignedBatchNum = String(reg.batch_number || 1);
@@ -187,11 +218,11 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
   };
 
   const exportCSV = () => {
-    const headers = 'Booking ID,Assigned Cohort,Student Name,Email,Phone,College,Year,Amount (INR),Payment Status,Registration Date\n';
+    const headers = 'Booking ID,Assigned Cohort,Student Name,Email,Phone,College,Year,Amount (INR),Payment Status,Lab Attended,Kit Issued,Registration Date\n';
     const rows = filtered
       .map(
         (r) =>
-          `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`
+          `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.attended ? 'YES' : 'NO'}","${r.kit_issued ? 'YES' : 'NO'}","${r.registeredAt}"`
       )
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -261,7 +292,7 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
             <button
               type="button"
               onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg bg-[#181818] border border-gray-700 text-gray-300 text-xs font-mono hover:text-white"
+              className="px-3 py-1.5 rounded-lg bg-[#181818] border border-gray-700 text-gray-300 text-xs font-mono hover:text-white cursor-pointer"
             >
               Cancel
             </button>
@@ -269,7 +300,7 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
               type="button"
               onClick={handleBulkConfirm}
               disabled={isBulkProcessing}
-              className="px-3.5 py-1.5 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all disabled:opacity-50 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>{isBulkProcessing ? 'Verifying...' : 'Bulk Confirm & Dispatch Passes'}</span>
@@ -338,7 +369,7 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
           <thead className="bg-[#141418] border-b border-[#1e1e24] text-gray-400 font-mono uppercase">
             <tr>
               <th className="p-3.5 w-10 text-center">
-                <button type="button" onClick={toggleSelectAll} className="text-gray-400 hover:text-neon">
+                <button type="button" onClick={toggleSelectAll} className="text-gray-400 hover:text-neon cursor-pointer">
                   {selectedIds.length === filtered.length && filtered.length > 0 ? (
                     <CheckSquare className="w-4 h-4 text-neon" />
                   ) : (
@@ -349,15 +380,16 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
               <th className="p-3.5">Booking / Cohort</th>
               <th className="p-3.5">Student</th>
               <th className="p-3.5">College</th>
-              <th className="p-3.5">Fee</th>
-              <th className="p-3.5">Status & Verification</th>
+              <th className="p-3.5">Payment</th>
+              <th className="p-3.5">Lab Check-In</th>
+              <th className="p-3.5">Kit Issued</th>
               <th className="p-3.5 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#18181f] text-gray-300 font-mono">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-500 font-mono">
+                <td colSpan={8} className="p-8 text-center text-gray-500 font-mono">
                   No attendees matching this filter in {selectedCohort}.
                 </td>
               </tr>
@@ -386,7 +418,6 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
                       <div className="text-[11px] text-gray-500 font-mono">{reg.email}</div>
                     </td>
                     <td className="p-3.5 font-sans">{reg.college}</td>
-                    <td className="p-3.5 font-bold text-white">₹{reg.amount}</td>
                     <td className="p-3.5">
                       <button
                         type="button"
@@ -401,14 +432,44 @@ export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20
                         {reg.status === 'confirmed' ? (
                           <>
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Confirmed</span>
+                            <span>Confirmed (₹{reg.amount})</span>
                           </>
                         ) : (
                           <>
                             <Clock className="w-3.5 h-3.5" />
-                            <span>Pending (Click to Verify)</span>
+                            <span>Pending</span>
                           </>
                         )}
+                      </button>
+                    </td>
+                    {/* Day-of Attendance Check-in */}
+                    <td className="p-3.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAttendance(reg)}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all flex items-center gap-1 cursor-pointer border ${
+                          reg.attended
+                            ? 'bg-emerald-950/60 border-emerald-500 text-emerald-400'
+                            : 'bg-[#181818] border-gray-700 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >
+                        <UserCheck className="w-3 h-3" />
+                        <span>{reg.attended ? 'Present' : 'Absent'}</span>
+                      </button>
+                    </td>
+                    {/* Hardware Kit Handout */}
+                    <td className="p-3.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleKit(reg)}
+                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all flex items-center gap-1 cursor-pointer border ${
+                          reg.kit_issued
+                            ? 'bg-cyan-950/60 border-cyan-500 text-cyan-400'
+                            : 'bg-[#181818] border-gray-700 text-gray-400 hover:border-gray-500'
+                        }`}
+                      >
+                        <Cpu className="w-3 h-3" />
+                        <span>{reg.kit_issued ? 'Issued' : 'Pending'}</span>
                       </button>
                     </td>
                     <td className="p-3.5 text-right">

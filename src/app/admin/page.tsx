@@ -38,7 +38,6 @@ export default function AdminDashboardPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'registrations' },
         () => {
-          // Auto sync dataset on any live registration change
           fetchMasterData();
         }
       )
@@ -62,7 +61,7 @@ export default function AdminDashboardPage() {
       setMasterWorkshop(workshopData);
     }
 
-    // 2. Fetch all registrations
+    // 2. Fetch all registrations with attendance & kit status
     const { data: regData } = await supabase
       .from('registrations')
       .select('*')
@@ -81,6 +80,8 @@ export default function AdminDashboardPage() {
           cohort_label: r.cohort_label || `Batch ${r.batch_number || 1}`,
           amount: Number(r.amount_paid || 0),
           status: r.payment_status || 'pending',
+          attended: !!r.attended,
+          kit_issued: !!r.kit_issued,
           registeredAt: r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent',
         }))
       );
