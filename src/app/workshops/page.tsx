@@ -51,8 +51,7 @@ export default function WorkshopRegistrationPage({
 
         if (!error && workshopData) {
           setWorkshop(workshopData);
-          
-          // Fallback fields if form_fields is empty
+
           const customFields: FormField[] = workshopData.form_fields || [
             { name: 'fullName', label: 'Full Name', type: 'text', required: true, placeholder: 'e.g. Sanika Dusane' },
             { name: 'email', label: 'Email Address', type: 'email', required: true, placeholder: 'student@example.com' },
@@ -62,7 +61,6 @@ export default function WorkshopRegistrationPage({
 
           setFields(customFields);
 
-          // Initialize dynamic state
           const initialData: Record<string, any> = {};
           customFields.forEach((field) => {
             if (field.name === 'email' && userEmail) {
@@ -94,10 +92,9 @@ export default function WorkshopRegistrationPage({
     setIsSubmitting(true);
 
     try {
-      const entryFee = Number(workshop.fee);
+      const entryFee = Number(workshop?.fee || 300);
       const registrationId = 'AEGIS-' + Math.floor(100000 + Math.random() * 900000);
 
-      // 1. Create Razorpay order
       const res = await fetch('/api/razorpay/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,7 +107,6 @@ export default function WorkshopRegistrationPage({
       const orderData = await res.json();
       if (!orderData.success) throw new Error(orderData.error || 'Failed to initialize payment gateway.');
 
-      // 2. Open Razorpay modal
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.order.amount,
@@ -125,7 +121,6 @@ export default function WorkshopRegistrationPage({
         },
         theme: { color: '#00ff66' },
         handler: async function (response: any) {
-          // 3. Save standard fields + all dynamic fields in Supabase
           const { error: insertErr } = await supabase.from('registrations').insert([
             {
               id: registrationId,
@@ -135,7 +130,7 @@ export default function WorkshopRegistrationPage({
               phone: formData.phone || '',
               college: formData.college || '',
               academic_year: formData.year || '',
-              custom_data: formData, // stores all dynamic fields
+              custom_data: formData,
               amount_paid: entryFee,
               payment_status: 'paid',
               razorpay_payment_id: response.razorpay_payment_id,
@@ -197,7 +192,6 @@ export default function WorkshopRegistrationPage({
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-          {/* Workshop Details */}
           <div className="lg:col-span-7 space-y-6">
             <div className="space-y-3">
               <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
@@ -231,7 +225,6 @@ export default function WorkshopRegistrationPage({
             </div>
           </div>
 
-          {/* Dynamic Checkout Form */}
           <div className="lg:col-span-5">
             <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
               <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
@@ -246,7 +239,6 @@ export default function WorkshopRegistrationPage({
               </div>
 
               <form onSubmit={handleRegister} className="space-y-4 text-xs">
-                {/* Dynamically Rendered Inputs */}
                 {fields.map((field) => (
                   <div key={field.name} className="space-y-1">
                     <label className="text-gray-400">
