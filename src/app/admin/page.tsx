@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
@@ -7,26 +9,41 @@ import {
   Layers, 
   IndianRupee, 
   Download, 
-  UploadCloud, 
   Search, 
   FileText, 
   LogOut, 
   Save, 
-  AlertCircle 
+  AlertCircle,
+  Plus,
+  X,
+  ExternalLink
 } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [selectedBatch, setSelectedBatch] = useState<string>('batch-a');
+  const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'registrations' | 'manage'>('registrations');
   const [searchTerm, setSearchTerm] = useState('');
   
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
-  const [batchForm, setBatchForm] = useState<any>({});
+  const [batchForm, setBatchForm] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
+
+  // New Workshop Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newWorkshop, setNewWorkshop] = useState({
+    id: '',
+    title: 'Aegis Drone Workshop',
+    badge: 'CERTIFIED WORKSHOP',
+    date: 'September Month',
+    venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
+    fee: 300,
+    max_capacity: 20,
+  });
 
   useEffect(() => {
     const adminSession = localStorage.getItem('aegis_admin_auth');
@@ -43,15 +60,19 @@ export default function AdminDashboardPage() {
     const { data } = await supabase
       .from('workshops')
       .select('*')
-      .order('batch_sequence', { ascending: true });
+      .order('created_at', { ascending: false });
 
-    if (data) {
+    if (data && data.length > 0) {
       setBatches(data);
-      const formMap: any = {};
+      if (!selectedBatch) {
+        setSelectedBatch(data[0].id);
+      }
+      const formMap: Record<string, any> = {};
       data.forEach((b) => {
         formMap[b.id] = {
-          title: b.title,
-          fee: b.fee,
+          title: b.title || '',
+          fee: b.fee || 300,
+          venue: b.venue || 'GCOERC Nashik',
           notice: b.notice || '',
           max_capacity: b.max_capacity || 20,
           whatsapp_group_name: b.whatsapp_group_name || '',
@@ -76,12 +97,34 @@ export default function AdminDashboardPage() {
           email: r.email,
           phone: r.phone,
           college: r.college,
+          year: r.academic_year,
           batch: r.workshop_id,
-          amount: Number(r.amount_paid),
-          status: r.payment_status === 'paid' ? 'Paid' : 'Pending',
-          registeredAt: new Date(r.registered_at).toLocaleDateString('en-IN'),
+          amount: Number(r.amount_paid || 0),
+          status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'Confirmed' : 'Pending',
+          registeredAt: r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent',
         }))
       );
+    }
+  };
+
+  const handleUpdatePrice = async (targetBatchId: string, newFee: number) => {
+    try {
+      const { error } = await supabase
+        .from('workshops')
+        .update({ fee: newFee })
+        .eq('id', targetBatchId);
+
+      if (error) throw error;
+      
+      setBatchForm((prev) => ({
+        ...prev,
+        [targetBatchId]: { ...prev[targetBatchId], fee: newFee }
+      }));
+      
+      fetchBatches();
+      alert(`Pricing for ${targetBatchId.toUpperCase()} updated to ₹${newFee}!`);
+    } catch (err: any) {
+      alert('Error updating fee: ' + err.message);
     }
   };
 
@@ -92,9 +135,10 @@ export default function AdminDashboardPage() {
       .from('workshops')
       .update({
         title: curr.title,
-        fee: curr.fee,
+        fee: Number(curr.fee),
+        venue: curr.venue,
         notice: curr.notice,
-        max_capacity: curr.max_capacity,
+        max_capacity: Number(curr.max_capacity),
         whatsapp_group_name: curr.whatsapp_group_name,
         whatsapp_group_link: curr.whatsapp_group_link,
       })
@@ -106,6 +150,32 @@ export default function AdminDashboardPage() {
       fetchBatches();
     } else {
       alert('Error updating database: ' + error.message);
+    }
+  };
+
+  const handleCreateWorkshop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const cleanId = newWorkshop.id.toLowerCase().trim().replace(/\s+/g, '-');
+      const { error } = await supabase.from('workshops').upsert([
+        {
+          ...newWorkshop,
+          id: cleanId,
+          syllabus: [
+            '01 BUILD THE BRAIN: ESP Module (ESP32), Gyro & Sensors (MPU6050/BMI270), Firmware & Motors Wiring',
+            '02 BUILD THE BODY: 3D Printed Quadcopter Chassis, Aerodynamics & Modular Assembly',
+            '03 TEST. TUNE. TRUST: PID Tuning, Thrust Control, Hover & Flight Optimization',
+          ],
+        },
+      ]);
+
+      if (error) throw error;
+      alert(`Workshop track created: /workshops/${cleanId}`);
+      setShowAddModal(false);
+      setSelectedBatch(cleanId);
+      fetchBatches();
+    } catch (err: any) {
+      alert(err.message || 'Failed to create workshop track.');
     }
   };
 
@@ -124,7 +194,7 @@ export default function AdminDashboardPage() {
   }
 
   const filteredRegistrations = registrations
-    .filter((r) => r.batch === selectedBatch)
+    .filter((r) => !selectedBatch || r.batch === selectedBatch)
     .filter(
       (r) =>
         r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -135,19 +205,19 @@ export default function AdminDashboardPage() {
   const totalCollected = registrations.reduce((acc, curr) => acc + curr.amount, 0);
 
   const exportToCSV = () => {
-    const list = registrations.filter((r) => r.batch === selectedBatch);
-    const headers = 'ID,Full Name,Email,Phone,College,Amount,Status,Date\n';
+    const list = registrations.filter((r) => !selectedBatch || r.batch === selectedBatch);
+    const headers = 'ID,Full Name,Email,Phone,College,Year,Amount,Status,Date\n';
     const rows = list
       .map(
         (r) =>
-          `"${r.id}","${r.name}","${r.email}","${r.phone}","${r.college}",${r.amount},"${r.status}","${r.registeredAt}"`
+          `"${r.id}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`
       )
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Aegis_Registrations_${selectedBatch}.csv`;
+    a.download = `Aegis_Registrations_${selectedBatch || 'all'}.csv`;
     a.click();
   };
 
@@ -157,33 +227,41 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-[#242424] pb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-3xl font-black text-white">Workshop Command Center</h1>
+            <h1 className="text-2xl font-black text-white font-mono uppercase">Workshop Command Center</h1>
             <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px] uppercase font-mono">
               Authorized
             </span>
           </div>
           <p className="text-xs text-gray-400 font-mono mt-1">
-            MANAGE BATCH CAPACITIES, NOTICES & POST-REGISTRATION COMMUNITY INVITES
+            CONTROL ACTIVE PRICING (₹300 / ₹500 / ₹1000), LAUNCH TRACKS & MANAGE 20-SEAT BATCHES
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-3 py-2 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Workshop Track</span>
+          </button>
+
           <div className="flex bg-[#121212] p-1 rounded-lg border border-[#242424]">
             <button
               onClick={() => setActiveTab('registrations')}
-              className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all font-mono ${
                 activeTab === 'registrations' ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
-              Participant Registry
+              Registry
             </button>
             <button
               onClick={() => setActiveTab('manage')}
-              className={`px-4 py-2 text-xs font-bold rounded-md transition-all ${
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all font-mono ${
                 activeTab === 'manage' ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
-              Manage Batches & Seats
+              Pricing & Config
             </button>
           </div>
 
@@ -204,7 +282,7 @@ export default function AdminDashboardPage() {
             <span className="text-xs font-medium uppercase font-mono">Total Revenue</span>
             <IndianRupee className="w-4 h-4 text-neon" />
           </div>
-          <p className="text-2xl font-black text-white">₹{totalCollected.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-black text-white font-mono">₹{totalCollected.toLocaleString('en-IN')}</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-5 rounded-xl space-y-1">
@@ -212,21 +290,21 @@ export default function AdminDashboardPage() {
             <span className="text-xs font-medium uppercase font-mono">Total Registrations</span>
             <Users className="w-4 h-4 text-neon" />
           </div>
-          <p className="text-2xl font-black text-white">{registrations.length} Students</p>
+          <p className="text-2xl font-black text-white font-mono">{registrations.length} Students</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-5 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-xs font-medium uppercase font-mono">Configured Batches</span>
+            <span className="text-xs font-medium uppercase font-mono">Configured Tracks</span>
             <Layers className="w-4 h-4 text-neon" />
           </div>
-          <p className="text-2xl font-black text-neon">{batches.length} Sequential Batches</p>
+          <p className="text-2xl font-black text-neon font-mono">{batches.length} Active Tracks</p>
         </div>
       </div>
 
       {/* Batch Switcher Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-[#121212] p-4 rounded-xl border border-[#242424]">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {batches.map((b) => {
             const count = registrations.filter((r) => r.batch === b.id).length;
             const max = b.max_capacity || 20;
@@ -236,37 +314,51 @@ export default function AdminDashboardPage() {
               <button
                 key={b.id}
                 onClick={() => setSelectedBatch(b.id)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border flex items-center gap-2 cursor-pointer ${
                   selectedBatch === b.id
                     ? 'bg-[#181818] border-neon text-neon shadow-[0_0_10px_rgba(0,255,102,0.2)]'
                     : 'bg-[#0a0a0a] border-[#2e2e2e] text-gray-400 hover:text-white'
                 }`}
               >
-                <span>{b.id.toUpperCase()}</span>
-                <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isFull ? 'bg-red-900/40 text-red-300' : 'bg-[#181818] text-gray-400'}`}>
+                <span>{b.id}</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] ${isFull ? 'bg-red-900/40 text-red-300' : 'bg-[#181818] text-gray-400'}`}>
                   {count}/{max}
                 </span>
+                <span className="text-neon">₹{b.fee}</span>
               </button>
             );
           })}
         </div>
 
-        {activeTab === 'registrations' && (
-          <button
-            onClick={exportToCSV}
-            className="px-4 py-2 rounded-lg bg-neon text-black font-bold text-xs flex items-center gap-2 hover:bg-[#00cc52] transition-all cursor-pointer"
-          >
-            <Download className="w-4 h-4" />
-            <span>Export {selectedBatch.toUpperCase()} CSV</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedBatch && (
+            <Link
+              href={`/workshops/${selectedBatch}`}
+              target="_blank"
+              className="px-3 py-1.5 rounded-lg bg-[#181818] border border-[#2e2e2e] text-gray-300 hover:text-neon hover:border-neon font-mono text-xs flex items-center gap-1.5"
+            >
+              <span>View Registration Page</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+          )}
+
+          {activeTab === 'registrations' && (
+            <button
+              onClick={exportToCSV}
+              className="px-3 py-1.5 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Export CSV</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Missing WhatsApp Link Warning Banner */}
-      {batchForm[selectedBatch] && !batchForm[selectedBatch]?.whatsapp_group_link && (
-        <div className="flex items-center gap-3 p-4 bg-amber-950/30 border border-amber-500/40 rounded-xl text-amber-200 text-xs font-mono">
+      {selectedBatch && batchForm[selectedBatch] && !batchForm[selectedBatch]?.whatsapp_group_link && (
+        <div className="flex items-center gap-3 p-3 bg-amber-950/30 border border-amber-500/40 rounded-xl text-amber-200 text-xs font-mono">
           <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-          <span>Note: {selectedBatch.toUpperCase()} does not have a WhatsApp invite link configured. Registered students will see the one-tap message button to admin.</span>
+          <span>Note: {selectedBatch.toUpperCase()} does not have a WhatsApp invite link configured.</span>
         </div>
       )}
 
@@ -277,7 +369,7 @@ export default function AdminDashboardPage() {
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              placeholder="Search by student name, email, or Booking ID..."
+              placeholder="Search attendee name, email, or Booking ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#121212] border border-[#242424] focus:border-neon outline-none text-xs text-white"
@@ -296,24 +388,24 @@ export default function AdminDashboardPage() {
                   <th className="p-3.5">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e1e1e] text-gray-300">
+              <tbody className="divide-y divide-[#1e1e1e] text-gray-300 font-mono">
                 {filteredRegistrations.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="p-6 text-center text-gray-500 font-mono">
-                      No registrations found for {selectedBatch.toUpperCase()}.
+                      No registrations found for {selectedBatch || 'this batch'}.
                     </td>
                   </tr>
                 ) : (
                   filteredRegistrations.map((reg) => (
                     <tr key={reg.id} className="hover:bg-[#181818]/50 transition-colors">
-                      <td className="p-3.5 font-mono text-neon font-bold">{reg.id}</td>
-                      <td className="p-3.5">
+                      <td className="p-3.5 font-bold text-neon">{reg.id}</td>
+                      <td className="p-3.5 font-sans">
                         <div className="font-semibold text-white">{reg.name}</div>
-                        <div className="text-[11px] text-gray-500">{reg.email}</div>
+                        <div className="text-[11px] text-gray-500 font-mono">{reg.email}</div>
                       </td>
-                      <td className="p-3.5">{reg.college}</td>
-                      <td className="p-3.5 font-mono">{reg.phone}</td>
-                      <td className="p-3.5 font-mono font-bold text-white">₹{reg.amount}</td>
+                      <td className="p-3.5 font-sans">{reg.college} ({reg.year})</td>
+                      <td className="p-3.5">{reg.phone}</td>
+                      <td className="p-3.5 font-bold text-white">₹{reg.amount}</td>
                       <td className="p-3.5">
                         <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px]">
                           {reg.status}
@@ -328,16 +420,94 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* TAB 2: BATCH SEAT LIMIT & WHATSAPP CONFIG */}
-      {activeTab === 'manage' && batchForm[selectedBatch] && (
+      {/* TAB 2: INSTANT PRICE SWITCHER & CONFIG */}
+      {activeTab === 'manage' && selectedBatch && batchForm[selectedBatch] && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Quick Price Controller */}
+          <div className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-6">
+            <div>
+              <h2 className="text-base font-bold text-white font-mono uppercase flex items-center gap-2">
+                <IndianRupee className="w-4 h-4 text-neon" /> Instant Pricing Switcher
+              </h2>
+              <p className="text-xs text-gray-400 font-mono mt-1">
+                Updates fee immediately on student registration checkout for {selectedBatch.toUpperCase()}.
+              </p>
+            </div>
+
+            <div className="bg-[#0a0a0a] border border-[#242424] p-4 rounded-xl space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-400 font-mono">Current Live Checkout Price:</span>
+                <span className="text-2xl font-black text-neon font-mono">₹{batchForm[selectedBatch].fee}</span>
+              </div>
+
+              {/* 1-Click Price Presets */}
+              <div className="grid grid-cols-3 gap-2">
+                {[300, 500, 1000].map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handleUpdatePrice(selectedBatch, p)}
+                    className={`py-2 rounded-lg border text-xs font-mono font-bold transition-all cursor-pointer ${
+                      batchForm[selectedBatch].fee === p
+                        ? 'bg-neon text-black border-neon'
+                        : 'bg-[#181818] text-gray-300 border-gray-700 hover:border-neon hover:text-neon'
+                    }`}
+                  >
+                    Set ₹{p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Price Input */}
+            <div className="space-y-1">
+              <label className="text-xs text-gray-400 font-mono">Custom Fee (₹)</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={batchForm[selectedBatch].fee}
+                  onChange={(e) =>
+                    setBatchForm({
+                      ...batchForm,
+                      [selectedBatch]: { ...batchForm[selectedBatch], fee: Number(e.target.value) },
+                    })
+                  }
+                  className="flex-1 px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleUpdatePrice(selectedBatch, Number(batchForm[selectedBatch].fee))}
+                  className="px-4 py-2 rounded-lg bg-[#181818] border border-neon/50 text-neon font-mono text-xs hover:bg-neon hover:text-black transition-all cursor-pointer"
+                >
+                  Apply Custom
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Batch Configuration */}
           <div className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-4">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <FileText className="w-5 h-5 text-neon" /> {selectedBatch.toUpperCase()} Configuration
+            <h2 className="text-base font-bold text-white font-mono uppercase flex items-center gap-2">
+              <FileText className="w-4 h-4 text-neon" /> {selectedBatch.toUpperCase()} Details
             </h2>
 
             <div className="space-y-1">
-              <label className="text-xs text-gray-400">Seat Capacity Limit (Max Students Before Rollover)</label>
+              <label className="text-xs text-gray-400 font-mono">Track Title</label>
+              <input
+                type="text"
+                value={batchForm[selectedBatch].title}
+                onChange={(e) =>
+                  setBatchForm({
+                    ...batchForm,
+                    [selectedBatch]: { ...batchForm[selectedBatch], title: e.target.value },
+                  })
+                }
+                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-gray-400 font-mono">Seat Capacity Limit</label>
               <input
                 type="number"
                 value={batchForm[selectedBatch].max_capacity}
@@ -347,28 +517,12 @@ export default function AdminDashboardPage() {
                     [selectedBatch]: { ...batchForm[selectedBatch], max_capacity: Number(e.target.value) },
                   })
                 }
-                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white"
+                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white font-mono"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs text-gray-400">WhatsApp Group Name</label>
-              <input
-                type="text"
-                value={batchForm[selectedBatch].whatsapp_group_name}
-                onChange={(e) =>
-                  setBatchForm({
-                    ...batchForm,
-                    [selectedBatch]: { ...batchForm[selectedBatch], whatsapp_group_name: e.target.value },
-                  })
-                }
-                placeholder="Aegis Drone Workshop - 28 Aug 2026 - Batch A"
-                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">WhatsApp Group Invite Link</label>
+              <label className="text-xs text-gray-400 font-mono">WhatsApp Group Invite Link</label>
               <input
                 type="url"
                 value={batchForm[selectedBatch].whatsapp_group_link}
@@ -379,59 +533,101 @@ export default function AdminDashboardPage() {
                   })
                 }
                 placeholder="https://chat.whatsapp.com/..."
-                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white"
+                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white font-mono"
               />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Live Notice / Announcements</label>
-              <textarea
-                rows={3}
-                value={batchForm[selectedBatch].notice}
-                onChange={(e) =>
-                  setBatchForm({
-                    ...batchForm,
-                    [selectedBatch]: { ...batchForm[selectedBatch], notice: e.target.value },
-                  })
-                }
-                className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-xs text-white"
-              ></textarea>
             </div>
 
             <button
               onClick={saveBatchSettings}
               disabled={isSaving}
-              className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 font-mono uppercase tracking-wider mt-4"
             >
               <Save className="w-4 h-4" />
-              <span>{isSaving ? 'Updating Database...' : `Save ${selectedBatch.toUpperCase()} Configuration`}</span>
+              <span>{isSaving ? 'Updating...' : `Save ${selectedBatch.toUpperCase()} Configuration`}</span>
             </button>
           </div>
+        </div>
+      )}
 
-          <div className="bg-[#121212] border border-[#242424] p-6 rounded-xl space-y-4 flex flex-col justify-between">
-            <div className="space-y-3">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <UploadCloud className="w-5 h-5 text-neon" /> Circular & Brochure Upload
-              </h2>
-              <p className="text-xs text-gray-400">
-                Uploaded schedules and circulars update the live track descriptions.
-              </p>
-
-              <div className="border-2 border-dashed border-[#2e2e2e] hover:border-neon rounded-xl p-8 text-center space-y-2 cursor-pointer transition-colors bg-[#0a0a0a]">
-                <UploadCloud className="w-8 h-8 text-neon mx-auto" />
-                <p className="text-xs text-gray-300 font-semibold">
-                  Drag and drop poster image or schedule PDF
-                </p>
-                <p className="text-[10px] text-gray-500">Supports PNG, JPG, PDF up to 10MB</p>
-              </div>
+      {/* CREATE WORKSHOP MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#121212] border border-neon/50 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-[0_0_50px_rgba(0,255,102,0.15)]">
+            <div className="flex items-center justify-between border-b border-[#242424] pb-3">
+              <h3 className="text-base font-bold text-white font-mono">Create Workshop Track</h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <button
-              onClick={() => alert('New circular published!')}
-              className="w-full py-2.5 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-white font-bold text-xs transition-all cursor-pointer"
-            >
-              Publish Updated Circular
-            </button>
+            <form onSubmit={handleCreateWorkshop} className="space-y-3.5 text-xs font-mono">
+              <div className="space-y-1">
+                <label className="text-gray-400">URL Slug (e.g. aegis-drone-batch-2)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="aegis-drone-batch-2"
+                  value={newWorkshop.id}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, id: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkshop.title}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, title: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-gray-400">Fee (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={newWorkshop.fee}
+                    onChange={(e) => setNewWorkshop({ ...newWorkshop, fee: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-gray-400">Batch Size</label>
+                  <input
+                    type="number"
+                    required
+                    value={newWorkshop.max_capacity}
+                    onChange={(e) => setNewWorkshop({ ...newWorkshop, max_capacity: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Venue</label>
+                <input
+                  type="text"
+                  required
+                  value={newWorkshop.venue}
+                  onChange={(e) => setNewWorkshop({ ...newWorkshop, venue: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-lg bg-neon text-black font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all mt-3 cursor-pointer"
+              >
+                Save & Launch Workshop
+              </button>
+            </form>
           </div>
         </div>
       )}
