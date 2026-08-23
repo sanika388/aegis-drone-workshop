@@ -39,6 +39,7 @@ export default function WorkshopRegistrationPage() {
         if (workshopData) {
           setWorkshop(workshopData);
         } else {
+          // Fallback defaults if row is not yet initialized in DB
           setWorkshop({
             id: requestedWorkshopId,
             title: 'Aegis Drone Workshop',
@@ -70,31 +71,30 @@ export default function WorkshopRegistrationPage() {
     setIsSubmitting(true);
 
     try {
-      const registrationId = 'AEGIS-' + Math.floor(100000 + Math.random() * 900000);
-      const entryFee = Number(workshop?.fee || 300);
-
-      const { error: insertErr } = await supabase.from('registrations').insert([
-        {
-          id: registrationId,
-          workshop_id: requestedWorkshopId,
-          full_name: formData.fullName,
+      // 1. Call Atomic Registration Backend
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          workshopId: requestedWorkshopId || 'aegis-master-workshop',
+          fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
           college: formData.college,
-          academic_year: formData.academicYear,
-          custom_data: formData,
-          amount_paid: entryFee,
-          payment_status: 'confirmed',
-          razorpay_payment_id: 'DIRECT_PASS_CONFIRMED',
-        },
-      ]);
+          academicYear: formData.academicYear,
+        }),
+      });
 
-      if (insertErr) console.error('Supabase write notice:', insertErr);
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Registration failed');
 
+      // 2. Redirect to Receipt / Confirmation Screen
       router.push(
-        `/receipt/${registrationId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
+        `/receipt/${result.bookingId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
           formData.fullName
-        )}&email=${encodeURIComponent(formData.email)}&amount=${entryFee}`
+        )}&email=${encodeURIComponent(formData.email)}&amount=${result.fee || workshop?.fee || 300}&batch=${encodeURIComponent(
+          result.assignedBatch || 'Batch 1'
+        )}`
       );
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
@@ -251,7 +251,7 @@ export default function WorkshopRegistrationPage() {
                 className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono"
               >
                 {isSubmitting ? (
-                  <span>Generating Hardware Pass...</span>
+                  <span>Assigning Cohort & Generating Pass...</span>
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
