@@ -4,21 +4,19 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, IndianRupee, Layers, Plus, LogOut, Clock } from 'lucide-react';
+import { Users, IndianRupee, Layers, LogOut, Clock, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import WorkshopLifecycleTab from './components/WorkshopLifecycleTab';
 import AttendeeRegistryTab from './components/AttendeeRegistryTab';
 import MediaShowcaseTab from './components/MediaShowcaseTab';
-import CreateTrackModal from './components/CreateTrackModal';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'manage' | 'registrations' | 'gallery'>('manage');
-  const [batches, setBatches] = useState<any[]>([]);
-  const [selectedBatch, setSelectedBatch] = useState<string>('');
+  const [masterWorkshop, setMasterWorkshop] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   useEffect(() => {
     const adminSession = localStorage.getItem('aegis_admin_auth');
@@ -26,26 +24,24 @@ export default function AdminDashboardPage() {
       router.replace('/auth?role=admin');
     } else {
       setIsAuthenticated(true);
-      fetchData();
+      fetchMasterData();
     }
   }, [router]);
 
-  const fetchData = async () => {
-    // Fetch Batches
-    const { data: batchData } = await supabase
+  const fetchMasterData = async () => {
+    // 1. Fetch the single Master Pitch workshop
+    const { data: workshopData } = await supabase
       .from('workshops')
       .select('*')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
 
-    if (batchData && batchData.length > 0) {
-      setBatches(batchData);
-      setSelectedBatch((prev) => (batchData.some((b) => b.id === prev) ? prev : batchData[0].id));
-    } else {
-      setBatches([]);
-      setSelectedBatch('');
+    if (workshopData) {
+      setMasterWorkshop(workshopData);
     }
 
-    // Fetch Registrations
+    // 2. Fetch all registrations for this master pitch
     const { data: regData } = await supabase
       .from('registrations')
       .select('*')
@@ -60,7 +56,8 @@ export default function AdminDashboardPage() {
           phone: r.phone,
           college: r.college,
           year: r.academic_year,
-          batch: r.workshop_id,
+          batch_number: r.batch_number || 1,
+          cohort_label: r.cohort_label || `Batch ${r.batch_number || 1}`,
           amount: Number(r.amount_paid || 0),
           status: r.payment_status || 'pending',
           registeredAt: r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent',
@@ -75,20 +72,20 @@ export default function AdminDashboardPage() {
     router.replace('/auth?role=admin');
   };
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !masterWorkshop) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
         <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-mono text-gray-400">Verifying administrative access...</p>
+        <p className="text-xs font-mono text-gray-400">Loading Master Flight Lab Control Center...</p>
       </div>
     );
   }
 
-  const activeBatchData = batches.find((b) => b.id === selectedBatch) || null;
-  const currentBatchRegs = registrations.filter((r) => r.batch === selectedBatch);
-  const currentBatchConfirmed = currentBatchRegs.filter((r) => r.status === 'confirmed');
-  const currentBatchPending = currentBatchRegs.filter((r) => r.status === 'pending');
-  const currentBatchRevenue = currentBatchConfirmed.reduce((acc, curr) => acc + curr.amount, 0);
+  const batchCap = masterWorkshop.batch_size_limit || 20;
+  const confirmedRegs = registrations.filter((r) => r.status === 'confirmed');
+  const pendingRegs = registrations.filter((r) => r.status === 'pending');
+  const grossRevenue = confirmedRegs.reduce((acc, curr) => acc + curr.amount, 0);
+  const activeCohortsCount = Math.max(1, Math.ceil(registrations.length / batchCap));
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 space-y-8">
@@ -98,22 +95,23 @@ export default function AdminDashboardPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-white font-mono uppercase">Aegis Flight Command Center</h1>
             <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px] uppercase font-mono">
-              Root Admin
+              Master Pitch Engine
             </span>
           </div>
           <p className="text-xs text-gray-400 font-mono mt-1">
-            MODULAR WORKSHOP LIFECYCLES, DYNAMIC PRICING & ATTENDEE VERIFICATIONS
+            CORE WORKSHOP INTAKE • AUTO-PARTITIONED COHORTS • DYNAMIC PRICING & PASS DISPATCH
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="px-3.5 py-2 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.2)]"
+          <Link
+            href={`/workshops/${masterWorkshop.id}`}
+            target="_blank"
+            className="px-3.5 py-2 rounded-lg bg-[#181818] border border-gray-700 hover:border-neon text-gray-300 hover:text-neon font-bold font-mono text-xs flex items-center gap-1.5 transition-all"
           >
-            <Plus className="w-4 h-4" />
-            <span>Launch Track</span>
-          </button>
+            <span>Live Registration Pitch</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </Link>
 
           <div className="flex bg-[#121212] p-1 rounded-lg border border-[#242424]">
             <button
@@ -152,16 +150,14 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Global Metrics Row */}
+      {/* Global Intake Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-[11px] font-medium uppercase font-mono">Confirmed Seats</span>
+            <span className="text-[11px] font-medium uppercase font-mono">Total Registrations</span>
             <Users className="w-3.5 h-3.5 text-neon" />
           </div>
-          <p className="text-xl font-black text-white font-mono">
-            {currentBatchConfirmed.length} / {activeBatchData?.max_capacity || 20}
-          </p>
+          <p className="text-xl font-black text-white font-mono">{registrations.length} Students</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
@@ -169,77 +165,50 @@ export default function AdminDashboardPage() {
             <span className="text-[11px] font-medium uppercase font-mono">Gross Collections</span>
             <IndianRupee className="w-3.5 h-3.5 text-neon" />
           </div>
-          <p className="text-xl font-black text-neon font-mono">₹{currentBatchRevenue.toLocaleString('en-IN')}</p>
+          <p className="text-xl font-black text-neon font-mono">₹{grossRevenue.toLocaleString('en-IN')}</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-[11px] font-medium uppercase font-mono">Awaiting Review</span>
+            <span className="text-[11px] font-medium uppercase font-mono">Pending Verifications</span>
             <Clock className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <p className="text-xl font-black text-amber-400 font-mono">{currentBatchPending.length} Pending</p>
+          <p className="text-xl font-black text-amber-400 font-mono">{pendingRegs.length} Awaiting</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-[11px] font-medium uppercase font-mono">Active Tracks</span>
+            <span className="text-[11px] font-medium uppercase font-mono">Active Cohorts Formed</span>
             <Layers className="w-3.5 h-3.5 text-neon" />
           </div>
-          <p className="text-xl font-black text-white font-mono">{batches.length} Live</p>
+          <p className="text-xl font-black text-white font-mono">{activeCohortsCount} Batches</p>
         </div>
       </div>
 
-      {/* Track Selector Bar */}
-      <div className="flex flex-wrap items-center gap-2 bg-[#121212] p-3 rounded-xl border border-[#242424]">
-        {batches.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => setSelectedBatch(b.id)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
-              selectedBatch === b.id
-                ? 'bg-[#181818] border-neon text-neon shadow-[0_0_10px_rgba(0,255,102,0.2)]'
-                : 'bg-[#0a0a0a] border-[#2e2e2e] text-gray-400 hover:text-white'
-            }`}
-          >
-            {b.id} — ₹{b.fee}
-          </button>
-        ))}
-      </div>
-
-      {/* Modular Tab Routing */}
-      {activeTab === 'manage' && activeBatchData && (
+      {/* Tab Views */}
+      {activeTab === 'manage' && (
         <WorkshopLifecycleTab
-          selectedBatch={selectedBatch}
-          batchData={activeBatchData}
-          onRefresh={fetchData}
+          selectedBatch={masterWorkshop.id}
+          batchData={masterWorkshop}
+          onRefresh={fetchMasterData}
         />
       )}
 
       {activeTab === 'registrations' && (
         <AttendeeRegistryTab
           registrations={registrations}
-          selectedBatch={selectedBatch}
-          onRefresh={fetchData}
+          batchSizeLimit={batchCap}
+          onRefresh={fetchMasterData}
         />
       )}
 
       {activeTab === 'gallery' && (
         <MediaShowcaseTab
-          selectedBatch={selectedBatch}
-          images={activeBatchData?.gallery_images || []}
-          onRefresh={fetchData}
+          selectedBatch={masterWorkshop.id}
+          images={masterWorkshop.gallery_images || []}
+          onRefresh={fetchMasterData}
         />
       )}
-
-      {/* Track Creation Modal */}
-      <CreateTrackModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onCreated={(newSlug) => {
-          fetchData();
-          setSelectedBatch(newSlug);
-        }}
-      />
     </div>
   );
 }

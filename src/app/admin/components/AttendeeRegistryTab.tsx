@@ -1,27 +1,39 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Download, CheckCircle2, Clock, MessageSquare } from 'lucide-react';
+import { Search, Download, CheckCircle2, Clock, MessageSquare, Users, Radio } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 interface AttendeeRegistryProps {
   registrations: any[];
-  selectedBatch: string;
+  batchSizeLimit: number;
   onRefresh: () => void;
 }
 
-export default function AttendeeRegistryTab({ registrations, selectedBatch, onRefresh }: AttendeeRegistryProps) {
+export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20, onRefresh }: AttendeeRegistryProps) {
+  const [selectedCohort, setSelectedCohort] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  // Dynamic Batch Calculation
+  const totalCount = registrations.length;
+  const totalBatchesNeeded = Math.max(1, Math.ceil(totalCount / batchSizeLimit));
+  const batchTabs = Array.from({ length: totalBatchesNeeded }, (_, i) => `Batch ${i + 1}`);
+
+  // Filtered dataset based on active cohort pill & search
   const filtered = registrations
-    .filter((r) => !selectedBatch || r.batch === selectedBatch)
+    .filter((r) => {
+      if (selectedCohort === 'all') return true;
+      const assigned = r.cohort_label || `Batch ${r.batch_number || 1}`;
+      return assigned === selectedCohort;
+    })
     .filter(
       (r) =>
         r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.phone?.includes(searchTerm)
+        r.phone?.includes(searchTerm) ||
+        r.college?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
   const handleToggleStatus = async (reg: any) => {
@@ -44,9 +56,9 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
             studentName: reg.name,
             studentEmail: reg.email,
             bookingId: reg.id,
-            workshopTitle: 'Aegis Drone Workshop',
+            workshopTitle: `Aegis Drone Workshop (${reg.cohort_label || 'Batch 1'})`,
             amount: reg.amount,
-            venue: 'GCOERC Campus, Nashik',
+            venue: 'GCOERC Avionics Lab, Nashik',
             date: 'September Month',
           }),
         });
@@ -54,7 +66,7 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
 
       onRefresh();
     } catch (err: any) {
-      alert('Error updating status: ' + err.message);
+      alert('Failed to update status: ' + err.message);
     } finally {
       setLoadingId(null);
     }
@@ -63,50 +75,126 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
   const handleWhatsApp = (reg: any) => {
     const cleanPhone = reg.phone.replace(/[^0-9]/g, '');
     const phoneWithCode = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
+    const cohort = reg.cohort_label || `Batch ${reg.batch_number || 1}`;
     const message = encodeURIComponent(
-      `Hey ${reg.name}! Your registration for Aegis Drone Workshop (${reg.cohort_label || 'Batch 1'} - Booking ID: ${reg.id}) is confirmed. See you at the flight lab!`
+      `Hey ${reg.name}! Your seat for Aegis Drone Workshop (${cohort} - Booking ID: ${reg.id}) is officially confirmed. See you in the lab!`
     );
     window.open(`https://wa.me/${phoneWithCode}?text=${message}`, '_blank');
   };
 
   const exportCSV = () => {
-    const headers = 'Booking ID,Cohort,Student Name,Email,Phone,College,Year,Amount,Status,Date\n';
+    const headers = 'Booking ID,Assigned Cohort,Student Name,Email,Phone,College,Year,Amount (INR),Payment Status,Registration Date\n';
     const rows = filtered
-      .map((r) => `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`)
+      .map(
+        (r) =>
+          `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.registeredAt}"`
+      )
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Aegis_Attendees_${selectedBatch || 'all'}.csv`;
+    a.download = `Aegis_Attendance_${selectedCohort.replace(/\s+/g, '_')}.csv`;
     a.click();
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search by student name, email, phone, or Booking ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#121212] border border-[#242424] text-xs text-white font-mono focus:border-neon outline-none"
-          />
+    <div className="space-y-6">
+      {/* Visual Cohort Meters Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {batchTabs.map((cohortName) => {
+          const cohortRegs = registrations.filter((r) => (r.cohort_label || `Batch ${r.batch_number || 1}`) === cohortName);
+          const isFull = cohortRegs.length >= batchSizeLimit;
+          const percentage = Math.min(100, Math.round((cohortRegs.length / batchSizeLimit) * 100));
+
+          return (
+            <button
+              key={cohortName}
+              type="button"
+              onClick={() => setSelectedCohort(cohortName)}
+              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+                selectedCohort === cohortName
+                  ? 'bg-[#141416] border-neon shadow-[0_0_20px_rgba(0,255,102,0.12)]'
+                  : 'bg-[#0e0e10] border-[#1e1e24] hover:border-gray-700'
+              }`}
+            >
+              <div className="flex justify-between items-center text-xs font-mono mb-2">
+                <span className="font-bold text-white uppercase">{cohortName}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase ${
+                  isFull ? 'bg-red-950/60 text-red-400 border border-red-800/60' : 'bg-neon/10 text-neon border border-neon/30'
+                }`}>
+                  {isFull ? 'LOCKED (FULL)' : 'INTAKE ACTIVE'}
+                </span>
+              </div>
+
+              <div className="text-xl font-black text-white font-mono">
+                {cohortRegs.length} <span className="text-xs text-gray-500 font-normal font-sans">/ {batchSizeLimit} Seats</span>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-[#1e1e24] h-1.5 rounded-full mt-3 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${isFull ? 'bg-red-500' : 'bg-neon'}`}
+                  style={{ width: `${percentage}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Cohort Tabs & Search Controls */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setSelectedCohort('all')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
+              selectedCohort === 'all' ? 'bg-neon text-black border-neon' : 'bg-[#111114] border-[#222228] text-gray-400 hover:text-white'
+            }`}
+          >
+            All Registrations ({registrations.length})
+          </button>
+          {batchTabs.map((cohortName) => (
+            <button
+              key={cohortName}
+              type="button"
+              onClick={() => setSelectedCohort(cohortName)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer whitespace-nowrap ${
+                selectedCohort === cohortName ? 'bg-neon text-black border-neon' : 'bg-[#111114] border-[#222228] text-gray-400 hover:text-white'
+              }`}
+            >
+              {cohortName}
+            </button>
+          ))}
         </div>
+
         <button
+          type="button"
           onClick={exportCSV}
-          className="px-4 py-2.5 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer shrink-0"
+          className="px-4 py-2 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer shrink-0"
         >
           <Download className="w-3.5 h-3.5" />
-          <span>Export CSV</span>
+          <span>Export {selectedCohort.toUpperCase()} Sheet</span>
         </button>
       </div>
 
-      <div className="bg-[#121212] border border-[#242424] rounded-xl overflow-x-auto">
+      {/* Search Filter */}
+      <div className="relative w-full">
+        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+        <input
+          type="text"
+          placeholder={`Search ${selectedCohort === 'all' ? 'all attendees' : selectedCohort} by name, email, phone, or ID...`}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#0e0e11] border border-[#222228] text-xs text-white font-mono focus:border-neon outline-none"
+        />
+      </div>
+
+      {/* Attendance Registry Table */}
+      <div className="bg-[#0e0e11] border border-[#1e1e24] rounded-xl overflow-x-auto">
         <table className="w-full text-left text-xs">
-          <thead className="bg-[#181818] border-b border-[#242424] text-gray-400 font-mono uppercase">
+          <thead className="bg-[#141418] border-b border-[#1e1e24] text-gray-400 font-mono uppercase">
             <tr>
               <th className="p-3.5">Booking / Cohort</th>
               <th className="p-3.5">Student</th>
@@ -116,16 +204,16 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
               <th className="p-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#1e1e1e] text-gray-300 font-mono">
+          <tbody className="divide-y divide-[#18181f] text-gray-300 font-mono">
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-8 text-center text-gray-500 font-mono">
-                  No registrations found for {selectedBatch || 'all batches'}.
+                  No attendees matching this filter in {selectedCohort}.
                 </td>
               </tr>
             ) : (
               filtered.map((reg) => (
-                <tr key={reg.id} className="hover:bg-[#181818]/60 transition-colors">
+                <tr key={reg.id} className="hover:bg-[#14141a] transition-colors">
                   <td className="p-3.5 font-bold text-neon font-mono space-y-1">
                     <div>{reg.id}</div>
                     <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon uppercase">
@@ -140,6 +228,7 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
                   <td className="p-3.5 font-bold text-white">₹{reg.amount}</td>
                   <td className="p-3.5">
                     <button
+                      type="button"
                       onClick={() => handleToggleStatus(reg)}
                       disabled={loadingId === reg.id}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -163,8 +252,9 @@ export default function AttendeeRegistryTab({ registrations, selectedBatch, onRe
                   </td>
                   <td className="p-3.5 text-right">
                     <button
+                      type="button"
                       onClick={() => handleWhatsApp(reg)}
-                      className="p-2 rounded-lg bg-[#181818] border border-gray-700 hover:border-neon text-gray-300 hover:text-neon transition-all inline-flex items-center gap-1 cursor-pointer"
+                      className="p-2 rounded-lg bg-[#141418] border border-gray-700 hover:border-neon text-gray-300 hover:text-neon transition-all inline-flex items-center gap-1 cursor-pointer"
                       title="Direct WhatsApp"
                     >
                       <MessageSquare className="w-3.5 h-3.5" />
