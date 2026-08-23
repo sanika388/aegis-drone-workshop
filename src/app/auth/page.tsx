@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Shield, Lock, Mail, AlertCircle, CheckCircle2, KeyRound } from 'lucide-react';
+import { Shield, Lock, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 function AuthContent() {
@@ -12,14 +12,12 @@ function AuthContent() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  
-  // Participant OTP States
+
+  // Participant Magic Link States
   const [email, setEmail] = useState('');
-  const [token, setToken] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  
+  const [emailSent, setEmailSent] = useState(false);
+
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -28,52 +26,31 @@ function AuthContent() {
     }
   }, [searchParams]);
 
-  // Step 1: Send OTP to participant email
-  const handleSendOtp = async (e: React.FormEvent) => {
+  // Send Magic Link to Participant Email
+  const handleMagicLinkSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
     setLoading(true);
 
     try {
+      const redirectUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.origin}/workshops`
+          : 'https://aegis-drone-workshop-ky4d.vercel.app/workshops';
+
       const { error: otpError } = await supabase.auth.signInWithOtp({
         email,
         options: {
+          emailRedirectTo: redirectUrl,
           shouldCreateUser: true,
         },
       });
 
       if (otpError) throw otpError;
 
-      setOtpSent(true);
-      setSuccess('A 6-digit verification code has been sent to your email.');
+      setEmailSent(true);
     } catch (err: any) {
-      setError(err?.message || 'Failed to send OTP. Please check the email address.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: Verify the OTP token entered by participant
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email',
-      });
-
-      if (verifyError) throw verifyError;
-
-      if (data.session) {
-        router.push('/workshops');
-      }
-    } catch (err: any) {
-      setError(err?.message || 'Invalid or expired OTP. Please try again.');
+      setError(err?.message || 'Failed to send login link. Please check the email address.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +76,6 @@ function AuthContent() {
   return (
     <div className="max-w-md mx-auto px-6 py-20">
       <div className="bg-[#121212] border border-[#242424] rounded-2xl p-8 space-y-6 shadow-[0_0_25px_rgba(0,0,0,0.5)]">
-        
         {/* Toggle Switch */}
         <div className="flex bg-[#0a0a0a] p-1 rounded-lg border border-[#242424]">
           <button
@@ -107,7 +83,7 @@ function AuthContent() {
             onClick={() => {
               setIsAdmin(false);
               setError('');
-              setSuccess('');
+              setEmailSent(false);
             }}
             className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
               !isAdmin ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
@@ -120,7 +96,7 @@ function AuthContent() {
             onClick={() => {
               setIsAdmin(true);
               setError('');
-              setSuccess('');
+              setEmailSent(false);
             }}
             className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
               isAdmin ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
@@ -130,18 +106,11 @@ function AuthContent() {
           </button>
         </div>
 
-        {/* Feedback Alerts */}
+        {/* Error Notification */}
         {error && (
           <div className="flex items-center gap-2 p-3 bg-red-950/40 border border-red-500/50 rounded-lg text-red-300 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
             <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="flex items-center gap-2 p-3 bg-green-950/40 border border-green-500/50 rounded-lg text-green-300 text-xs">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-green-400" />
-            <span>{success}</span>
           </div>
         )}
 
@@ -151,12 +120,14 @@ function AuthContent() {
             <div className="text-center space-y-1">
               <h1 className="text-xl font-bold text-white">Participant Portal</h1>
               <p className="text-xs text-gray-400">
-                {!otpSent ? 'Sign in with a one-time passcode sent to your email.' : 'Enter the code from your inbox.'}
+                {emailSent
+                  ? 'Check your email inbox for the sign-in link.'
+                  : 'Enter your email to receive a passwordless sign-in link.'}
               </p>
             </div>
 
-            {!otpSent ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
+            {!emailSent ? (
+              <form onSubmit={handleMagicLinkSignIn} className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-xs text-gray-400">Email Address</label>
                   <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-[#242424] rounded-lg">
@@ -175,49 +146,32 @@ function AuthContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50"
+                  className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
                 >
-                  {loading ? 'Sending Code...' : 'Send Login Code'}
+                  {loading ? 'Sending Link...' : 'Send Sign-In Link'}
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">6-Digit Code</label>
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-[#242424] rounded-lg">
-                    <KeyRound className="w-4 h-4 text-neon shrink-0" />
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      placeholder="123456"
-                      className="bg-transparent text-sm text-white outline-none w-full tracking-widest font-mono"
-                    />
-                  </div>
+              <div className="space-y-4 text-center">
+                <div className="p-4 bg-[#181818] border border-neon/30 rounded-xl space-y-2">
+                  <CheckCircle2 className="w-8 h-8 text-neon mx-auto" />
+                  <p className="text-sm font-semibold text-white">Link Sent!</p>
+                  <p className="text-xs text-gray-400">
+                    We sent a confirmation link to <span className="text-neon">{email}</span>. Click the link in your email to enter.
+                  </p>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50"
-                >
-                  {loading ? 'Verifying...' : 'Confirm & Sign In'}
-                </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    setOtpSent(false);
-                    setToken('');
+                    setEmailSent(false);
                     setError('');
                   }}
-                  className="w-full text-center text-xs text-gray-400 hover:text-white"
+                  className="text-xs text-gray-400 hover:text-white underline underline-offset-4 cursor-pointer"
                 >
-                  Use a different email
+                  Try with a different email
                 </button>
-              </form>
+              </div>
             )}
           </div>
         ) : (
@@ -263,7 +217,7 @@ function AuthContent() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50"
+              className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
             >
               {loading ? 'Authenticating...' : 'Sign In to Admin Dashboard'}
             </button>
