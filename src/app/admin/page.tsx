@@ -25,18 +25,19 @@ import {
   Send,
   Lock,
   Archive,
-  Play
+  Play,
+  UploadCloud
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-
+import { uploadAegisAsset } from '@/lib/uploadHelper';
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'manage' | 'registrations' | 'gallery'>('manage');
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [isUploading, setIsUploading] = useState(false);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [batches, setBatches] = useState<any[]>([]);
   const [batchForm, setBatchForm] = useState<Record<string, any>>({});
