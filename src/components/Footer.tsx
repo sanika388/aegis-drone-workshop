@@ -89,8 +89,8 @@ export default function Footer() {
       {/* Irisforge Ownership & Engineering Banner */}
       <div className="border-t border-[#1a1a1a] bg-[#070707] py-4 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-8 h-8 rounded-md overflow-hidden bg-black/60 border border-[#2a2a2a] shrink-0">
+         <div className="flex items-center gap-4 text-center md:text-left">
+            <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-xl overflow-hidden bg-black/80 border border-[#333333] shadow-lg shadow-black/60 shrink-0">
               <Image
                 src="/irisforge-logo.png"
                 alt="Irisforge Studio"
@@ -99,6 +99,7 @@ export default function Footer() {
                 unoptimized
               />
             </div>
+            
             <div className="text-left">
               <p className="text-xs text-zinc-300 font-medium tracking-tight">
                 Architected & Engineered by <span className="text-white font-bold tracking-wide">Irisforge</span>
