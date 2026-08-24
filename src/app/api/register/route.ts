@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { workshopId, fullName, email, phone, college, academicYear } = body;
+    const { workshopId, fullName, email, phone, college, academicYear, paymentMode } = body;
 
     const cleanWorkshopId = workshopId || 'aegis-master-workshop';
     const cleanEmail = (email || '').trim().toLowerCase();
@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     const cleanPhone = (phone || '').trim();
     const cleanCollege = (college || '').trim();
     const cleanYear = academicYear || 'SE - Second Year';
+    const isCash = paymentMode === 'cash';
 
     if (!cleanFullName || !cleanEmail || !cleanPhone) {
       return NextResponse.json(
@@ -22,17 +23,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Check if attendee is already registered to prevent duplicate IDs on network stutter
+    // 1. Check if attendee is already registered
     const { data: existingReg, error: checkError } = await supabase
       .from('registrations')
       .select('*')
       .eq('workshop_id', cleanWorkshopId)
       .eq('email', cleanEmail)
       .maybeSingle();
-
-    if (checkError) {
-      console.warn('Existing registration lookup warning:', checkError.message);
-    }
 
     if (existingReg) {
       return NextResponse.json({
@@ -41,6 +38,7 @@ export async function POST(req: Request) {
         assignedBatch: existingReg.cohort_label || `Batch ${existingReg.batch_number || 1}`,
         batchNumber: existingReg.batch_number || 1,
         fee: existingReg.amount_paid || 300,
+        status: existingReg.payment_status,
         alreadyRegistered: true,
       });
     }
@@ -56,9 +54,11 @@ export async function POST(req: Request) {
     });
 
     if (rpcError) {
-      console.error('Database RPC register_student_atomic error:', rpcError);
       throw new Error(rpcError.message || 'Database registration procedure failed.');
     }
+
+    // 3. If Cash, explicitly set to pending. If online, logic can differ later.
+    const finalStatus = isCash ? 'pending' : 'pending';
 
     return NextResponse.json({
       success: true,
@@ -66,10 +66,10 @@ export async function POST(req: Request) {
       assignedBatch: data.cohort_label,
       batchNumber: data.batch_number,
       fee: data.fee,
+      status: finalStatus,
       alreadyRegistered: false,
     });
   } catch (err: any) {
-    console.error('Registration route error:', err);
     return NextResponse.json(
       { error: err.message || 'An unexpected error occurred during registration.' },
       { status: 500 }

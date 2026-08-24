@@ -63,7 +63,7 @@ export default function AdminDashboardPage() {
       setMasterWorkshop(workshopData);
     }
 
-    // 2. Fetch all registrations with attendance & kit status
+    // 2. Fetch all registrations (both active and deleted)
     const { data: regData } = await supabase
       .from('registrations')
       .select('*')
@@ -83,7 +83,7 @@ export default function AdminDashboardPage() {
           amount: Number(r.amount_paid || 0),
           status: r.payment_status || 'pending',
           attended: !!r.attended,
-          kit_issued: !!r.kit_issued,
+          is_deleted: !!r.is_deleted,
           registeredAt: r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent',
         }))
       );
@@ -105,11 +105,13 @@ export default function AdminDashboardPage() {
     );
   }
 
+  // Active records calculations (ignoring soft-deleted entries)
+  const activeRegistrations = registrations.filter((r) => !r.is_deleted);
   const batchCap = masterWorkshop.batch_size_limit || 20;
-  const confirmedRegs = registrations.filter((r) => r.status === 'confirmed');
-  const pendingRegs = registrations.filter((r) => r.status === 'pending');
+  const confirmedRegs = activeRegistrations.filter((r) => r.status === 'confirmed');
+  const pendingRegs = activeRegistrations.filter((r) => r.status === 'pending');
   const grossRevenue = confirmedRegs.reduce((acc, curr) => acc + curr.amount, 0);
-  const activeCohortsCount = Math.max(1, Math.ceil(registrations.length / batchCap));
+  const activeCohortsCount = Math.max(1, Math.ceil(activeRegistrations.length / batchCap));
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 space-y-8">
@@ -160,7 +162,7 @@ export default function AdminDashboardPage() {
                 activeTab === 'registrations' ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
               }`}
             >
-              Registry ({registrations.length})
+              Registry ({activeRegistrations.length})
             </button>
             <button
               onClick={() => setActiveTab('gallery')}
@@ -182,14 +184,14 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Global Metrics Row */}
+      {/* Global Metrics Row (Computed on Active Registry Only) */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-[11px] font-medium uppercase font-mono">Total Registrations</span>
+            <span className="text-[11px] font-medium uppercase font-mono">Active Registrations</span>
             <Users className="w-3.5 h-3.5 text-neon" />
           </div>
-          <p className="text-xl font-black text-white font-mono">{registrations.length} Students</p>
+          <p className="text-xl font-black text-white font-mono">{activeRegistrations.length} Pilots</p>
         </div>
 
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
@@ -202,7 +204,7 @@ export default function AdminDashboardPage() {
 
         <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-gray-400">
-            <span className="text-[11px] font-medium uppercase font-mono">Pending Verifications</span>
+            <span className="text-[11px] font-medium uppercase font-mono">Pending Desk Cash</span>
             <Clock className="w-3.5 h-3.5 text-amber-400" />
           </div>
           <p className="text-xl font-black text-amber-400 font-mono">{pendingRegs.length} Awaiting</p>

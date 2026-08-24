@@ -1,13 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle, Banknote, QrCode } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle, Banknote, QrCode, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function WorkshopRegistrationPage() {
-  const router = useRouter();
   const routeParams = useParams();
   const requestedWorkshopId = typeof routeParams?.id === 'string' ? routeParams.id : '';
 
@@ -22,6 +21,7 @@ export default function WorkshopRegistrationPage() {
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [registeredNotice, setRegisteredNotice] = useState<{ id: string; name: string; cohort: string } | null>(null);
 
   useEffect(() => {
     if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
@@ -81,21 +81,21 @@ export default function WorkshopRegistrationPage() {
           phone: formData.phone,
           college: formData.college,
           academicYear: formData.academicYear,
+          paymentMode: formData.paymentMode,
         }),
       });
 
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
-      router.push(
-        `/receipt/${result.bookingId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
-          formData.fullName
-        )}&email=${encodeURIComponent(formData.email)}&amount=${result.fee || workshop?.fee || 300}&batch=${encodeURIComponent(
-          result.assignedBatch || 'Batch 1'
-        )}`
-      );
+      setRegisteredNotice({
+        id: result.bookingId,
+        name: formData.fullName,
+        cohort: result.assignedBatch || 'Batch 1',
+      });
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -105,6 +105,46 @@ export default function WorkshopRegistrationPage() {
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
         <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin"></div>
         <p className="text-xs font-mono text-gray-400">Loading flight lab track...</p>
+      </div>
+    );
+  }
+
+  // Single Direct Confirmation Screen (No extra receipt links)
+  if (registeredNotice) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-20">
+        <div className="bg-[#121212] border border-[#242424] rounded-3xl p-8 text-center space-y-6 shadow-2xl">
+          <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center">
+            <Clock className="w-10 h-10 text-amber-500 animate-pulse" />
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight">
+              REGISTRATION RECEIVED
+            </h2>
+            <div className="inline-block px-3 py-1 rounded-md bg-[#181d2a] border border-[#2c364e]">
+              <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
+              <span className="font-mono text-xs font-bold text-neon">{registeredNotice.id}</span>
+            </div>
+            <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
+          </div>
+
+          <div className="bg-[#1a1a1a] border border-[#333] p-5 rounded-2xl text-left space-y-3">
+            <p className="text-xs text-gray-300 font-sans leading-relaxed">
+              Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat is reserved in the master registry.
+            </p>
+            <p className="text-xs text-amber-400/90 font-mono leading-relaxed">
+              ⚡ <strong>PAYMENT & PASS NOTICE:</strong> As you haven't paid yet, your registry has reached the admin desk. You will receive your official clearance email and digital pass at the venue upon verification, where you will scan in for attendance.
+            </p>
+          </div>
+
+          <Link
+            href="/"
+            className="inline-block pt-2 text-xs font-bold font-mono text-gray-400 hover:text-neon transition-colors"
+          >
+            ← Return to Command Home
+          </Link>
+        </div>
       </div>
     );
   }
@@ -171,7 +211,7 @@ export default function WorkshopRegistrationPage() {
             <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
               <div>
                 <h2 className="text-base font-bold text-white font-mono uppercase">Attendee Registration</h2>
-                <p className="text-[10px] text-gray-400 font-mono">CONFIRMED SEAT PASS</p>
+                <p className="text-[10px] text-gray-400 font-mono">SEAT REGISTRY ALLOTMENT</p>
               </div>
               <div className="text-right">
                 <span className="text-[10px] text-gray-500 font-mono uppercase line-through mr-1.5">₹1000</span>
@@ -246,7 +286,7 @@ export default function WorkshopRegistrationPage() {
               {/* Payment Mode Selection */}
               <div className="space-y-1.5 pt-1">
                 <label className="text-gray-400 font-mono text-[11px] block uppercase">
-                  Payment Mode Allotment
+                  Payment Option
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <div
@@ -287,11 +327,11 @@ export default function WorkshopRegistrationPage() {
                 className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono"
               >
                 {isSubmitting ? (
-                  <span>Assigning Cohort & Generating Pass...</span>
+                  <span>Registering Pilot ID...</span>
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>Claim Lab Pass (₹{workshop?.fee || 300})</span>
+                    <span>Confirm Spot Registration (₹{workshop?.fee || 300})</span>
                   </>
                 )}
               </button>
