@@ -34,11 +34,47 @@ export async function POST(req: Request) {
     const workshop = workshopTitle || 'Aegis Drone Avionics Master Workshop';
     const locVenue = venue || 'GCOERC Avionics Research Lab, Nashik';
     const scheduleDate = date || 'September Month Intake';
+    
+    // Dynamic interactive pass URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
+    const passUrl = `${baseUrl}/pass/${cleanBookingId}`;
+
+    // Plain text alternative for spam-filter deliverability
+    const textFallback = `
+Hello ${studentName},
+
+Your flight clearance for the ${workshop} is officially confirmed.
+
+REGISTRATION DETAILS:
+- Pilot Name: ${studentName}
+- Clearance ID: ${cleanBookingId}
+- Assigned Cohort: ${assignedBatch}
+- Specialization: ${workshop}
+- Flight Lab Venue: ${locVenue}
+- Schedule: ${scheduleDate}
+
+Unlock your digital interactive pass here:
+${passUrl}
+
+${whatsappLink ? `Join your cohort WhatsApp squad: ${whatsappLink}` : ''}
+
+Please present your digital pass or mention your Clearance ID (${cleanBookingId}) at the lab desk on event day.
+
+Best regards,
+Aegis Flight Operations Team
+    `.trim();
 
     const info = await transporter.sendMail({
-      from: `"AEGIS FLIGHT COMMAND" <${process.env.SMTP_USER}>`,
+      from: `"Aegis Flight Command" <${process.env.SMTP_USER}>`,
+      replyTo: process.env.SMTP_USER,
       to: studentEmail,
-      subject: `⚡ FLIGHT CLEARANCE APPROVED: ${studentName} [${cleanBookingId}]`,
+      subject: `Flight Clearance Confirmed: ${workshop} [${cleanBookingId}]`,
+      text: textFallback,
+      headers: {
+        'X-Priority': '3',
+        'X-MSMail-Priority': 'Normal',
+        'Importance': 'Normal',
+      },
       html: `
       <!DOCTYPE html>
       <html lang="en">
@@ -150,12 +186,19 @@ export async function POST(req: Request) {
                       </tr>
                     </table>
 
+                    <!-- Interactive Pass Blast CTA Button -->
+                    <div style="text-align: center; margin-bottom: 22px;">
+                      <a href="${passUrl}" target="_blank" style="display: block; background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%); color: #050507; font-size: 13px; font-weight: 900; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 16px 24px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 10px 25px rgba(0, 255, 102, 0.25);">
+                        ⚡ UNLOCK INTERACTIVE CLEARANCE PASS &rarr;
+                      </a>
+                    </div>
+
                     <!-- WhatsApp Button -->
                     ${
                       whatsappLink
                         ? `
                         <div style="text-align: center; margin-bottom: 24px;">
-                          <a href="${whatsappLink}" target="_blank" style="display: block; background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%); color: #050507; font-size: 13px; font-weight: 900; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 16px 28px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 10px 25px rgba(0, 255, 102, 0.25);">
+                          <a href="${whatsappLink}" target="_blank" style="display: block; background-color: #141721; border: 1px solid #272e3d; color: #00ff66; font-size: 12px; font-weight: 800; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 14px 20px; border-radius: 12px; text-transform: uppercase;">
                             JOIN ${assignedBatch.toUpperCase()} SQUAD GROUP (WHATSAPP) →
                           </a>
                         </div>
@@ -166,7 +209,7 @@ export async function POST(req: Request) {
                     <!-- Notice Disclaimer -->
                     <div style="background-color: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 10px; padding: 12px 16px;">
                       <p style="margin: 0; font-size: 11px; color: #ffb84d; line-height: 16px; font-family: 'Courier New', Courier, monospace;">
-                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present this digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the lab desk on event day for physical attendance check-in.
+                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present your digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the lab desk on event day for physical attendance check-in.
                       </p>
                     </div>
 
