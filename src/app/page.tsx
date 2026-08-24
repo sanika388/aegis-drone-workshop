@@ -163,15 +163,27 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Dynamic Multi-Poster Showcase (Full Size, No Cropping) */}
-        <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-3xl p-3 sm:p-4 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center">
-          <div className="relative w-full rounded-2xl overflow-hidden bg-[#0a0a0a] flex items-center justify-center min-h-[480px] max-h-[720px] group border border-[#1e2330]">
+        {/* Dynamic Multi-Poster Showcase (GPU Accelerated - Zero Lag / No Flicker) */}
+        <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-3xl p-3 sm:p-4 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center transform-gpu">
+          <div className="relative w-full rounded-2xl overflow-hidden bg-[#0a0a0a] flex items-center justify-center min-h-[480px] max-h-[720px] group border border-[#1e2330] transform-gpu will-change-transform">
+            
             {posters.length > 0 ? (
-              <img
-                src={posters[currentPosterIdx]}
-                alt={`Aegis Workshop Poster ${currentPosterIdx + 1}`}
-                className="w-full h-auto max-h-[700px] object-contain rounded-xl transition-all duration-300"
-              />
+              posters.map((posterUrl, idx) => (
+                <img
+                  key={idx}
+                  src={posterUrl}
+                  alt={`Aegis Workshop Poster ${idx + 1}`}
+                  loading="eager"
+                  decoding="sync"
+                  className={`w-full h-auto max-h-[700px] object-contain rounded-xl transform-gpu transition-opacity duration-300 ${
+                    currentPosterIdx === idx ? 'opacity-100 relative' : 'opacity-0 absolute inset-0 pointer-events-none'
+                  }`}
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                  }}
+                />
+              ))
             ) : (
               <div className="w-full h-80 flex items-center justify-center text-xs font-mono text-gray-500">
                 Aegis Drone Avionics Poster
@@ -182,18 +194,18 @@ export default function HomePage() {
               <>
                 <button
                   onClick={prevPoster}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md shadow-lg"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-colors cursor-pointer backdrop-blur-md shadow-lg z-10"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextPoster}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md shadow-lg"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-colors cursor-pointer backdrop-blur-md shadow-lg z-10"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full backdrop-blur-md border border-white/10 z-10">
                   {posters.map((_, idx) => (
                     <button
                       key={idx}
