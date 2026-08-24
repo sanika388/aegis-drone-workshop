@@ -75,23 +75,30 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#050505] text-white flex flex-col justify-between selection:bg-neon selection:text-black font-sans">
       
-      {/* Dynamic Moving Marquee Ticker */}
+      {/* Dynamic Continuous Moving Marquee Notice Ticker */}
       <div className="bg-[#0e1610] border-b border-neon/30 py-2.5 overflow-hidden relative flex items-center shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
-        <div className="z-10 bg-[#0e1610] px-4 flex items-center gap-1.5 border-r border-neon/30 shrink-0 text-neon font-mono text-xs font-bold uppercase tracking-wider">
+        {/* Static Left Badge */}
+        <div className="z-20 bg-[#0e1610] px-4 flex items-center gap-1.5 border-r border-neon/30 shrink-0 text-neon font-mono text-xs font-bold uppercase tracking-wider shadow-[10px_0_15px_#0e1610]">
           <Radio className="w-3.5 h-3.5 animate-pulse text-neon" />
           <span>Notice Desk</span>
         </div>
 
-        <div className="flex overflow-hidden whitespace-nowrap w-full">
-          <div className="inline-block animate-marquee font-mono text-xs text-gray-300">
-            {notices.join('  ✦  ')}
+        {/* Continuous Animated Marquee Track */}
+        <div className="overflow-hidden flex flex-1 mask-radial">
+          <div className="animate-marquee-track font-mono text-xs text-gray-300">
+            <span className="mx-4">{notices.join('  ✦  ')}</span>
+            <span className="mx-4">✦</span>
+            <span className="mx-4">{notices.join('  ✦  ')}</span>
+            <span className="mx-4">✦</span>
           </div>
-          <div className="inline-block animate-marquee2 font-mono text-xs text-gray-300">
-            {notices.join('  ✦  ')}
+          <div className="animate-marquee-track font-mono text-xs text-gray-300" aria-hidden="true">
+            <span className="mx-4">{notices.join('  ✦  ')}</span>
+            <span className="mx-4">✦</span>
+            <span className="mx-4">{notices.join('  ✦  ')}</span>
+            <span className="mx-4">✦</span>
           </div>
         </div>
       </div>
-
       {/* Main Grid */}
       <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center flex-1">
         <div className="lg:col-span-7 space-y-6">

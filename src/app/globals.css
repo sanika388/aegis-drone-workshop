@@ -43,3 +43,21 @@ body {
   box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
   border-color: #00ff66 !important;
 }
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marqueeScroll 28s linear infinite;
+}
+
+.animate-marquee-track:hover {
+  animation-play-state: paused;
+}
