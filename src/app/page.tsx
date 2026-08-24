@@ -138,14 +138,22 @@ export default function HomePage() {
             </div>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
+           <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
+
             Build The Brain. <br />
+
             Assemble The Frame. <br />
-            <span className="text-neon">Master 3kg+ Heavy Flight.</span>
+
+            <span className="text-neon">Master The Flight.</span>
+
           </h1>
 
-          <p className="text-gray-300 text-base sm:text-lg leading-relaxed max-w-xl font-sans">
-            No imported ready-made flight controllers or downloaded firmware. Build your flight controller board from bare silicon, write native stabilization logic from scratch, engineer modular 3D printed chassis capable of lifting <strong>3kg+ heavy payloads</strong>, interface GPS navigation, and master live flight dynamics.
+
+
+          <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl font-sans">
+
+            A comprehensive, practical avionics masterclass. Wire ESP32 flight controllers, calibrate 6-axis gyro sensors, configure brushless motors, and understand PID stability curves in a hands-on flight lab.
+
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
