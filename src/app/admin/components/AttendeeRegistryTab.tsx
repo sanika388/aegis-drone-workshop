@@ -18,7 +18,8 @@ import {
   UserPlus,
   Share2,
   X,
-  Banknote
+  Banknote,
+  MessageSquare
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -282,7 +283,7 @@ export default function AttendeeRegistryTab({
     toast.success(`Exported ${filteredRegistrations.length} attendees to CSV`);
   };
 
-  // WhatsApp Broadcast Helper
+  // WhatsApp Broadcast Bulk Number Copier
   const copyCohortPhoneNumbers = () => {
     const phones = filteredRegistrations
       .map((r) => r.phone.replace(/[^0-9+]/g, ''))
@@ -296,6 +297,17 @@ export default function AttendeeRegistryTab({
 
     navigator.clipboard.writeText(phones);
     toast.success(`Copied ${filteredRegistrations.length} phone numbers for WhatsApp broadcast`);
+  };
+
+  // 1-Click Individual WhatsApp Message Dispatch
+  const sendIndividualWhatsApp = (attendee: Attendee) => {
+    const rawPhone = attendee.phone.replace(/[^0-9]/g, '');
+    const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+
+    const messageText = `⚡ *AEGIS DRONE AVIONICS MASTER WORKSHOP* ⚡\n\nHello *${attendee.name}*,\n\nHere are your official flight lab pass details:\n- *Clearance ID:* ${attendee.id}\n- *Assigned Cohort:* ${attendee.cohort_label}\n- *Payment Status:* ${attendee.status === 'confirmed' ? 'PAID (₹300)' : 'PENDING AT DESK'}\n- *Venue:* GCOERC Avionics Research Lab, Nashik\n\nPlease arrive on time and present your Clearance ID at the entrance gate scanner!`;
+
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+    window.open(waUrl, '_blank');
   };
 
   // Manual Sequential Spot Intake Submit
@@ -405,7 +417,7 @@ export default function AttendeeRegistryTab({
 
           <button
             onClick={copyCohortPhoneNumbers}
-            className="px-3.5 py-2 rounded-xl bg-[#161a26] border border-[#2a344d] hover:border-green-400 text-white hover:text-green-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-xl bg-[#0a1f14] border border-green-500/40 hover:bg-green-500 hover:text-black text-green-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.1)]"
             title="Copy cohort phone numbers for WhatsApp group broadcast"
           >
             <Share2 className="w-4 h-4 text-green-400" />
@@ -531,8 +543,20 @@ export default function AttendeeRegistryTab({
                       </span>
                     </td>
 
-                    <td className="p-4 space-y-0.5">
-                      <p className="font-bold text-white text-sm font-sans">{attendee.name}</p>
+                    <td className="p-4 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-white text-sm font-sans">{attendee.name}</p>
+                        
+                        {/* 1-Click WhatsApp Quick Message Dispatch Button */}
+                        <button
+                          onClick={() => sendIndividualWhatsApp(attendee)}
+                          className="px-2 py-0.5 rounded-md bg-[#0a2416] border border-green-500/40 text-green-400 hover:bg-green-500 hover:text-black transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold"
+                          title={`Send official flight pass info to ${attendee.name} on WhatsApp`}
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          <span>WA</span>
+                        </button>
+                      </div>
                       <p className="text-[11px] text-gray-400">{attendee.email}</p>
                       <p className="text-[11px] text-gray-500">{attendee.phone}</p>
                     </td>
