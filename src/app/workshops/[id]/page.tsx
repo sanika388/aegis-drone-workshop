@@ -39,7 +39,6 @@ export default function WorkshopRegistrationPage() {
         if (workshopData) {
           setWorkshop(workshopData);
         } else {
-          // Fallback defaults if row is not yet initialized in DB
           setWorkshop({
             id: requestedWorkshopId,
             title: 'Aegis Drone Workshop',
@@ -52,7 +51,7 @@ export default function WorkshopRegistrationPage() {
               '01 BUILD THE BRAIN: ESP Module (ESP32), Gyro & Sensors (MPU6050/BMI270), Firmware & Motors Wiring',
               '02 BUILD THE BODY: 3D Printed Quadcopter Chassis, Aerodynamics & Modular Assembly',
               '03 TEST. TUNE. TRUST: PID Tuning, Thrust Control, Hover & Flight Optimization',
-              '100% Hands-on Practical with Real Components & Connectors',
+              '100% Hands-on Practical with Live Demonstration Drone',
             ],
           });
         }
@@ -71,7 +70,6 @@ export default function WorkshopRegistrationPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. Call Atomic Registration Backend
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,7 +86,6 @@ export default function WorkshopRegistrationPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
-      // 2. Redirect to Receipt / Confirmation Screen
       router.push(
         `/receipt/${result.bookingId}?workshop=${requestedWorkshopId}&name=${encodeURIComponent(
           formData.fullName
@@ -161,9 +158,9 @@ export default function WorkshopRegistrationPage() {
               ))}
             </ul>
 
-            <div className="bg-[#1a1a1a] border border-amber-500/30 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-amber-300 font-mono">
-              <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-              <span>Note: Hands-on practical tasks are performed on dedicated lab hardware (20 seats / batch).</span>
+            <div className="bg-[#1a1a1a] border border-neon/20 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-gray-300 font-mono">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-neon" />
+              <span>Interactive cohort session: Team-based flight assembly and calibration (20 seats / batch).</span>
             </div>
           </div>
         </div>
@@ -172,7 +169,7 @@ export default function WorkshopRegistrationPage() {
           <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
             <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
               <div>
-                <h2 className="text-base font-bold text-white font-mono uppercase">Attendee Checkout</h2>
+                <h2 className="text-base font-bold text-white font-mono uppercase">Attendee Registration</h2>
                 <p className="text-[10px] text-gray-400 font-mono">CONFIRMED SEAT PASS</p>
               </div>
               <div className="text-right">
@@ -255,7 +252,7 @@ export default function WorkshopRegistrationPage() {
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>Claim Seat Pass (₹{workshop?.fee || 300})</span>
+                    <span>Claim Lab Pass (₹{workshop?.fee || 300})</span>
                   </>
                 )}
               </button>

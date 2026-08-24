@@ -55,7 +55,7 @@ export async function POST(req: Request) {
               <!-- Container Card -->
               <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #0b0c10; border-radius: 20px; border: 1px solid #1f2430; box-shadow: 0 20px 50px rgba(0, 255, 102, 0.08); overflow: hidden;">
                 
-                <!-- Top Neon Status Bar -->
+                <!-- Top Accent Line -->
                 <tr>
                   <td style="background: linear-gradient(90deg, #00ff66 0%, #00cc52 50%, #00ff66 100%); height: 4px; line-height: 4px; font-size: 0px;">&nbsp;</td>
                 </tr>
@@ -110,14 +110,14 @@ export async function POST(req: Request) {
                           <span style="font-size: 13px; font-weight: 700; color: #d1d5db;">${workshop}</span>
                         </td>
                         <td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e2230;" align="right">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">HARDWARE KIT PASS</span>
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: 800; color: #00ff66;">APPROVED (₹${amount || 300})</span>
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">LAB ACCESS PASS</span>
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: 800; color: #00ff66;">CONFIRMED (₹${amount || 300})</span>
                         </td>
                       </tr>
 
                       <tr>
                         <td style="padding-top: 14px;">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">FLIGHT HANGAR & VENUE</span>
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">FLIGHT LAB & VENUE</span>
                           <span style="font-size: 12px; font-weight: 600; color: #9ca3af;">${locVenue}</span>
                         </td>
                         <td style="padding-top: 14px;" align="right">
@@ -127,18 +127,18 @@ export async function POST(req: Request) {
                       </tr>
                     </table>
 
-                    <!-- Syllabus Highlights 3-Grid -->
+                    <!-- Syllabus 3-Grid -->
                     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
                       <tr>
                         <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
                           <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">01</span>
                           <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">ESP32 Avionics</strong>
-                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">MPU Gyro, ESCs & Core Circuitry</span>
+                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">MPU Gyro, ESCs & Circuitry Setup</span>
                         </td>
                         <td width="3.5%">&nbsp;</td>
                         <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
                           <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">02</span>
-                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">Chassis Build</strong>
+                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">Drone Assembly</strong>
                           <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">Quadcopter Frame & Thrust Balance</span>
                         </td>
                         <td width="3.5%">&nbsp;</td>
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
                       </tr>
                     </table>
 
-                    <!-- WhatsApp Dispatch Button -->
+                    <!-- WhatsApp Button -->
                     ${
                       whatsappLink
                         ? `
@@ -166,7 +166,7 @@ export async function POST(req: Request) {
                     <!-- Notice Disclaimer -->
                     <div style="background-color: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 10px; padding: 12px 16px;">
                       <p style="margin: 0; font-size: 11px; color: #ffb84d; line-height: 16px; font-family: 'Courier New', Courier, monospace;">
-                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present this digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the registration desk on lab day to claim your physical drone hardware workbench.
+                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present this digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the lab desk on event day for physical attendance check-in.
                       </p>
                     </div>
 
@@ -177,10 +177,10 @@ export async function POST(req: Request) {
                 <tr>
                   <td style="background-color: #07080b; padding: 24px 36px; border-top: 1px solid #1a1e29; text-align: center;">
                     <p style="margin: 0; font-size: 11px; color: #4b5262; font-family: 'Courier New', Courier, monospace;">
-                      AEGIS AVIONICS FLIGHT SYSTEMS • LAB PASS DISPATCH
+                      AEGIS AVIONICS FLIGHT SYSTEMS • FLIGHT CLEARANCE DISPATCH
                     </p>
                     <p style="margin: 6px 0 0 0; font-size: 10px; color: #353a47; font-family: 'Courier New', Courier, monospace;">
-                      Authorized & Issued by Department Coordinator
+                      Authorized & Issued by Workshop Coordination Team
                     </p>
                   </td>
                 </tr>
