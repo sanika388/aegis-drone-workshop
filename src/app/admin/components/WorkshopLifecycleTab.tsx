@@ -115,43 +115,42 @@ export default function WorkshopLifecycleTab({
     }
   };
 
-  // 4. File Upload for Posters
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Direct Local File Explorer Upload (Converts directly to Data URI - No Bucket Required)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `poster_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `public/${fileName}`;
-
-      const { error: uploadErr } = await supabase.storage
-        .from('workshop-posters')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadErr) throw uploadErr;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('workshop-posters')
-        .getPublicUrl(filePath);
-
-      const updated = [...posters, publicUrl];
-      setPosters(updated);
-      await savePosters(updated);
-      toast.success('Poster uploaded & published to carousel!');
-    } catch (err: any) {
-      console.error('Upload error:', err);
-      toast.error(err.message || 'Failed to upload image. Ensure workshop-posters bucket exists.');
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+    // Check size limit (max 3MB for database storage)
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('Image size must be under 3MB');
+      return;
     }
-  };
 
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64Url = reader.result as string;
+        const updated = [...posters, base64Url];
+        setPosters(updated);
+        await savePosters(updated);
+        toast.success('Poster uploaded directly from device!');
+      } catch (err: any) {
+        toast.error(err.message || 'Failed to save poster');
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.onerror = () => {
+      toast.error('Failed to read file from explorer');
+      setIsUploading(false);
+    };
+
+    reader.readAsDataURL(file);
+  };
   const handleAddPosterUrl = async () => {
     if (!newPosterUrl.trim()) return;
     const updated = [...posters, newPosterUrl.trim()];
