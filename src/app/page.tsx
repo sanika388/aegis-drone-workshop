@@ -163,17 +163,17 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Dynamic Multi-Poster Carousel */}
-        <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-3xl p-4 relative overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)]">
-          <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-[#0a0a0a] group">
+        {/* Dynamic Multi-Poster Showcase (Full Size, No Cropping) */}
+        <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-3xl p-3 sm:p-4 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center">
+          <div className="relative w-full rounded-2xl overflow-hidden bg-[#0a0a0a] flex items-center justify-center min-h-[480px] max-h-[720px] group border border-[#1e2330]">
             {posters.length > 0 ? (
               <img
                 src={posters[currentPosterIdx]}
                 alt={`Aegis Workshop Poster ${currentPosterIdx + 1}`}
-                className="w-full h-full object-cover transition-all duration-500"
+                className="w-full h-auto max-h-[700px] object-contain rounded-xl transition-all duration-300"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-xs font-mono text-gray-500">
+              <div className="w-full h-80 flex items-center justify-center text-xs font-mono text-gray-500">
                 Aegis Drone Avionics Poster
               </div>
             )}
@@ -182,18 +182,18 @@ export default function HomePage() {
               <>
                 <button
                   onClick={prevPoster}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/70 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md shadow-lg"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextPoster}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/70 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-all cursor-pointer backdrop-blur-md shadow-lg"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
 
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
                   {posters.map((_, idx) => (
                     <button
                       key={idx}
@@ -374,7 +374,7 @@ export default function HomePage() {
                 September 2026 Intake Pass
               </h2>
               <p className="text-xs sm:text-sm text-gray-300 font-sans leading-relaxed">
-                To guarantee full hands-on access to test gear and flight benches, each batch is capped strictly at <strong>20 seats</strong>.
+                To guarantee full hands-on access to test gear and flight benches, each batch is capped strictly per squad.
               </p>
 
               <div className="space-y-2.5 text-xs font-mono text-gray-300">
