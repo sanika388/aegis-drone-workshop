@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { supabase } from '@/lib/supabaseClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +14,40 @@ export async function POST(req: Request) {
       amount, 
       venue, 
       date, 
-      cohortLabel 
+      cohortLabel,
+      customWhatsappLink
     } = await req.json();
 
     if (!studentEmail) {
       return NextResponse.json({ error: 'Recipient email required' }, { status: 400 });
+    }
+
+    const assignedBatch = cohortLabel || 'Batch 1';
+    const cleanBookingId = bookingId || 'AEGIS-B1-001';
+    const workshop = workshopTitle || 'Aegis Drone Avionics Master Workshop';
+    const locVenue = venue || 'Guru Gobind Singh College of Engineering and Research Centre, Nashik';
+    const scheduleDate = date || 'September 2026 Intake';
+
+    // 1. Resolve Dynamic Cohort Link with Fallback
+    let activeWhatsappLink = customWhatsappLink || '';
+    if (!activeWhatsappLink) {
+      const { data: wsData } = await supabase
+        .from('workshops')
+        .select('cohort_whatsapp_links, fallback_whatsapp_link')
+        .limit(1)
+        .single();
+
+      // Check if specific batch link exists (e.g. "Batch 1", "Batch 2")
+      if (wsData?.cohort_whatsapp_links && wsData.cohort_whatsapp_links[assignedBatch]) {
+        activeWhatsappLink = wsData.cohort_whatsapp_links[assignedBatch];
+      }
+
+      // Fallback if batch link is empty or unconfigured
+      if (!activeWhatsappLink) {
+        activeWhatsappLink = 
+          wsData?.fallback_whatsapp_link || 
+          'https://chat.whatsapp.com/default-aegis-community';
+      }
     }
 
     const transporter = nodemailer.createTransport({
@@ -28,13 +58,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const assignedBatch = cohortLabel || 'Batch 1';
-    const cleanBookingId = bookingId || 'AEGIS-B1-001';
-    const workshop = workshopTitle || 'Aegis Drone Avionics Master Workshop';
-    const locVenue = venue || 'GCOERC Avionics Research Lab, Nashik';
-    const scheduleDate = date || 'September Intake';
-    
-    // Dynamic scannable QR embedded directly into email body
+    // High-resolution optical QR code embedded directly into the HUD pass
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(cleanBookingId)}&bgcolor=08090d&color=00ff66`;
 
     const textFallback = `
@@ -50,6 +74,7 @@ PILOT TELEMETRY:
 - Venue: ${locVenue}
 - Schedule: ${scheduleDate}
 - Access Status: PAID & CONFIRMED (₹${amount || 300})
+- Squad WhatsApp Group: ${activeWhatsappLink}
 
 INSTRUCTIONS:
 Keep this email handy or take a screenshot of your Clearance ID (${cleanBookingId}) and QR code for optical gate verification at the avionics research lab.
@@ -176,6 +201,19 @@ Issued by Aegis Flight Operations Desk.
                       </tr>
                     </table>
 
+                    <!-- Dynamic Cohort WhatsApp Squad Invite Button -->
+                    ${
+                      activeWhatsappLink
+                        ? `
+                        <div style="text-align: center; margin-bottom: 20px;">
+                          <a href="${activeWhatsappLink}" target="_blank" style="display: block; background-color: #0a2416; border: 1px solid #00ff66; color: #00ff66; font-size: 12px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; text-decoration: none; padding: 14px 20px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 0 20px rgba(0, 255, 102, 0.15);">
+                            💬 JOIN ${assignedBatch.toUpperCase()} SQUAD GROUP (WHATSAPP) &rarr;
+                          </a>
+                        </div>
+                        `
+                        : ''
+                    }
+
                     <!-- Lab Bench Guidelines Notice -->
                     <div style="background-color: #0c0f17; border-left: 3px solid #00ff66; border-radius: 6px; padding: 14px 16px;">
                       <p style="margin: 0; font-family: monospace; font-size: 11px; color: #94a3b8; line-height: 17px;">
@@ -190,7 +228,7 @@ Issued by Aegis Flight Operations Desk.
                 <tr>
                   <td style="background-color: #06070a; padding: 20px 32px; border-top: 1px solid #141824; text-align: center;">
                     <p style="margin: 0; font-size: 11px; color: #475569; font-family: monospace; letter-spacing: 1px;">
-                      AEGIS FLIGHT OPERATIONS &bull; GCOERC NASHIK
+                      AEGIS FLIGHT OPERATIONS &bull; GURU GOBIND SINGH COLLEGE OF ENGINEERING AND RESEARCH CENTRE, NASHIK
                     </p>
                   </td>
                 </tr>
