@@ -4,12 +4,13 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, IndianRupee, Layers, LogOut, Clock, ExternalLink, Radio } from 'lucide-react';
+import { Users, IndianRupee, Layers, LogOut, Clock, ExternalLink, Radio, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import WorkshopLifecycleTab from './components/WorkshopLifecycleTab';
 import AttendeeRegistryTab from './components/AttendeeRegistryTab';
 import MediaShowcaseTab from './components/MediaShowcaseTab';
+import QRCheckinModal from './components/QRCheckinModal';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'manage' | 'registrations' | 'gallery'>('manage');
   const [masterWorkshop, setMasterWorkshop] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     const adminSession = localStorage.getItem('aegis_admin_auth');
@@ -126,6 +128,14 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="px-3.5 py-2 rounded-lg bg-neon/10 border border-neon/40 hover:bg-neon hover:text-black text-neon font-bold font-mono text-xs flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.15)]"
+          >
+            <QrCode className="w-4 h-4" />
+            <span>Desk Gate Scanner</span>
+          </button>
+
           <Link
             href={`/workshops/${masterWorkshop.id}`}
             target="_blank"
@@ -231,6 +241,13 @@ export default function AdminDashboardPage() {
           onRefresh={fetchMasterData}
         />
       )}
+
+      {/* Optical QR Scanner Modal */}
+      <QRCheckinModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onRefresh={fetchMasterData}
+      />
     </div>
   );
 }

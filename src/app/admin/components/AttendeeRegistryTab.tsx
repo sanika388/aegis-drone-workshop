@@ -1,494 +1,421 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import { 
   Search, 
   Download, 
   CheckCircle2, 
   Clock, 
-  MessageSquare, 
-  CheckSquare, 
-  Square, 
-  Send, 
-  CheckCheck,
-  Cpu,
-  UserCheck
+  UserCheck, 
+  UserX, 
+  Filter,
+  RefreshCw,
+  Mail
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabaseClient';
 
-interface AttendeeRegistryProps {
-  registrations: any[];
+interface Attendee {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  college: string;
+  year: string;
+  batch_number: number;
+  cohort_label: string;
+  amount: number;
+  status: 'pending' | 'confirmed';
+  attended: boolean;
+  registeredAt: string;
+}
+
+interface AttendeeRegistryTabProps {
+  registrations: Attendee[];
   batchSizeLimit: number;
   onRefresh: () => void;
 }
 
-export default function AttendeeRegistryTab({ registrations, batchSizeLimit = 20, onRefresh }: AttendeeRegistryProps) {
-  const [selectedCohort, setSelectedCohort] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
+export default function AttendeeRegistryTab({
+  registrations,
+  batchSizeLimit,
+  onRefresh,
+}: AttendeeRegistryTabProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent'>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'confirmed' | 'pending'>('all');
+  const [cohortFilter, setCohortFilter] = useState<string>('all');
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  // Dynamic Batch Count
-  const totalCount = registrations.length;
-  const totalBatchesNeeded = Math.max(1, Math.ceil(totalCount / batchSizeLimit));
-  const batchTabs = Array.from({ length: totalBatchesNeeded }, (_, i) => `Batch ${i + 1}`);
+  // Extract unique cohort labels for the cohort filter dropdown
+  const uniqueCohorts = useMemo(() => {
+    const cohorts = Array.from(new Set(registrations.map((r) => r.cohort_label || `Batch ${r.batch_number || 1}`)));
+    return cohorts.sort();
+  }, [registrations]);
 
-  // Filtered dataset
-  const filtered = registrations
-    .filter((r) => {
-      if (selectedCohort === 'all') return true;
-      const assigned = r.cohort_label || `Batch ${r.batch_number || 1}`;
-      return assigned === selectedCohort;
-    })
-    .filter(
-      (r) =>
-        r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        r.phone?.includes(searchTerm) ||
-        r.college?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  // Combined real-time filtering logic
+  const filteredRegistrations = useMemo(() => {
+    return registrations.filter((attendee) => {
+      // 1. Search Query Filter
+      const matchesSearch =
+        attendee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        attendee.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        attendee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        attendee.phone.includes(searchQuery) ||
+        attendee.college.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
+      // 2. Attendance Filter
+      const matchesAttendance =
+        attendanceFilter === 'all' ||
+        (attendanceFilter === 'present' && attendee.attended) ||
+        (attendanceFilter === 'absent' && !attendee.attended);
 
-  const toggleSelectAll = () => {
-    if (selectedIds.length === filtered.length && filtered.length > 0) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filtered.map((r) => r.id));
-    }
-  };
+      // 3. Payment Status Filter
+      const matchesPayment =
+        paymentFilter === 'all' || attendee.status === paymentFilter;
 
-  // Payment Status Toggle
-  const handleToggleStatus = async (reg: any) => {
-    const nextStatus = reg.status === 'confirmed' ? 'pending' : 'confirmed';
-    setLoadingId(reg.id);
+      // 4. Cohort Filter
+      const matchesCohort =
+        cohortFilter === 'all' || attendee.cohort_label === cohortFilter;
 
+      return matchesSearch && matchesAttendance && matchesPayment && matchesCohort;
+    });
+  }, [registrations, searchQuery, attendanceFilter, paymentFilter, cohortFilter]);
+
+  // Quick Attendance Toggle (Present / Absent)
+  const toggleAttendance = async (attendee: Attendee) => {
+    setIsUpdating(attendee.id);
     try {
+      const nextStatus = !attendee.attended;
       const { error } = await supabase
         .from('registrations')
-        .update({ payment_status: nextStatus, email_sent: nextStatus === 'confirmed' })
-        .eq('id', reg.id);
+        .update({ attended: nextStatus })
+        .eq('id', attendee.id);
 
       if (error) throw error;
 
+      toast.success(`${attendee.name} marked as ${nextStatus ? 'PRESENT' : 'ABSENT'}`);
+      onRefresh();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update attendance');
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  // Payment Status Toggle (Pending / Confirmed)
+  const togglePaymentStatus = async (attendee: Attendee) => {
+    setIsUpdating(attendee.id);
+    try {
+      const nextStatus = attendee.status === 'confirmed' ? 'pending' : 'confirmed';
+      const { error } = await supabase
+        .from('registrations')
+        .update({ payment_status: nextStatus })
+        .eq('id', attendee.id);
+
+      if (error) throw error;
+
+      // If switching to confirmed, trigger the pass email
       if (nextStatus === 'confirmed') {
-        const { data: workshopData } = await supabase
-          .from('workshops')
-          .select('title, venue, date, whatsapp_group_link, cohort_whatsapp_links')
-          .limit(1)
-          .single();
-
-        const assignedBatchNum = String(reg.batch_number || 1);
-        const cohortMap = workshopData?.cohort_whatsapp_links || {};
-        const fallbackCommunity = workshopData?.whatsapp_group_link || '';
-        const targetWhatsappLink = cohortMap[assignedBatchNum] || fallbackCommunity;
-
         await fetch('/api/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            studentName: reg.name,
-            studentEmail: reg.email,
-            bookingId: reg.id,
-            workshopTitle: `${workshopData?.title || 'Aegis Drone Workshop'} (${reg.cohort_label || 'Batch 1'})`,
-            amount: reg.amount,
-            venue: workshopData?.venue || 'GCOERC Avionics Lab, Nashik',
-            date: workshopData?.date || 'September Month',
-            whatsappLink: targetWhatsappLink,
+            studentName: attendee.name,
+            studentEmail: attendee.email,
+            bookingId: attendee.id,
+            workshopTitle: 'Aegis Drone Avionics Master Workshop',
+            amount: attendee.amount || 300,
+            venue: 'GCOERC Avionics Research Lab, Nashik',
+            date: 'September Month Intake',
+            cohortLabel: attendee.cohort_label,
           }),
         });
-
-        toast.success(`Confirmed & Boarding Pass emailed to ${reg.name}`);
+        toast.success(`Payment verified & boarding pass dispatched to ${attendee.email}`);
       } else {
-        toast.info(`Status reset to Pending for ${reg.name}`);
+        toast.success(`${attendee.name} set to Pending payment`);
       }
 
       onRefresh();
     } catch (err: any) {
-      toast.error('Failed to update: ' + err.message);
+      toast.error(err.message || 'Failed to update payment');
     } finally {
-      setLoadingId(null);
+      setIsUpdating(null);
     }
   };
 
-  // Live Lab Attendance Check-In Toggle
-  const handleToggleAttendance = async (reg: any) => {
-    const nextAttended = !reg.attended;
-    try {
-      const { error } = await supabase
-        .from('registrations')
-        .update({ attended: nextAttended })
-        .eq('id', reg.id);
-
-      if (error) throw error;
-      toast.success(nextAttended ? `${reg.name} Checked In at Lab` : `${reg.name} Check-In Reverted`);
-      onRefresh();
-    } catch (err: any) {
-      toast.error('Check-in failed: ' + err.message);
+  // 1-Click CSV Attendance & Faculty Records Export
+  const exportToCSV = () => {
+    if (filteredRegistrations.length === 0) {
+      toast.error('No records available to export');
+      return;
     }
+
+    const headers = [
+      'Booking ID',
+      'Pilot Name',
+      'Email',
+      'Phone',
+      'College',
+      'Academic Year',
+      'Assigned Cohort',
+      'Amount Paid (INR)',
+      'Payment Status',
+      'Attendance (Event Day)',
+      'Registration Date',
+    ];
+
+    const rows = filteredRegistrations.map((r) => [
+      `"${r.id}"`,
+      `"${r.name.replace(/"/g, '""')}"`,
+      `"${r.email}"`,
+      `"${r.phone}"`,
+      `"${r.college.replace(/"/g, '""')}"`,
+      `"${r.year}"`,
+      `"${r.cohort_label}"`,
+      r.amount,
+      r.status.toUpperCase(),
+      r.attended ? 'PRESENT' : 'ABSENT',
+      r.registeredAt,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    const timestamp = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Aegis_Avionics_Attendance_${timestamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${filteredRegistrations.length} attendee records to CSV`);
   };
 
-  // Hardware Kit Issued Toggle
-  const handleToggleKit = async (reg: any) => {
-    const nextKit = !reg.kit_issued;
-    try {
-      const { error } = await supabase
-        .from('registrations')
-        .update({ kit_issued: nextKit })
-        .eq('id', reg.id);
-
-      if (error) throw error;
-      toast.success(nextKit ? `Kit Handed to ${reg.name}` : `Kit Status Reset for ${reg.name}`);
-      onRefresh();
-    } catch (err: any) {
-      toast.error('Kit update failed: ' + err.message);
-    }
-  };
-
-  // Bulk Confirmation
-  const handleBulkConfirm = async () => {
-    if (selectedIds.length === 0) return;
-    setIsBulkProcessing(true);
-
-    try {
-      const { error } = await supabase
-        .from('registrations')
-        .update({ payment_status: 'confirmed', email_sent: true })
-        .in('id', selectedIds);
-
-      if (error) throw error;
-
-      const { data: workshopData } = await supabase
-        .from('workshops')
-        .select('title, venue, date, whatsapp_group_link, cohort_whatsapp_links')
-        .limit(1)
-        .single();
-
-      const selectedAttendees = registrations.filter((r) => selectedIds.includes(r.id));
-      const cohortMap = workshopData?.cohort_whatsapp_links || {};
-      const fallbackCommunity = workshopData?.whatsapp_group_link || '';
-
-      await Promise.all(
-        selectedAttendees.map((reg) => {
-          const assignedBatchNum = String(reg.batch_number || 1);
-          const targetWhatsappLink = cohortMap[assignedBatchNum] || fallbackCommunity;
-
-          return fetch('/api/send-confirmation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              studentName: reg.name,
-              studentEmail: reg.email,
-              bookingId: reg.id,
-              workshopTitle: `${workshopData?.title || 'Aegis Drone Workshop'} (${reg.cohort_label || 'Batch 1'})`,
-              amount: reg.amount,
-              venue: workshopData?.venue || 'GCOERC Avionics Lab, Nashik',
-              date: workshopData?.date || 'September Month',
-              whatsappLink: targetWhatsappLink,
-            }),
-          });
-        })
-      );
-
-      toast.success(`Bulk Verified & Sent Passes to ${selectedIds.length} students!`);
-      setSelectedIds([]);
-      onRefresh();
-    } catch (err: any) {
-      toast.error('Bulk operation failed: ' + err.message);
-    } finally {
-      setIsBulkProcessing(false);
-    }
-  };
-
-  const handleWhatsApp = (reg: any) => {
-    const cleanPhone = reg.phone.replace(/[^0-9]/g, '');
-    const phoneWithCode = cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`;
-    const cohort = reg.cohort_label || `Batch ${reg.batch_number || 1}`;
-    const message = encodeURIComponent(
-      `Hey ${reg.name}! Your seat for Aegis Drone Workshop (${cohort} - Booking ID: ${reg.id}) is officially confirmed. See you in the lab!`
-    );
-    window.open(`https://wa.me/${phoneWithCode}?text=${message}`, '_blank');
-  };
-
-  const exportCSV = () => {
-    const headers = 'Booking ID,Assigned Cohort,Student Name,Email,Phone,College,Year,Amount (INR),Payment Status,Lab Attended,Kit Issued,Registration Date\n';
-    const rows = filtered
-      .map(
-        (r) =>
-          `"${r.id}","${r.cohort_label || `Batch ${r.batch_number || 1}`}","${r.name}","${r.email}","${r.phone}","${r.college}","${r.year}",${r.amount},"${r.status}","${r.attended ? 'YES' : 'NO'}","${r.kit_issued ? 'YES' : 'NO'}","${r.registeredAt}"`
-      )
-      .join('\n');
-    const blob = new Blob([headers + rows], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Aegis_Attendance_${selectedCohort.replace(/\s+/g, '_')}.csv`;
-    a.click();
-    toast.success(`Exported ${filtered.length} attendees to CSV`);
-  };
+  const totalFilteredPresent = filteredRegistrations.filter((r) => r.attended).length;
+  const totalFilteredConfirmed = filteredRegistrations.filter((r) => r.status === 'confirmed').length;
 
   return (
     <div className="space-y-6">
-      {/* Visual Cohort Meters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-        {batchTabs.map((cohortName) => {
-          const cohortRegs = registrations.filter((r) => (r.cohort_label || `Batch ${r.batch_number || 1}`) === cohortName);
-          const isFull = cohortRegs.length >= batchSizeLimit;
-          const percentage = Math.min(100, Math.round((cohortRegs.length / batchSizeLimit) * 100));
-
-          return (
-            <button
-              key={cohortName}
-              type="button"
-              onClick={() => {
-                setSelectedCohort(cohortName);
-                setSelectedIds([]);
-              }}
-              className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
-                selectedCohort === cohortName
-                  ? 'bg-[#141416] border-neon shadow-[0_0_20px_rgba(0,255,102,0.12)]'
-                  : 'bg-[#0e0e10] border-[#1e1e24] hover:border-gray-700'
-              }`}
-            >
-              <div className="flex justify-between items-center text-xs font-mono mb-2">
-                <span className="font-bold text-white uppercase">{cohortName}</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase ${
-                  isFull ? 'bg-red-950/60 text-red-400 border border-red-800/60' : 'bg-neon/10 text-neon border border-neon/30'
-                }`}>
-                  {isFull ? 'LOCKED (FULL)' : 'INTAKE ACTIVE'}
-                </span>
-              </div>
-
-              <div className="text-xl font-black text-white font-mono">
-                {cohortRegs.length} <span className="text-xs text-gray-500 font-normal font-sans">/ {batchSizeLimit} Seats</span>
-              </div>
-
-              <div className="w-full bg-[#1e1e24] h-1.5 rounded-full mt-3 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-500 ${isFull ? 'bg-red-500' : 'bg-neon'}`}
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Bulk Operational Floating Action Bar */}
-      {selectedIds.length > 0 && (
-        <div className="bg-[#121612] border border-neon/50 p-3 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top duration-300">
-          <div className="flex items-center gap-2 text-xs font-mono text-neon font-bold">
-            <CheckCheck className="w-4 h-4" />
-            <span>{selectedIds.length} Attendees Selected</span>
+      {/* Search and Quick Filters Header */}
+      <div className="bg-[#121212] border border-[#242424] p-5 rounded-2xl space-y-4">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between lg:items-center">
+          
+          {/* Realtime Search Input */}
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by ID (e.g. 001), Pilot Name, Email, Phone or College..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-white text-xs font-mono placeholder:text-gray-500"
+            />
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Export & Refresh Actions */}
+          <div className="flex items-center gap-3">
             <button
-              type="button"
-              onClick={() => setSelectedIds([])}
-              className="px-3 py-1.5 rounded-lg bg-[#181818] border border-gray-700 text-gray-300 text-xs font-mono hover:text-white cursor-pointer"
+              onClick={exportToCSV}
+              className="px-4 py-2.5 rounded-xl bg-[#161a26] border border-[#2a344d] hover:border-neon text-white hover:text-neon text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+              title="Download filtered attendees as Excel / CSV"
             >
-              Cancel
+              <Download className="w-4 h-4 text-neon" />
+              <span>Export CSV ({filteredRegistrations.length})</span>
             </button>
+
             <button
-              type="button"
-              onClick={handleBulkConfirm}
-              disabled={isBulkProcessing}
-              className="px-3.5 py-1.5 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all disabled:opacity-50 cursor-pointer"
+              onClick={onRefresh}
+              className="p-2.5 rounded-xl bg-[#161a26] border border-[#2a344d] hover:border-gray-500 text-gray-400 hover:text-white transition-all cursor-pointer"
+              title="Refresh Registry"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>{isBulkProcessing ? 'Verifying...' : 'Bulk Confirm & Dispatch Passes'}</span>
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
-      )}
 
-      {/* Cohort Tabs & Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCohort('all');
-              setSelectedIds([]);
-            }}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
-              selectedCohort === 'all' ? 'bg-neon text-black border-neon' : 'bg-[#111114] border-[#222228] text-gray-400 hover:text-white'
-            }`}
-          >
-            All Registrations ({registrations.length})
-          </button>
-          {batchTabs.map((cohortName) => (
-            <button
-              key={cohortName}
-              type="button"
-              onClick={() => {
-                setSelectedCohort(cohortName);
-                setSelectedIds([]);
-              }}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer whitespace-nowrap ${
-                selectedCohort === cohortName ? 'bg-neon text-black border-neon' : 'bg-[#111114] border-[#222228] text-gray-400 hover:text-white'
-              }`}
+        {/* Multi-Filter Dropdown Pills */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-[#1f2430]">
+          
+          {/* Attendance Filter */}
+          <div className="flex items-center gap-2 bg-[#08090d] border border-[#1f2430] p-2 rounded-xl">
+            <span className="text-[11px] font-mono text-gray-400 pl-1 flex items-center gap-1 shrink-0">
+              <Filter className="w-3 h-3 text-neon" /> Attendance:
+            </span>
+            <select
+              value={attendanceFilter}
+              onChange={(e) => setAttendanceFilter(e.target.value as any)}
+              className="w-full bg-transparent text-xs font-mono font-bold text-neon outline-none cursor-pointer"
             >
-              {cohortName}
-            </button>
-          ))}
+              <option value="all" className="bg-[#0e1017] text-white">All Attendees</option>
+              <option value="present" className="bg-[#0e1017] text-green-400">● Present Only ({registrations.filter(r => r.attended).length})</option>
+              <option value="absent" className="bg-[#0e1017] text-gray-400">○ Absent Only ({registrations.filter(r => !r.attended).length})</option>
+            </select>
+          </div>
+
+          {/* Payment Status Filter */}
+          <div className="flex items-center gap-2 bg-[#08090d] border border-[#1f2430] p-2 rounded-xl">
+            <span className="text-[11px] font-mono text-gray-400 pl-1 flex items-center gap-1 shrink-0">
+              <Filter className="w-3 h-3 text-neon" /> Payment:
+            </span>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value as any)}
+              className="w-full bg-transparent text-xs font-mono font-bold text-neon outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-[#0e1017] text-white">All Payment Types</option>
+              <option value="confirmed" className="bg-[#0e1017] text-green-400">● Paid / Confirmed</option>
+              <option value="pending" className="bg-[#0e1017] text-amber-400">○ Pending Cash</option>
+            </select>
+          </div>
+
+          {/* Cohort / Batch Filter */}
+          <div className="flex items-center gap-2 bg-[#08090d] border border-[#1f2430] p-2 rounded-xl">
+            <span className="text-[11px] font-mono text-gray-400 pl-1 flex items-center gap-1 shrink-0">
+              <Filter className="w-3 h-3 text-neon" /> Cohort:
+            </span>
+            <select
+              value={cohortFilter}
+              onChange={(e) => setCohortFilter(e.target.value)}
+              className="w-full bg-transparent text-xs font-mono font-bold text-neon outline-none cursor-pointer"
+            >
+              <option value="all" className="bg-[#0e1017] text-white">All Cohorts ({registrations.length})</option>
+              {uniqueCohorts.map((cohort) => (
+                <option key={cohort} value={cohort} className="bg-[#0e1017] text-white">
+                  {cohort} ({registrations.filter(r => r.cohort_label === cohort).length} seats)
+                </option>
+              ))}
+            </select>
+          </div>
+
         </div>
 
-        <button
-          type="button"
-          onClick={exportCSV}
-          className="px-4 py-2 rounded-lg bg-neon text-black font-bold font-mono text-xs flex items-center gap-1.5 hover:bg-[#00cc52] transition-all cursor-pointer shrink-0"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Export {selectedCohort.toUpperCase()} Sheet</span>
-        </button>
+        {/* Live Filter Telemetry Bar */}
+        <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1">
+          <span>
+            Displaying <strong className="text-white">{filteredRegistrations.length}</strong> of {registrations.length} registered pilots
+          </span>
+          <div className="flex items-center gap-4">
+            <span className="text-green-400">Present: <strong>{totalFilteredPresent}</strong></span>
+            <span className="text-neon">Paid: <strong>{totalFilteredConfirmed}</strong></span>
+          </div>
+        </div>
       </div>
 
-      {/* Search Filter Bar */}
-      <div className="relative w-full">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-        <input
-          type="text"
-          placeholder={`Search ${selectedCohort === 'all' ? 'all attendees' : selectedCohort} by name, email, phone, or Booking ID...`}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#0e0e11] border border-[#222228] text-xs text-white font-mono focus:border-neon outline-none"
-        />
-      </div>
-
-      {/* Attendance Registry Table */}
-      <div className="bg-[#0e0e11] border border-[#1e1e24] rounded-xl overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-[#141418] border-b border-[#1e1e24] text-gray-400 font-mono uppercase">
-            <tr>
-              <th className="p-3.5 w-10 text-center">
-                <button type="button" onClick={toggleSelectAll} className="text-gray-400 hover:text-neon cursor-pointer">
-                  {selectedIds.length === filtered.length && filtered.length > 0 ? (
-                    <CheckSquare className="w-4 h-4 text-neon" />
-                  ) : (
-                    <Square className="w-4 h-4" />
-                  )}
-                </button>
-              </th>
-              <th className="p-3.5">Booking / Cohort</th>
-              <th className="p-3.5">Student</th>
-              <th className="p-3.5">College</th>
-              <th className="p-3.5">Payment</th>
-              <th className="p-3.5">Lab Check-In</th>
-              <th className="p-3.5">Kit Issued</th>
-              <th className="p-3.5 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#18181f] text-gray-300 font-mono">
-            {filtered.length === 0 ? (
+      {/* Main Registry Table */}
+      <div className="bg-[#121212] border border-[#242424] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs font-mono">
+            <thead className="bg-[#08090d] text-gray-400 border-b border-[#242424] text-[11px] uppercase tracking-wider">
               <tr>
-                <td colSpan={8} className="p-8 text-center text-gray-500 font-mono">
-                  No attendees matching this filter in {selectedCohort}.
-                </td>
+                <th className="p-4">Clearance ID</th>
+                <th className="p-4">Pilot & Contact</th>
+                <th className="p-4">College & Year</th>
+                <th className="p-4">Cohort</th>
+                <th className="p-4 text-center">Payment</th>
+                <th className="p-4 text-center">Lab Attendance</th>
               </tr>
-            ) : (
-              filtered.map((reg) => {
-                const isSelected = selectedIds.includes(reg.id);
-                return (
-                  <tr key={reg.id} className={`transition-colors ${isSelected ? 'bg-neon/5' : 'hover:bg-[#14141a]'}`}>
-                    <td className="p-3.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => toggleSelect(reg.id)}
-                        className="text-gray-500 hover:text-neon cursor-pointer"
-                      >
-                        {isSelected ? <CheckSquare className="w-4 h-4 text-neon" /> : <Square className="w-4 h-4" />}
-                      </button>
-                    </td>
-                    <td className="p-3.5 font-bold text-neon font-mono space-y-1">
-                      <div>{reg.id}</div>
-                      <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon uppercase">
-                        {reg.cohort_label || `Batch ${reg.batch_number || 1}`}
+            </thead>
+            <tbody className="divide-y divide-[#1e2330]">
+              {filteredRegistrations.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center text-gray-500 font-mono">
+                    No attendee records matching active filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredRegistrations.map((attendee) => (
+                  <tr key={attendee.id} className="hover:bg-[#161a24]/50 transition-colors">
+                    
+                    {/* Booking ID */}
+                    <td className="p-4 font-bold text-neon whitespace-nowrap">
+                      {attendee.id}
+                      <span className="block text-[10px] text-gray-500 font-normal mt-0.5">
+                        {attendee.registeredAt}
                       </span>
                     </td>
-                    <td className="p-3.5 font-sans">
-                      <div className="font-semibold text-white">{reg.name}</div>
-                      <div className="text-[11px] text-gray-500 font-mono">{reg.email}</div>
+
+                    {/* Pilot Info */}
+                    <td className="p-4 space-y-0.5">
+                      <p className="font-bold text-white text-sm font-sans">{attendee.name}</p>
+                      <p className="text-[11px] text-gray-400">{attendee.email}</p>
+                      <p className="text-[11px] text-gray-500">{attendee.phone}</p>
                     </td>
-                    <td className="p-3.5 font-sans">{reg.college}</td>
-                    <td className="p-3.5">
+
+                    {/* College & Academic Year */}
+                    <td className="p-4 text-gray-300 font-sans">
+                      <p className="font-semibold text-xs text-white">{attendee.college}</p>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">{attendee.year}</p>
+                    </td>
+
+                    {/* Cohort Badge */}
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 rounded-md bg-[#181d2a] border border-[#2c364e] text-neon text-[11px] font-bold inline-block">
+                        {attendee.cohort_label || `Batch ${attendee.batch_number || 1}`}
+                      </span>
+                    </td>
+
+                    {/* Payment Toggle */}
+                    <td className="p-4 text-center">
                       <button
-                        type="button"
-                        onClick={() => handleToggleStatus(reg)}
-                        disabled={loadingId === reg.id}
-                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all flex items-center gap-1.5 cursor-pointer ${
-                          reg.status === 'confirmed'
-                            ? 'bg-neon/10 border border-neon/40 text-neon'
-                            : 'bg-amber-400/10 border border-amber-400/40 text-amber-400'
+                        onClick={() => togglePaymentStatus(attendee)}
+                        disabled={isUpdating === attendee.id}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                          attendee.status === 'confirmed'
+                            ? 'bg-neon/10 border-neon text-neon hover:bg-neon/20 shadow-[0_0_10px_rgba(0,255,102,0.15)]'
+                            : 'bg-amber-500/10 border-amber-500/40 text-amber-400 hover:bg-amber-500/20'
                         }`}
+                        title="Click to toggle Payment Confirmed / Pending Cash"
                       >
-                        {reg.status === 'confirmed' ? (
+                        {attendee.status === 'confirmed' ? (
                           <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Confirmed (₹{reg.amount})</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-neon" />
+                            <span>Paid (₹{attendee.amount || 300})</span>
                           </>
                         ) : (
                           <>
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Pending</span>
+                            <Clock className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Pending Cash</span>
                           </>
                         )}
                       </button>
                     </td>
-                    {/* Day-of Attendance Check-in */}
-                    <td className="p-3.5">
+
+                    {/* Attendance Toggle */}
+                    <td className="p-4 text-center">
                       <button
-                        type="button"
-                        onClick={() => handleToggleAttendance(reg)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all flex items-center gap-1 cursor-pointer border ${
-                          reg.attended
-                            ? 'bg-emerald-950/60 border-emerald-500 text-emerald-400'
-                            : 'bg-[#181818] border-gray-700 text-gray-400 hover:border-gray-500'
+                        onClick={() => toggleAttendance(attendee)}
+                        disabled={isUpdating === attendee.id}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                          attendee.attended
+                            ? 'bg-green-500/20 border-green-500 text-green-300 hover:bg-green-500/30'
+                            : 'bg-[#181a20] border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white'
                         }`}
+                        title="Click to toggle Present / Absent"
                       >
-                        <UserCheck className="w-3 h-3" />
-                        <span>{reg.attended ? 'Present' : 'Absent'}</span>
+                        {attendee.attended ? (
+                          <>
+                            <UserCheck className="w-3.5 h-3.5 text-green-400" />
+                            <span>PRESENT</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserX className="w-3.5 h-3.5 text-gray-500" />
+                            <span>ABSENT</span>
+                          </>
+                        )}
                       </button>
                     </td>
-                    {/* Hardware Kit Handout */}
-                    <td className="p-3.5">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleKit(reg)}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase transition-all flex items-center gap-1 cursor-pointer border ${
-                          reg.kit_issued
-                            ? 'bg-cyan-950/60 border-cyan-500 text-cyan-400'
-                            : 'bg-[#181818] border-gray-700 text-gray-400 hover:border-gray-500'
-                        }`}
-                      >
-                        <Cpu className="w-3 h-3" />
-                        <span>{reg.kit_issued ? 'Issued' : 'Pending'}</span>
-                      </button>
-                    </td>
-                    <td className="p-3.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleWhatsApp(reg)}
-                        className="p-2 rounded-lg bg-[#141418] border border-gray-700 hover:border-neon text-gray-300 hover:text-neon transition-all inline-flex items-center gap-1 cursor-pointer"
-                        title="Direct WhatsApp"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <span className="text-[10px] font-mono">Chat</span>
-                      </button>
-                    </td>
+
                   </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

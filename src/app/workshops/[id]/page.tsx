@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, UserCheck, Calendar, MapPin, AlertTriangle, Banknote, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -18,6 +18,7 @@ export default function WorkshopRegistrationPage() {
     phone: '',
     college: '',
     academicYear: 'SE - Second Year',
+    paymentMode: 'cash',
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,9 +42,9 @@ export default function WorkshopRegistrationPage() {
         } else {
           setWorkshop({
             id: requestedWorkshopId,
-            title: 'Aegis Drone Workshop',
+            title: 'Aegis Drone Avionics Master Workshop',
             badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
-            date: 'September Month',
+            date: 'September Month Intake',
             venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
             fee: 300,
             max_capacity: 20,
@@ -126,17 +127,17 @@ export default function WorkshopRegistrationPage() {
             <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
               {workshop?.badge || 'CERTIFIED WORKSHOP'}
             </span>
-            <h1 className="text-3xl font-black text-white tracking-tight">{workshop?.title || 'Aegis Drone Workshop'}</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">{workshop?.title || 'Aegis Drone Avionics Master Workshop'}</h1>
             <p className="text-sm font-semibold text-neon font-mono">BUILD. CODE. FLY. NOT JUST A DRONE, BUT YOUR SKILLS.</p>
 
             <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-400 pt-2 font-mono">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-neon shrink-0" />
-                <span>{workshop?.date || 'September Month'}</span>
+                <span>{workshop?.date || 'September Month Intake'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-neon shrink-0" />
-                <span>{workshop?.venue || 'GCOERC Campus, Nashik'}</span>
+                <span>{workshop?.venue || 'GCOERC Avionics Lab, Nashik'}</span>
               </div>
             </div>
           </div>
@@ -180,7 +181,7 @@ export default function WorkshopRegistrationPage() {
 
             <form onSubmit={handleRegister} className="space-y-3.5 text-xs font-sans">
               <div className="space-y-1">
-                <label className="text-gray-400">Full Name *</label>
+                <label className="text-gray-400 font-mono text-[11px]">Full Name *</label>
                 <input
                   type="text"
                   required
@@ -192,7 +193,7 @@ export default function WorkshopRegistrationPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-gray-400">Email Address *</label>
+                <label className="text-gray-400 font-mono text-[11px]">Email Address *</label>
                 <input
                   type="email"
                   required
@@ -204,7 +205,7 @@ export default function WorkshopRegistrationPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-gray-400">WhatsApp Phone Number *</label>
+                <label className="text-gray-400 font-mono text-[11px]">WhatsApp Phone Number *</label>
                 <input
                   type="tel"
                   required
@@ -216,7 +217,7 @@ export default function WorkshopRegistrationPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-gray-400">College / Institute *</label>
+                <label className="text-gray-400 font-mono text-[11px]">College / Institute *</label>
                 <input
                   type="text"
                   required
@@ -228,11 +229,11 @@ export default function WorkshopRegistrationPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-gray-400">Academic Year *</label>
+                <label className="text-gray-400 font-mono text-[11px]">Academic Year *</label>
                 <select
                   value={formData.academicYear}
                   onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs"
+                  className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
                 >
                   <option value="FE - First Year">FE - First Year</option>
                   <option value="SE - Second Year">SE - Second Year</option>
@@ -240,6 +241,44 @@ export default function WorkshopRegistrationPage() {
                   <option value="BE - Final Year">BE - Final Year</option>
                   <option value="School / Diploma / Other">School / Diploma / Other</option>
                 </select>
+              </div>
+
+              {/* Payment Mode Selection */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-gray-400 font-mono text-[11px] block uppercase">
+                  Payment Mode Allotment
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    onClick={() => setFormData({ ...formData, paymentMode: 'cash' })}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      formData.paymentMode === 'cash'
+                        ? 'bg-[#141824] border-neon shadow-[0_0_15px_rgba(0,255,102,0.1)]'
+                        : 'bg-[#0a0c10] border-[#222736] opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5 text-neon" />
+                      <span className="text-neon font-bold text-xs font-mono">Spot Cash</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹300 at lab desk</span>
+                  </div>
+
+                  <div
+                    onClick={() => setFormData({ ...formData, paymentMode: 'online' })}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      formData.paymentMode === 'online'
+                        ? 'bg-[#141824] border-neon shadow-[0_0_15px_rgba(0,255,102,0.1)]'
+                        : 'bg-[#0a0c10] border-[#222736] opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-neon" />
+                      <span className="text-gray-200 font-bold text-xs font-mono">UPI / Online</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Verify at flight desk</span>
+                  </div>
+                </div>
               </div>
 
               <button

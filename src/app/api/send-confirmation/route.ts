@@ -30,35 +30,33 @@ export async function POST(req: Request) {
     });
 
     const assignedBatch = cohortLabel || 'Batch 1';
-    const cleanBookingId = bookingId || 'AEGIS-B1-CONFIRMED';
+    const cleanBookingId = bookingId || 'AEGIS-B1-001';
     const workshop = workshopTitle || 'Aegis Drone Avionics Master Workshop';
     const locVenue = venue || 'GCOERC Avionics Research Lab, Nashik';
     const scheduleDate = date || 'September Month Intake';
     
-    // Dynamic interactive pass URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
     const passUrl = `${baseUrl}/pass/${cleanBookingId}`;
+    
+    // Dynamic Scannable High-Res QR code
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(passUrl)}&bgcolor=11141d&color=00ff66`;
 
-    // Plain text alternative for spam-filter deliverability
     const textFallback = `
 Hello ${studentName},
 
-Your flight clearance for the ${workshop} is officially confirmed.
+Your sequential flight clearance pass is confirmed: ${cleanBookingId}.
 
-REGISTRATION DETAILS:
+TELEMETRY SPECIFICATIONS:
 - Pilot Name: ${studentName}
 - Clearance ID: ${cleanBookingId}
-- Assigned Cohort: ${assignedBatch}
-- Specialization: ${workshop}
-- Flight Lab Venue: ${locVenue}
+- Cohort: ${assignedBatch}
+- Venue: ${locVenue}
 - Schedule: ${scheduleDate}
 
-Unlock your digital interactive pass here:
+Launch your full 3D interactive pass:
 ${passUrl}
 
-${whatsappLink ? `Join your cohort WhatsApp squad: ${whatsappLink}` : ''}
-
-Please present your digital pass or mention your Clearance ID (${cleanBookingId}) at the lab desk on event day.
+${whatsappLink ? `Cohort WhatsApp Group: ${whatsappLink}` : ''}
 
 Best regards,
 Aegis Flight Operations Team
@@ -68,7 +66,7 @@ Aegis Flight Operations Team
       from: `"Aegis Flight Command" <${process.env.SMTP_USER}>`,
       replyTo: process.env.SMTP_USER,
       to: studentEmail,
-      subject: `Flight Clearance Confirmed: ${workshop} [${cleanBookingId}]`,
+      subject: `Flight Clearance Unlocked: ${workshop} [${cleanBookingId}]`,
       text: textFallback,
       headers: {
         'X-Priority': '3',
@@ -83,147 +81,122 @@ Aegis Flight Operations Team
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Flight Clearance Pass</title>
       </head>
-      <body style="margin: 0; padding: 0; background-color: #050507; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050507; padding: 30px 10px;">
+      <body style="margin: 0; padding: 0; background-color: #050508; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050508; padding: 30px 10px;">
           <tr>
             <td align="center">
               
               <!-- Container Card -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #0b0c10; border-radius: 20px; border: 1px solid #1f2430; box-shadow: 0 20px 50px rgba(0, 255, 102, 0.08); overflow: hidden;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 580px; background-color: #0b0c10; border-radius: 24px; border: 1px solid #1f2430; box-shadow: 0 20px 60px rgba(0, 255, 102, 0.12); overflow: hidden;">
                 
-                <!-- Top Accent Line -->
+                <!-- Glowing Top Accent Line -->
                 <tr>
-                  <td style="background: linear-gradient(90deg, #00ff66 0%, #00cc52 50%, #00ff66 100%); height: 4px; line-height: 4px; font-size: 0px;">&nbsp;</td>
+                  <td style="background: linear-gradient(90deg, #00ff66 0%, #00e5ff 50%, #00ff66 100%); height: 4px; font-size: 0px; line-height: 4px;">&nbsp;</td>
                 </tr>
 
-                <!-- Header Section -->
+                <!-- Header Banner -->
                 <tr>
-                  <td style="padding: 36px 36px 24px 36px;">
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                      <tr>
-                        <td>
-                          <div style="display: inline-block; padding: 5px 12px; background-color: rgba(0, 255, 102, 0.1); border: 1px solid rgba(0, 255, 102, 0.35); border-radius: 9999px;">
-                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: 800; color: #00ff66; text-transform: uppercase; letter-spacing: 1.5px;">● SECURE FLIGHT CLEARANCE PASS</span>
-                          </div>
-                          <h1 style="margin: 18px 0 6px 0; font-size: 26px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase;">
-                            AEGIS DRONE AVIONICS
-                          </h1>
-                          <p style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #717686; letter-spacing: 0.5px;">
-                            GEAR UP. CODE IT. BUILD IT. FLY IT.
-                          </p>
-                        </td>
-                        <td align="right" valign="top">
-                          <div style="background-color: #141721; border: 1px dashed #00ff66; border-radius: 10px; padding: 8px 12px; text-align: center;">
-                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #717686; display: block; text-transform: uppercase;">COHORT</span>
-                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 14px; font-weight: 900; color: #00ff66;">${assignedBatch}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
+                  <td align="center" style="background-color: #08090d; padding: 28px 20px 16px 20px; border-bottom: 1px solid #171b24;">
+                    <div style="display: inline-block; padding: 4px 12px; background-color: rgba(0, 255, 102, 0.1); border: 1px solid rgba(0, 255, 102, 0.4); border-radius: 9999px; margin-bottom: 12px;">
+                      <span style="font-family: monospace; font-size: 11px; font-weight: 800; color: #00ff66; text-transform: uppercase; letter-spacing: 2px;">
+                        ● SEQUENTIAL CLEARANCE #${cleanBookingId}
+                      </span>
+                    </div>
+
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase; font-family: monospace;">
+                      AEGIS FLIGHT PASS
+                    </h1>
+                    <p style="margin: 6px 0 0 0; font-family: monospace; font-size: 12px; color: #717686;">
+                      ACCESS GRANTED &bull; SQUAD COHORT ${assignedBatch.toUpperCase()}
+                    </p>
                   </td>
                 </tr>
 
-                <!-- Boarding Pass Main Body -->
+                <!-- Main Body -->
                 <tr>
-                  <td style="padding: 0 36px 30px 36px;">
+                  <td style="padding: 24px 32px;">
                     
-                    <!-- HUD Specs Box -->
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #12141c; border-radius: 14px; border: 1px solid #232838; padding: 20px; margin-bottom: 24px;">
+                    <!-- HUD Telemetry Card -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #11141d; border-radius: 14px; border: 1px solid #232a3b; padding: 18px; margin-bottom: 20px;">
                       <tr>
-                        <td style="padding-bottom: 14px; border-bottom: 1px solid #1e2230;">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">REGISTERED PILOT</span>
-                          <span style="font-size: 16px; font-weight: 800; color: #ffffff;">${studentName}</span>
+                        <td style="padding-bottom: 12px; border-bottom: 1px solid #1a202c;">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">PILOT NAME</span>
+                          <span style="font-size: 15px; font-weight: 800; color: #ffffff;">${studentName}</span>
                         </td>
-                        <td style="padding-bottom: 14px; border-bottom: 1px solid #1e2230;" align="right">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">CLEARANCE ID</span>
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 15px; font-weight: 800; color: #00ff66;">${cleanBookingId}</span>
+                        <td style="padding-bottom: 12px; border-bottom: 1px solid #1a202c;" align="right">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">UNIQUE ID</span>
+                          <span style="font-family: monospace; font-size: 15px; font-weight: 900; color: #00ff66;">${cleanBookingId}</span>
                         </td>
                       </tr>
                       
                       <tr>
-                        <td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e2230;">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">TRACK / SPECIALIZATION</span>
-                          <span style="font-size: 13px; font-weight: 700; color: #d1d5db;">${workshop}</span>
+                        <td style="padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #1a202c;">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">SESSION TRACK</span>
+                          <span style="font-size: 13px; font-weight: 600; color: #e6edf3;">${workshop}</span>
                         </td>
-                        <td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e2230;" align="right">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">LAB ACCESS PASS</span>
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: 800; color: #00ff66;">CONFIRMED (₹${amount || 300})</span>
+                        <td style="padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid #1a202c;" align="right">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">PASS TYPE</span>
+                          <span style="font-family: monospace; font-size: 12px; font-weight: 800; color: #00ff66;">LAB ACCESS (₹${amount || 300})</span>
                         </td>
                       </tr>
 
                       <tr>
-                        <td style="padding-top: 14px;">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">FLIGHT LAB & VENUE</span>
+                        <td style="padding-top: 12px;">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">VENUE</span>
                           <span style="font-size: 12px; font-weight: 600; color: #9ca3af;">${locVenue}</span>
                         </td>
-                        <td style="padding-top: 14px;" align="right">
-                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">SCHEDULE</span>
+                        <td style="padding-top: 12px;" align="right">
+                          <span style="font-family: monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block;">TIMETABLE</span>
                           <span style="font-size: 12px; font-weight: 700; color: #ffffff;">${scheduleDate}</span>
                         </td>
                       </tr>
                     </table>
 
-                    <!-- Syllabus 3-Grid -->
-                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                    <!-- Scannable QR Code Desk Box -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #08090d; border-radius: 12px; border: 1px solid #1e2433; padding: 16px; margin-bottom: 20px;">
                       <tr>
-                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
-                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">01</span>
-                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">ESP32 Avionics</strong>
-                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">MPU Gyro, ESCs & Circuitry Setup</span>
+                        <td align="center" width="120">
+                          <img src="${qrCodeUrl}" alt="Digital Pass QR" width="100" height="100" style="display: block; border-radius: 8px; border: 1px solid #00ff66;" />
                         </td>
-                        <td width="3.5%">&nbsp;</td>
-                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
-                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">02</span>
-                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">Drone Assembly</strong>
-                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">Quadcopter Frame & Thrust Balance</span>
-                        </td>
-                        <td width="3.5%">&nbsp;</td>
-                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
-                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">03</span>
-                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">PID Tuning</strong>
-                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">Hover Stability & Live Flight Test</span>
+                        <td style="padding-left: 16px;">
+                          <span style="font-family: monospace; font-size: 10px; color: #00ff66; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 4px;">
+                            ● DESK VERIFICATION QR
+                          </span>
+                          <p style="margin: 0; font-size: 11px; color: #9ca3af; font-family: monospace; line-height: 15px;">
+                            Scan at the lab entry gate to verify attendance telemetry and workbench allotment.
+                          </p>
                         </td>
                       </tr>
                     </table>
 
                     <!-- Interactive Pass Blast CTA Button -->
-                    <div style="text-align: center; margin-bottom: 22px;">
-                      <a href="${passUrl}" target="_blank" style="display: block; background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%); color: #050507; font-size: 13px; font-weight: 900; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 16px 24px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 10px 25px rgba(0, 255, 102, 0.25);">
-                        ⚡ UNLOCK INTERACTIVE CLEARANCE PASS &rarr;
+                    <div style="text-align: center; margin-bottom: 16px;">
+                      <a href="${passUrl}" target="_blank" style="display: block; background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%); color: #050507; font-size: 13px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; text-decoration: none; padding: 16px 24px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 10px 30px rgba(0, 255, 102, 0.35);">
+                        ⚡ LAUNCH INTERACTIVE PASS & BLAST &rarr;
                       </a>
                     </div>
 
-                    <!-- WhatsApp Button -->
+                    <!-- WhatsApp Squad Invite Button -->
                     ${
                       whatsappLink
                         ? `
-                        <div style="text-align: center; margin-bottom: 24px;">
-                          <a href="${whatsappLink}" target="_blank" style="display: block; background-color: #141721; border: 1px solid #272e3d; color: #00ff66; font-size: 12px; font-weight: 800; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 14px 20px; border-radius: 12px; text-transform: uppercase;">
-                            JOIN ${assignedBatch.toUpperCase()} SQUAD GROUP (WHATSAPP) →
+                        <div style="text-align: center; margin-bottom: 16px;">
+                          <a href="${whatsappLink}" target="_blank" style="display: block; background-color: #141721; border: 1px solid #232a3b; color: #00ff66; font-size: 12px; font-weight: 800; font-family: monospace; letter-spacing: 0.5px; text-decoration: none; padding: 13px 20px; border-radius: 10px; text-transform: uppercase;">
+                            JOIN ${assignedBatch.toUpperCase()} SQUAD GROUP (WHATSAPP) &rarr;
                           </a>
                         </div>
                         `
                         : ''
                     }
 
-                    <!-- Notice Disclaimer -->
-                    <div style="background-color: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 10px; padding: 12px 16px;">
-                      <p style="margin: 0; font-size: 11px; color: #ffb84d; line-height: 16px; font-family: 'Courier New', Courier, monospace;">
-                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present your digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the lab desk on event day for physical attendance check-in.
-                      </p>
-                    </div>
-
                   </td>
                 </tr>
 
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #07080b; padding: 24px 36px; border-top: 1px solid #1a1e29; text-align: center;">
-                    <p style="margin: 0; font-size: 11px; color: #4b5262; font-family: 'Courier New', Courier, monospace;">
-                      AEGIS AVIONICS FLIGHT SYSTEMS • FLIGHT CLEARANCE DISPATCH
-                    </p>
-                    <p style="margin: 6px 0 0 0; font-size: 10px; color: #353a47; font-family: 'Courier New', Courier, monospace;">
-                      Authorized & Issued by Workshop Coordination Team
+                  <td style="background-color: #07080b; padding: 18px 32px; border-top: 1px solid #171b24; text-align: center;">
+                    <p style="margin: 0; font-size: 11px; color: #484f58; font-family: monospace;">
+                      AEGIS AVIONICS FLIGHT SYSTEMS &bull; GCOERC NASHIK
                     </p>
                   </td>
                 </tr>
