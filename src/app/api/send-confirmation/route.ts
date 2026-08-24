@@ -1,58 +1,204 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      console.error('RESEND_API_KEY is missing from environment variables');
-      return NextResponse.json({ error: 'Server missing RESEND_API_KEY' }, { status: 500 });
+    const { 
+      studentName, 
+      studentEmail, 
+      bookingId, 
+      workshopTitle, 
+      amount, 
+      venue, 
+      date, 
+      whatsappLink,
+      cohortLabel 
+    } = await req.json();
+
+    if (!studentEmail) {
+      return NextResponse.json({ error: 'Recipient email required' }, { status: 400 });
     }
 
-    const resend = new Resend(apiKey);
-    const body = await req.json();
-    const { studentName, studentEmail, bookingId, workshopTitle, amount, venue, date, whatsappLink } = body;
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
 
-    console.log('Attempting Resend dispatch to:', studentEmail);
+    const assignedBatch = cohortLabel || 'Batch 1';
+    const cleanBookingId = bookingId || 'AEGIS-B1-CONFIRMED';
+    const workshop = workshopTitle || 'Aegis Drone Avionics Master Workshop';
+    const locVenue = venue || 'GCOERC Avionics Research Lab, Nashik';
+    const scheduleDate = date || 'September Month Intake';
 
-    const { data, error } = await resend.emails.send({
-      from: 'Aegis Flight Lab <onboarding@resend.dev>',
-      to: [studentEmail],
-      subject: `Official Boarding Pass: ${workshopTitle || 'Aegis Drone Workshop'} - ${bookingId}`,
+    const info = await transporter.sendMail({
+      from: `"AEGIS FLIGHT COMMAND" <${process.env.SMTP_USER}>`,
+      to: studentEmail,
+      subject: `⚡ FLIGHT CLEARANCE APPROVED: ${studentName} [${cleanBookingId}]`,
       html: `
-        <div style="font-family: monospace; background-color: #0a0a0a; color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #00ff66;">
-          <h1 style="color: #00ff66; margin: 0 0 8px 0; font-size: 20px;">AEGIS FLIGHT LAB CLEARANCE</h1>
-          <p style="color: #888888; margin: 0 0 16px 0; font-size: 12px;">OFFICIAL WORKSHOP REGISTRATION PASS</p>
-          <hr style="border: 0; border-top: 1px solid #222222; margin-bottom: 16px;" />
-          
-          <p style="font-size: 14px; margin-bottom: 8px;">Pilot Name: <strong>${studentName}</strong></p>
-          <p style="font-size: 14px; margin-bottom: 8px;">Booking ID: <strong style="color: #00ff66;">${bookingId}</strong></p>
-          <p style="font-size: 14px; margin-bottom: 8px;">Workshop: <strong>${workshopTitle || 'Aegis Drone Workshop'}</strong></p>
-          <p style="font-size: 14px; margin-bottom: 8px;">Venue: <strong>${venue || 'GCOERC Avionics Lab, Nashik'}</strong></p>
-          <p style="font-size: 14px; margin-bottom: 16px;">Schedule: <strong>${date || 'September Month'}</strong></p>
-          
-          ${
-            whatsappLink
-              ? `<div style="margin-top: 20px;">
-                  <a href="${whatsappLink}" style="display: inline-block; background-color: #00ff66; color: #000000; padding: 12px 20px; font-weight: bold; text-decoration: none; border-radius: 6px; font-size: 12px;">JOIN ASSIGNED WHATSAPP COHORT →</a>
-                 </div>`
-              : ''
-          }
-        </div>
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Flight Clearance Pass</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #050507; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050507; padding: 30px 10px;">
+          <tr>
+            <td align="center">
+              
+              <!-- Container Card -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px; background-color: #0b0c10; border-radius: 20px; border: 1px solid #1f2430; box-shadow: 0 20px 50px rgba(0, 255, 102, 0.08); overflow: hidden;">
+                
+                <!-- Top Neon Status Bar -->
+                <tr>
+                  <td style="background: linear-gradient(90deg, #00ff66 0%, #00cc52 50%, #00ff66 100%); height: 4px; line-height: 4px; font-size: 0px;">&nbsp;</td>
+                </tr>
+
+                <!-- Header Section -->
+                <tr>
+                  <td style="padding: 36px 36px 24px 36px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td>
+                          <div style="display: inline-block; padding: 5px 12px; background-color: rgba(0, 255, 102, 0.1); border: 1px solid rgba(0, 255, 102, 0.35); border-radius: 9999px;">
+                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 11px; font-weight: 800; color: #00ff66; text-transform: uppercase; letter-spacing: 1.5px;">● SECURE FLIGHT CLEARANCE PASS</span>
+                          </div>
+                          <h1 style="margin: 18px 0 6px 0; font-size: 26px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; text-transform: uppercase;">
+                            AEGIS DRONE AVIONICS
+                          </h1>
+                          <p style="margin: 0; font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #717686; letter-spacing: 0.5px;">
+                            GEAR UP. CODE IT. BUILD IT. FLY IT.
+                          </p>
+                        </td>
+                        <td align="right" valign="top">
+                          <div style="background-color: #141721; border: 1px dashed #00ff66; border-radius: 10px; padding: 8px 12px; text-align: center;">
+                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #717686; display: block; text-transform: uppercase;">COHORT</span>
+                            <span style="font-family: 'Courier New', Courier, monospace; font-size: 14px; font-weight: 900; color: #00ff66;">${assignedBatch}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- Boarding Pass Main Body -->
+                <tr>
+                  <td style="padding: 0 36px 30px 36px;">
+                    
+                    <!-- HUD Specs Box -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #12141c; border-radius: 14px; border: 1px solid #232838; padding: 20px; margin-bottom: 24px;">
+                      <tr>
+                        <td style="padding-bottom: 14px; border-bottom: 1px solid #1e2230;">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">REGISTERED PILOT</span>
+                          <span style="font-size: 16px; font-weight: 800; color: #ffffff;">${studentName}</span>
+                        </td>
+                        <td style="padding-bottom: 14px; border-bottom: 1px solid #1e2230;" align="right">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">CLEARANCE ID</span>
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 15px; font-weight: 800; color: #00ff66;">${cleanBookingId}</span>
+                        </td>
+                      </tr>
+                      
+                      <tr>
+                        <td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e2230;">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">TRACK / SPECIALIZATION</span>
+                          <span style="font-size: 13px; font-weight: 700; color: #d1d5db;">${workshop}</span>
+                        </td>
+                        <td style="padding-top: 14px; padding-bottom: 14px; border-bottom: 1px solid #1e2230;" align="right">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">HARDWARE KIT PASS</span>
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 12px; font-weight: 800; color: #00ff66;">APPROVED (₹${amount || 300})</span>
+                        </td>
+                      </tr>
+
+                      <tr>
+                        <td style="padding-top: 14px;">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">FLIGHT HANGAR & VENUE</span>
+                          <span style="font-size: 12px; font-weight: 600; color: #9ca3af;">${locVenue}</span>
+                        </td>
+                        <td style="padding-top: 14px;" align="right">
+                          <span style="font-family: 'Courier New', Courier, monospace; font-size: 10px; color: #6b7280; text-transform: uppercase; display: block; letter-spacing: 1px;">SCHEDULE</span>
+                          <span style="font-size: 12px; font-weight: 700; color: #ffffff;">${scheduleDate}</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Syllabus Highlights 3-Grid -->
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                      <tr>
+                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
+                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">01</span>
+                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">ESP32 Avionics</strong>
+                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">MPU Gyro, ESCs & Core Circuitry</span>
+                        </td>
+                        <td width="3.5%">&nbsp;</td>
+                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
+                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">02</span>
+                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">Chassis Build</strong>
+                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">Quadcopter Frame & Thrust Balance</span>
+                        </td>
+                        <td width="3.5%">&nbsp;</td>
+                        <td style="background-color: #0e1017; border: 1px solid #1e2330; border-radius: 10px; padding: 12px; width: 31%;" valign="top">
+                          <span style="color: #00ff66; font-size: 14px; font-weight: 900; display: block; font-family: 'Courier New', Courier, monospace;">03</span>
+                          <strong style="color: #ffffff; font-size: 11px; display: block; margin-top: 4px;">PID Tuning</strong>
+                          <span style="color: #6b7280; font-size: 10px; line-height: 14px; display: block; margin-top: 2px;">Hover Stability & Live Flight Test</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- WhatsApp Dispatch Button -->
+                    ${
+                      whatsappLink
+                        ? `
+                        <div style="text-align: center; margin-bottom: 24px;">
+                          <a href="${whatsappLink}" target="_blank" style="display: block; background: linear-gradient(135deg, #00ff66 0%, #00cc52 100%); color: #050507; font-size: 13px; font-weight: 900; font-family: 'Courier New', Courier, monospace; letter-spacing: 0.5px; text-decoration: none; padding: 16px 28px; border-radius: 12px; text-transform: uppercase; box-shadow: 0 10px 25px rgba(0, 255, 102, 0.25);">
+                            JOIN ${assignedBatch.toUpperCase()} SQUAD GROUP (WHATSAPP) →
+                          </a>
+                        </div>
+                        `
+                        : ''
+                    }
+
+                    <!-- Notice Disclaimer -->
+                    <div style="background-color: rgba(255, 170, 0, 0.05); border: 1px solid rgba(255, 170, 0, 0.2); border-radius: 10px; padding: 12px 16px;">
+                      <p style="margin: 0; font-size: 11px; color: #ffb84d; line-height: 16px; font-family: 'Courier New', Courier, monospace;">
+                        ⚡ <strong>FLIGHT DESK INSTRUCTIONS:</strong> Please present this digital pass or mention your Clearance ID (<strong>${cleanBookingId}</strong>) at the registration desk on lab day to claim your physical drone hardware workbench.
+                      </p>
+                    </div>
+
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #07080b; padding: 24px 36px; border-top: 1px solid #1a1e29; text-align: center;">
+                    <p style="margin: 0; font-size: 11px; color: #4b5262; font-family: 'Courier New', Courier, monospace;">
+                      AEGIS AVIONICS FLIGHT SYSTEMS • LAB PASS DISPATCH
+                    </p>
+                    <p style="margin: 6px 0 0 0; font-size: 10px; color: #353a47; font-family: 'Courier New', Courier, monospace;">
+                      Authorized & Issued by Department Coordinator
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+              <!-- End Container Card -->
+
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
       `,
     });
 
-    if (error) {
-      console.error('Resend API response error:', error);
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-
-    console.log('Resend success:', data);
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, messageId: info.messageId });
   } catch (err: any) {
-    console.error('Server catch error in send-confirmation:', err);
+    console.error('Nodemailer dispatch error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
