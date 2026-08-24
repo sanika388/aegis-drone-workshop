@@ -115,33 +115,59 @@ export default function WorkshopLifecycleTab({
     }
   };
 
-  // Direct Local File Explorer Upload (Converts directly to Data URI - No Bucket Required)
+// Ultra-Fast Canvas WebP Auto-Compressor (Converts directly from File Explorer)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size limit (max 3MB for database storage)
-    if (file.size > 3 * 1024 * 1024) {
-      toast.error('Image size must be under 3MB');
-      return;
-    }
-
     setIsUploading(true);
-
+    const img = new window.Image();
     const reader = new FileReader();
-    reader.onloadend = async () => {
-      try {
-        const base64Url = reader.result as string;
-        const updated = [...posters, base64Url];
-        setPosters(updated);
-        await savePosters(updated);
-        toast.success('Poster uploaded directly from device!');
-      } catch (err: any) {
-        toast.error(err.message || 'Failed to save poster');
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      }
+
+    reader.onload = (event) => {
+      img.src = event.target?.result as string;
+      img.onload = async () => {
+        try {
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas rendering failed');
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compress to lightweight WebP format at 80% visual quality (~80KB)
+          const compressedDataUrl = canvas.toDataURL('image/webp', 0.80);
+
+          const updated = [...posters, compressedDataUrl];
+          setPosters(updated);
+          await savePosters(updated);
+          toast.success('High-speed compressed poster uploaded!');
+        } catch (err: any) {
+          toast.error(err.message || 'Image processing failed');
+        } finally {
+          setIsUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
     };
 
     reader.onerror = () => {
