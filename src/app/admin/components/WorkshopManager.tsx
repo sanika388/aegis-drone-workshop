@@ -133,7 +133,7 @@ export default function WorkshopManager() {
     setFormData({ ...formData, whatsapp_links: updated });
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+ const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
@@ -142,11 +142,14 @@ export default function WorkshopManager() {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
+    const cleanDate = formData.schedule_date.trim() || 'September 2026 Intake';
+
     const payload = {
       id: formData.id.trim().toLowerCase().replace(/\s+/g, '-'),
       title: formData.title,
       badge: formData.badge,
-      schedule_date: formData.schedule_date,
+      date: cleanDate,                   // Satisfies legacy "date" NOT NULL column
+      schedule_date: cleanDate,          // Keeps "schedule_date" aligned
       venue: formData.venue,
       fee: Number(formData.fee),
       batch_size_limit: Number(formData.batch_size_limit),
@@ -167,16 +170,6 @@ export default function WorkshopManager() {
     }
     setSaving(false);
   };
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center space-x-2 text-neon font-mono text-xs">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span>Loading workshops manager...</span>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
