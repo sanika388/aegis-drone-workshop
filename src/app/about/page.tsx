@@ -25,7 +25,6 @@ import {
   ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
-import DroneSimulator from './components/DroneSimulator';
 
 export default function AboutShowcasePage() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -159,7 +158,6 @@ export default function AboutShowcasePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
-      
       {/* Header Section */}
       <div className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
@@ -172,11 +170,6 @@ export default function AboutShowcasePage() {
         <p className="text-xs sm:text-sm text-gray-400 font-mono max-w-3xl leading-relaxed">
           Indigenous hardware-in-the-loop firmware programming, high-discharge ESC telemetry calibration, and heavy-payload modular airframe assembly at Guru Gobind Singh College of Engineering and Research Centre, Nashik.
         </p>
-      </div>
-
-      {/* Interactive Drone Test Bench Component */}
-      <div className="space-y-4">
-        <DroneSimulator />
       </div>
 
       {/* Hardware Specs Grid */}
