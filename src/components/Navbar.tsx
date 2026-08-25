@@ -53,12 +53,7 @@ export default function Navbar() {
               </Link>
             );
           })}
-          <Link href="/research" className="text-xs font-mono text-gray-300 hover:text-neon transition-colors">
-  RESEARCH
-</Link>
-<Link href="/lab" className="text-xs font-mono text-gray-300 hover:text-neon transition-colors">
-  INTERACTIVE LAB
-</Link>
+          
           {/* Admin Switch */}
           <Link
             href="/admin"
