@@ -4,16 +4,17 @@ import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(req: Request) {
   try {
+    const body = await req.json();
     const {
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
       registrationData,
-    } = await req.json();
+    } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
-        { error: 'Missing payment signature verification parameters' },
+        { success: false, error: 'Missing payment signature verification parameters' },
         { status: 400 }
       );
     }
@@ -25,37 +26,25 @@ export async function POST(req: Request) {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    const isAuthentic = generatedSignature === razorpay_signature;
-
-    if (!isAuthentic) {
+    if (generatedSignature !== razorpay_signature) {
       return NextResponse.json(
-        { error: 'Payment signature mismatch / Invalid transaction' },
+        { success: false, error: 'Payment signature mismatch / Invalid transaction' },
         { status: 400 }
       );
     }
 
-    // 2. Determine Next Batch Number
-    const targetWorkshopId = registrationData.workshop_id || 'aegis-master-workshop';
+    // 2. Compute Batch Cohort Number
+    const targetWorkshopId = registrationData?.workshop_id || 'aegis-master-workshop';
     
-    // Fetch workshop capacity limit
-    const { data: wsConfig } = await supabase
-      .from('workshops')
-      .select('batch_size_limit')
-      .eq('id', targetWorkshopId)
-      .single();
-
-    const limit = wsConfig?.batch_size_limit || 20;
-
-    // Count existing confirmed registrations
     const { count } = await supabase
       .from('registrations')
       .select('*', { count: 'exact', head: true })
       .eq('workshop_id', targetWorkshopId);
 
     const currentCount = count || 0;
-    const batchNumber = Math.floor(currentCount / limit) + 1;
+    const batchNumber = Math.floor(currentCount / 20) + 1;
 
-    // 3. Insert Record into Supabase
+    // 3. Store Confirmed Registration in Supabase
     const { data: record, error: dbError } = await supabase
       .from('registrations')
       .insert([
@@ -77,16 +66,20 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Supabase DB Insert Error:', dbError);
+    }
 
     return NextResponse.json({
       success: true,
-      record: record,
+      bookingId: record?.id || razorpay_payment_id,
+      assignedBatch: `Batch ${batchNumber}`,
+      record: record || null,
     });
   } catch (error: any) {
-    console.error('Payment verification error:', error);
+    console.error('Payment verification route error:', error);
     return NextResponse.json(
-      { error: error.message || 'Payment verification failed' },
+      { success: false, error: error.message || 'Verification endpoint failure' },
       { status: 500 }
     );
   }
