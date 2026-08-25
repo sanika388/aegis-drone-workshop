@@ -131,29 +131,32 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Official Aegis Email Desk (Clickable Action Card) */}
-          <div className="bg-[#0b0e14] border border-[#1c2438] hover:border-neon/40 rounded-2xl p-6 space-y-3 font-mono text-xs shadow-lg transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
-                <Mail className="w-4 h-4" />
-                <span>Official Support Desk</span>
-              </div>
-              <span className="text-[10px] text-gray-500 uppercase">Direct Relay</span>
-            </div>
+          {/* Official Aegis Email Desk (Forced Clickable Action Card) */}
+<div className="bg-[#0b0e14] border border-[#1c2438] hover:border-neon/40 rounded-2xl p-6 space-y-3 font-mono text-xs shadow-lg transition-all relative z-10">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
+      <Mail className="w-4 h-4" />
+      <span>Official Support Desk</span>
+    </div>
+    <span className="text-[10px] text-neon/70 uppercase">Direct Action</span>
+  </div>
 
-            <a 
-              href="mailto:aegisdrones.officials@gmail.com?subject=Aegis%20Workshop%20Inquiry" 
-              className="group flex items-center justify-between p-3.5 rounded-xl bg-[#07090e] border border-[#1a2133] hover:border-neon hover:bg-neon/5 transition-all text-white font-bold"
-            >
-              <div className="flex items-center gap-2 overflow-hidden">
-                <span className="text-gray-300 group-hover:text-neon transition-colors truncate">
-                  aegisdrones.officials@gmail.com
-                </span>
-              </div>
-              <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-neon transition-colors shrink-0 ml-2" />
-            </a>
-          </div>
-
+  <a 
+    href="mailto:aegisdrones.officials@gmail.com?subject=Aegis%20Workshop%20Inquiry"
+    onClick={(e) => {
+      // Direct JS fallback to guarantee the mail window triggers
+      window.location.href = "mailto:aegisdrones.officials@gmail.com?subject=Aegis%20Workshop%20Inquiry";
+    }}
+    className="group relative z-20 flex items-center justify-between p-3.5 rounded-xl bg-[#07090e] border border-[#1a2133] hover:border-neon hover:bg-neon/10 transition-all text-white font-bold cursor-pointer"
+  >
+    <div className="flex items-center gap-2 overflow-hidden pointer-events-none">
+      <span className="text-gray-200 group-hover:text-neon transition-colors truncate">
+        aegisdrones.officials@gmail.com
+      </span>
+    </div>
+    <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-neon transition-colors shrink-0 ml-2 pointer-events-none" />
+  </a>
+</div>
         </div>
 
         {/* Right Column: Interactive Inquiry Form */}
