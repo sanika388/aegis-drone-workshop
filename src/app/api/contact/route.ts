@@ -33,8 +33,8 @@ export async function POST(req: Request) {
       console.error('Supabase DB error:', dbError);
     }
 
-    // 2. Dispatch Email Alert via Resend to Official Aegis Inbox
-    const targetEmail = process.env.AEGIS_SUPPORT_EMAIL || 'aegisdrones.officials@gmail.com';
+    // 2. Dispatch Email via Resend to Official Aegis Inbox
+    const targetEmail = process.env.AEGIS_SUPPORT_EMAIL || 'aegisdrones.official@gmail.com';
 
     if (process.env.RESEND_API_KEY) {
       try {

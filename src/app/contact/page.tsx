@@ -134,18 +134,19 @@ export default function ContactPage() {
           </div>
 
           {/* Official Aegis Email & Venue Location */}
-          <div className="bg-[#0b0e14] border border-[#1c2438] rounded-2xl p-6 space-y-4 font-mono text-xs shadow-lg">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
-                <Mail className="w-4 h-4" />
-                <span>Official Support Desk</span>
-              </div>
-              <p className="text-gray-300">
-                <a href="mailto:aegisdrones.officials@gmail.com" className="hover:text-neon underline text-white font-bold">
-                  aegisdrones.officials@gmail.com
-                </a>
-              </p>
-            </div>
+         {/* Official Aegis Email & Venue Location */}
+<div className="bg-[#0b0e14] border border-[#1c2438] rounded-2xl p-6 space-y-4 font-mono text-xs shadow-lg">
+  <div className="space-y-2">
+    <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
+      <Mail className="w-4 h-4" />
+      <span>Official Support Desk</span>
+    </div>
+    <p className="text-gray-300">
+      <a href="mailto:aegisdrones.official@gmail.com" className="hover:text-neon underline text-white font-bold">
+        aegisdrones.official@gmail.com
+      </a>
+    </p>
+  </div>
 
             <div className="pt-2 border-t border-[#182133] space-y-2">
               <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
