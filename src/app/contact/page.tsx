@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { 
-  MapPin, 
   Mail, 
   Phone, 
   MessageSquare, 
@@ -12,7 +11,6 @@ import {
   Send, 
   Loader2, 
   ExternalLink,
-  Building,
   Sparkles,
   SunMoon
 } from 'lucide-react';
@@ -68,19 +66,19 @@ export default function ContactPage() {
       <div className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>AVIONICS COMMAND DESK & LAB SUPPORT</span>
+          <span>AVIONICS COMMAND DESK & SUPPORT</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Get in Touch
         </h1>
         <p className="text-xs sm:text-sm text-gray-400 font-mono max-w-3xl leading-relaxed">
-          Direct communication desk for batch allocations, spot cash confirmations, hardware kit inquiries, and institutional registrations at GCOERC Nashik.
+          Direct communication desk for batch allocations, spot confirmations, hardware kit inquiries, and institutional registrations.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Direct Coordinator & Desk Details */}
+        {/* Left Column: Direct Coordinator & Support Desk Details */}
         <div className="lg:col-span-5 space-y-4">
           
           {/* Sole Coordinator Direct Line */}
@@ -133,21 +131,27 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Official Aegis Email & Venue Location */}
-         {/* Official Aegis Email & Venue Location */}
-<div className="bg-[#0b0e14] border border-[#1c2438] rounded-2xl p-6 space-y-4 font-mono text-xs shadow-lg">
-  <div className="space-y-2">
-    <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
-      <Mail className="w-4 h-4" />
-      <span>Official Support Desk</span>
-    </div>
-    <p className="text-gray-300">
-      <a href="mailto:aegisdrones.official@gmail.com" className="hover:text-neon underline text-white font-bold">
-        aegisdrones.officials@gmail.com
-      </a>
-    </p>
-  </div>
- 
+          {/* Official Aegis Email Desk (Clickable Action Card) */}
+          <div className="bg-[#0b0e14] border border-[#1c2438] hover:border-neon/40 rounded-2xl p-6 space-y-3 font-mono text-xs shadow-lg transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
+                <Mail className="w-4 h-4" />
+                <span>Official Support Desk</span>
+              </div>
+              <span className="text-[10px] text-gray-500 uppercase">Direct Relay</span>
+            </div>
+
+            <a 
+              href="mailto:aegisdrones.officials@gmail.com?subject=Aegis%20Workshop%20Inquiry" 
+              className="group flex items-center justify-between p-3.5 rounded-xl bg-[#07090e] border border-[#1a2133] hover:border-neon hover:bg-neon/5 transition-all text-white font-bold"
+            >
+              <div className="flex items-center gap-2 overflow-hidden">
+                <span className="text-gray-300 group-hover:text-neon transition-colors truncate">
+                  aegisdrones.officials@gmail.com
+                </span>
+              </div>
+              <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-neon transition-colors shrink-0 ml-2" />
+            </a>
           </div>
 
         </div>
