@@ -3,7 +3,7 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Toaster } from 'sonner';
-
+import 'katex/dist/katex.min.css';
 export const metadata: Metadata = {
   title: 'Aegis Drone Workshop | Gear Up. Code It. Build It. Fly It.',
   description: 'Hands-on Quadcopter Building, Hardware Assembly & Live Flight Calibration Workshop.',

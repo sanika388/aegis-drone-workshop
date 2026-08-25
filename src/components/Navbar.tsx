@@ -62,7 +62,9 @@ export default function Navbar() {
             <LayoutDashboard className="w-3.5 h-3.5 text-neon" />
             <span>Admin</span>
           </Link>
-
+<Link href="/research" className="text-xs font-mono text-gray-300 hover:text-neon transition-colors">
+  RESEARCH
+</Link>
           {/* User Sign In */}
           <Link
             href="/auth"
