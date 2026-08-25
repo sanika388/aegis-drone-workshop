@@ -13,7 +13,7 @@ import {
   QrCode, 
   Loader2,
   Mail,
-  ShieldCheck
+  Receipt
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
@@ -120,14 +120,7 @@ export default function WorkshopRegistrationPage() {
           body: JSON.stringify({ amount: workshopFee }),
         });
 
-        const orderRaw = await orderRes.text();
-        let orderData;
-        try {
-          orderData = JSON.parse(orderRaw);
-        } catch {
-          throw new Error('Order creation endpoint did not return valid JSON.');
-        }
-
+        const orderData = await orderRes.json();
         if (!orderRes.ok || !orderData.orderId) {
           throw new Error(orderData.error || 'Failed to initialize payment gateway order.');
         }
@@ -156,27 +149,19 @@ export default function WorkshopRegistrationPage() {
                     phone: formData.phone,
                     college: formData.college,
                     academic_year: formData.academicYear,
-                    payment_mode: 'online',
                     amount_paid: workshopFee,
                   },
                 }),
               });
 
-              const verifyRaw = await verifyRes.text();
-              let verifyResult;
-              try {
-                verifyResult = JSON.parse(verifyRaw);
-              } catch {
-                throw new Error('Signature verification endpoint did not return JSON.');
-              }
-
+              const verifyResult = await verifyRes.json();
               if (!verifyRes.ok || !verifyResult.success) {
                 throw new Error(verifyResult.error || 'Payment signature verification failed.');
               }
 
-              // Set instant confirmation UI
+              // Set instant confirmation with AEGIS-B1-xxx ID
               setRegisteredNotice({
-                id: verifyResult.bookingId || paymentResponse.razorpay_payment_id,
+                id: verifyResult.clearanceId || verifyResult.bookingId,
                 name: formData.fullName,
                 email: formData.email,
                 cohort: verifyResult.assignedBatch || 'Batch 1',
@@ -225,14 +210,7 @@ export default function WorkshopRegistrationPage() {
         }),
       });
 
-      const cashRaw = await res.text();
-      let result;
-      try {
-        result = JSON.parse(cashRaw);
-      } catch {
-        throw new Error('Registration endpoint did not return JSON.');
-      }
-
+      const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
       setRegisteredNotice({
@@ -277,29 +255,37 @@ export default function WorkshopRegistrationPage() {
                 <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight pt-2">
                   Registration Successful!
                 </h2>
-                <div className="inline-block px-3.5 py-1.5 rounded-md bg-[#181d2a] border border-[#2c364e]">
-                  <span className="font-mono text-xs text-gray-400">CLEARANCE PASS ID: </span>
-                  <span className="font-mono text-xs font-bold text-neon">{registeredNotice.id}</span>
+                
+                {/* Standardized Clearance Pass ID */}
+                <div className="inline-block px-4 py-2 rounded-lg bg-[#181d2a] border border-[#2c364e]">
+                  <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
+                  <span className="font-mono text-sm font-black text-neon tracking-wide">{registeredNotice.id}</span>
                 </div>
                 <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
               </div>
 
               <div className="bg-[#141923] border border-[#28354f] p-5 rounded-2xl text-left space-y-3 font-sans">
-                <div className="flex items-center gap-2 text-neon text-xs font-mono font-bold">
-                  <Mail className="w-4 h-4" />
-                  <span>Pass Delivery Information</span>
-                </div>
                 <p className="text-xs text-gray-300 leading-relaxed">
-                  Congratulations <strong className="text-white">{registeredNotice.name}</strong>! Your registration is complete and verified under Transaction ID <code className="text-neon bg-black/50 px-1.5 py-0.5 rounded text-[11px] font-mono">{registeredNotice.paymentId}</code>.
+                  Congratulations <strong className="text-white">{registeredNotice.name}</strong>! Your workshop seat is confirmed.
                 </p>
+
+                {/* Venue Entry QR Info */}
                 <div className="bg-[#0a0d14] p-4 rounded-xl border border-neon/30 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-bold text-white font-mono">
                     <QrCode className="w-4 h-4 text-neon" />
                     <span>Venue Entry Instructions</span>
                   </div>
                   <p className="text-[11px] text-gray-300 leading-relaxed">
-                    An official digital pass with your personalized QR code will be dispatched to <strong className="text-neon">{registeredNotice.email}</strong>. Simply present and scan that QR code at the reception desk on the day of the workshop for fast-track clearance.
+                    An official digital pass with your personalized QR code will be dispatched to <strong className="text-neon">{registeredNotice.email}</strong>. Simply present and scan that QR code at the reception desk on event day.
                   </p>
+                </div>
+
+                {/* Bottom Transaction & Student Info */}
+                <div className="pt-2 border-t border-[#242e44] flex flex-col sm:flex-row justify-between text-[11px] text-gray-400 font-mono gap-1">
+                  <span>Student: <strong className="text-white">{registeredNotice.name}</strong></span>
+                  {registeredNotice.paymentId && (
+                    <span>Txn ID: <code className="text-gray-300 font-mono">{registeredNotice.paymentId}</code></span>
+                  )}
                 </div>
               </div>
             </>
@@ -316,16 +302,16 @@ export default function WorkshopRegistrationPage() {
                 <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight pt-2">
                   Seat Reserved!
                 </h2>
-                <div className="inline-block px-3.5 py-1.5 rounded-md bg-[#181d2a] border border-[#2c364e]">
+                <div className="inline-block px-4 py-2 rounded-lg bg-[#181d2a] border border-[#2c364e]">
                   <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
-                  <span className="font-mono text-xs font-bold text-amber-400">{registeredNotice.id}</span>
+                  <span className="font-mono text-sm font-black text-amber-400 tracking-wide">{registeredNotice.id}</span>
                 </div>
                 <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
               </div>
 
               <div className="bg-[#1a1a1a] border border-[#333] p-5 rounded-2xl text-left space-y-3 font-sans">
                 <p className="text-xs text-gray-300 leading-relaxed">
-                  Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat is reserved in the workshop database.
+                  Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat is reserved.
                 </p>
                 <div className="bg-[#111] p-3.5 rounded-xl border border-amber-500/30 space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-mono">
@@ -333,8 +319,11 @@ export default function WorkshopRegistrationPage() {
                     <span className="text-amber-400 font-black">₹{registeredNotice.fee}</span>
                   </div>
                   <p className="text-[11px] text-amber-300/90 leading-relaxed">
-                    ⚡ Please submit ₹{registeredNotice.fee} in cash at the Avionics Lab reception desk on arrival. Your entry pass QR will be scanned and authorized on the spot.
+                    ⚡ Please submit ₹{registeredNotice.fee} in cash at the Avionics Lab desk on arrival.
                   </p>
+                </div>
+                <div className="pt-2 border-t border-[#2a2a2a] text-[11px] text-gray-400 font-mono">
+                  <span>Student: <strong className="text-white">{registeredNotice.name}</strong></span>
                 </div>
               </div>
             </>

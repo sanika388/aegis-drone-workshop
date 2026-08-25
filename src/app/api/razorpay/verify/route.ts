@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabaseClient';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -14,7 +16,7 @@ export async function POST(req: Request) {
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
-        { success: false, error: 'Missing payment signature verification parameters' },
+        { success: false, error: 'Missing payment signature parameters' },
         { status: 400 }
       );
     }
@@ -28,58 +30,41 @@ export async function POST(req: Request) {
 
     if (generatedSignature !== razorpay_signature) {
       return NextResponse.json(
-        { success: false, error: 'Payment signature mismatch / Invalid transaction' },
+        { success: false, error: 'Invalid payment signature' },
         { status: 400 }
       );
     }
 
-    // 2. Compute Batch Cohort Number
-    const targetWorkshopId = registrationData?.workshop_id || 'aegis-master-workshop';
-    
-    const { count } = await supabase
-      .from('registrations')
-      .select('*', { count: 'exact', head: true })
-      .eq('workshop_id', targetWorkshopId);
+    // 2. Insert atomically via Supabase RPC
+    const { data, error: rpcError } = await supabase.rpc('register_student_atomic', {
+      p_workshop_id: registrationData?.workshop_id || 'aegis-master-workshop',
+      p_full_name: (registrationData?.full_name || '').trim(),
+      p_email: (registrationData?.email || '').trim().toLowerCase(),
+      p_phone: (registrationData?.phone || '').trim(),
+      p_college: (registrationData?.college || '').trim(),
+      p_academic_year: registrationData?.academic_year || 'SE - Second Year',
+      p_payment_mode: 'online',
+      p_payment_status: 'confirmed',
+      p_payment_id: razorpay_payment_id,
+      p_order_id: razorpay_order_id,
+    });
 
-    const currentCount = count || 0;
-    const batchNumber = Math.floor(currentCount / 20) + 1;
-
-    // 3. Store Confirmed Registration in Supabase
-    const { data: record, error: dbError } = await supabase
-      .from('registrations')
-      .insert([
-        {
-          workshop_id: targetWorkshopId,
-          full_name: registrationData.full_name,
-          email: registrationData.email,
-          phone: registrationData.phone,
-          college: registrationData.college,
-          academic_year: registrationData.academic_year,
-          payment_mode: 'online',
-          payment_status: 'confirmed',
-          payment_id: razorpay_payment_id,
-          order_id: razorpay_order_id,
-          batch_number: batchNumber,
-          amount_paid: registrationData.amount_paid || 300,
-        },
-      ])
-      .select()
-      .single();
-
-    if (dbError) {
-      console.error('Supabase DB Insert Error:', dbError);
+    if (rpcError) {
+      throw new Error(rpcError.message || 'Database atomic registration failed.');
     }
 
     return NextResponse.json({
       success: true,
-      bookingId: record?.id || razorpay_payment_id,
-      assignedBatch: `Batch ${batchNumber}`,
-      record: record || null,
+      clearanceId: data.booking_id,
+      assignedBatch: data.cohort_label,
+      paymentId: razorpay_payment_id,
+      fee: data.fee,
+      record: data.record,
     });
   } catch (error: any) {
-    console.error('Payment verification route error:', error);
+    console.error('Payment verification error:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'Verification endpoint failure' },
+      { success: false, error: error.message || 'Payment verification failed' },
       { status: 500 }
     );
   }

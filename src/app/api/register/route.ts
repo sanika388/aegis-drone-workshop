@@ -14,7 +14,6 @@ export async function POST(req: Request) {
     const cleanPhone = (phone || '').trim();
     const cleanCollege = (college || '').trim();
     const cleanYear = academicYear || 'SE - Second Year';
-    const isCash = paymentMode === 'cash';
 
     if (!cleanFullName || !cleanEmail || !cleanPhone) {
       return NextResponse.json(
@@ -24,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Check if attendee is already registered
-    const { data: existingReg, error: checkError } = await supabase
+    const { data: existingReg } = await supabase
       .from('registrations')
       .select('*')
       .eq('workshop_id', cleanWorkshopId)
@@ -35,7 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         bookingId: existingReg.id,
-        assignedBatch: existingReg.cohort_label || `Batch ${existingReg.batch_number || 1}`,
+        assignedBatch: `Batch ${existingReg.batch_number || 1}`,
         batchNumber: existingReg.batch_number || 1,
         fee: existingReg.amount_paid || 300,
         status: existingReg.payment_status,
@@ -51,14 +50,15 @@ export async function POST(req: Request) {
       p_phone: cleanPhone,
       p_college: cleanCollege,
       p_academic_year: cleanYear,
+      p_payment_mode: 'cash',
+      p_payment_status: 'pending_cash',
+      p_payment_id: null,
+      p_order_id: null,
     });
 
     if (rpcError) {
       throw new Error(rpcError.message || 'Database registration procedure failed.');
     }
-
-    // 3. If Cash, explicitly set to pending. If online, logic can differ later.
-    const finalStatus = isCash ? 'pending' : 'pending';
 
     return NextResponse.json({
       success: true,
@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       assignedBatch: data.cohort_label,
       batchNumber: data.batch_number,
       fee: data.fee,
-      status: finalStatus,
+      status: 'pending_cash',
       alreadyRegistered: false,
     });
   } catch (err: any) {
