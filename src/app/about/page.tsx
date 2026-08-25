@@ -14,8 +14,16 @@ import {
   X, 
   Maximize2,
   CheckCircle2,
-  Flame,
-  ArrowRight
+  ArrowRight,
+  HelpCircle,
+  PackageCheck,
+  ChevronDown,
+  Code2,
+  Activity,
+  Award,
+  BookOpen,
+  Wrench,
+  FileCode2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,17 +31,16 @@ export default function AboutShowcasePage() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const loadShowcase = async () => {
     try {
-      // 1. Fetch gallery_images across all workshops
       const { data } = await supabase
         .from('workshops')
         .select('gallery_images')
         .not('gallery_images', 'is', null);
 
       if (data && data.length > 0) {
-        // Flatten arrays, remove null/empty items, deduplicate
         const allImages = Array.from(
           new Set(
             data
@@ -53,7 +60,6 @@ export default function AboutShowcasePage() {
   useEffect(() => {
     loadShowcase();
 
-    // 2. Real-time subscription to auto-reflect photos uploaded via Admin Showcase Tab
     const channel = supabase
       .channel('about_gallery_realtime')
       .on(
@@ -70,8 +76,90 @@ export default function AboutShowcasePage() {
     };
   }, []);
 
+  const hardwareSpecs = [
+    {
+      title: 'Flight Controller (FC)',
+      spec: 'ESP32 Dual-Core (240MHz)',
+      detail: 'Bare-silicon custom firmware programming with real-time interrupt processing for motor PWM output.',
+      icon: Cpu,
+    },
+    {
+      title: 'Inertial Measurement (IMU)',
+      spec: 'MPU6050 6-Axis MotionTracking',
+      detail: 'Combines 3-axis gyroscope and 3-axis accelerometer with I2C communication and digital filtering.',
+      icon: Activity,
+    },
+    {
+      title: 'ESC & Propulsion',
+      spec: '30A Brushless ESCs + High-KV Motors',
+      detail: 'High-discharge electronic speed controllers running calibrated PWM signal lines for dynamic thrust modulation.',
+      icon: Radio,
+    },
+    {
+      title: 'Chassis Geometry',
+      spec: '3D Printed High-Impact Frame',
+      detail: 'Modular quadcopter arm architecture designed for rapid field maintenance and dynamic center-of-gravity balance.',
+      icon: Layers,
+    },
+    {
+      title: 'Flight Stabilization',
+      spec: 'Closed-Loop PID Controller',
+      detail: 'Proportional-Integral-Derivative math loops written from scratch to eliminate drift and ensure level hover.',
+      icon: Code2,
+    },
+    {
+      title: 'Avionics Power Rail',
+      spec: 'Isolated 5V / 3.3V Regulators',
+      detail: 'Filtered voltage distribution protecting the micro-controller logic from high-current motor back-EMF spikes.',
+      icon: Shield,
+    },
+  ];
+
+  const takeaways = [
+    {
+      title: 'Official Certified Completion Pass',
+      desc: 'Verified Aegis Avionics Master Workshop credential endorsed with your unique sequential clearance ID.',
+      icon: Award,
+    },
+    {
+      title: 'Full ESP32 Flight Firmware Codebase',
+      desc: 'Complete, commented source code for sensor reading, gyro filtering, PID loops, and wireless control.',
+      icon: FileCode2,
+    },
+    {
+      title: 'Live Drone Hardware Assembly Experience',
+      desc: 'Hands-on practical soldering, wiring, motor testing, and safety protocol calibration on real quadcopters.',
+      icon: Wrench,
+    },
+    {
+      title: 'Aerodynamics & PID Tuning Knowledge',
+      desc: 'In-depth engineering understanding of thrust-to-weight ratios, CoG balancing, and stabilization theory.',
+      icon: BookOpen,
+    },
+  ];
+
+  const faqs = [
+    {
+      q: 'Do I need prior experience in drone building or electronics?',
+      a: 'No prior drone or avionics experience is required. The masterclass starts from the ground up—covering basic micro-controller wiring, sensor integration, code logic, and flight dynamics step-by-step.',
+    },
+    {
+      q: 'What should I bring to the workshop?',
+      a: 'Bring your personal laptop (with VS Code / Arduino IDE installed) and charger. All drone frames, flight controller components, sensors, motors, tools, and testing rigs are provided at the lab workbenches.',
+    },
+    {
+      q: 'How are the batches and cohorts organized?',
+      a: 'To guarantee hands-on workbench access and direct mentor guidance, each cohort is strictly capped per batch. Attendees work in collaborative engineering squads.',
+    },
+    {
+      q: 'Will I get to fly the drone during the workshop?',
+      a: 'Yes! The final stage of the masterclass includes motor arming tests, bench PID calibration, tethered hover stabilization, and a live demonstration flight.',
+    },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-16 space-y-16">
+    <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
+      
       {/* Header Section */}
       <div className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
@@ -86,53 +174,61 @@ export default function AboutShowcasePage() {
         </p>
       </div>
 
-      {/* Core Engineering Pillars */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="p-6 rounded-2xl bg-[#0e1017] border border-[#21283a] space-y-3.5 hover:border-neon/40 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center">
+      {/* 1. Verified Hardware Specs Grid */}
+      <div className="space-y-6">
+        <div className="border-b border-[#202738] pb-4">
+          <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
             <Cpu className="w-5 h-5 text-neon" />
-          </div>
-          <h3 className="text-base font-bold text-white font-mono uppercase">ESP32 Avionics Core</h3>
-          <p className="text-xs text-gray-300 font-mono leading-relaxed">
-            Dual-core 240MHz telemetry processing, sub-millisecond gyro loop feedback, and real-time WiFi/BLE command bridge without pre-made black boxes.
+            <span>Hardware Architecture & Telemetry Specs</span>
+          </h2>
+          <p className="text-xs text-gray-400 font-mono mt-1">
+            Core functional silicon, sensor modules, and propulsion electronics actively used in our laboratory.
           </p>
         </div>
 
-        <div className="p-6 rounded-2xl bg-[#0e1017] border border-[#21283a] space-y-3.5 hover:border-neon/40 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center">
-            <Radio className="w-5 h-5 text-neon" />
-          </div>
-          <h3 className="text-base font-bold text-white font-mono uppercase">Sensor Fusion & PID</h3>
-          <p className="text-xs text-gray-300 font-mono leading-relaxed">
-            MPU6050 6-DOF complementary and Kalman filtering with closed-loop proportional-integral-derivative thrust modulation.
-          </p>
-        </div>
-
-        <div className="p-6 rounded-2xl bg-[#0e1017] border border-[#21283a] space-y-3.5 hover:border-neon/40 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-neon" />
-          </div>
-          <h3 className="text-base font-bold text-white font-mono uppercase">3kg+ Heavy Airframe</h3>
-          <p className="text-xs text-gray-300 font-mono leading-relaxed">
-            Custom engineered aerodynamic quadcopter geometry capable of carrying specialized sensors, cameras, or relief delivery payloads.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {hardwareSpecs.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={idx}
+                className="bg-[#0e1017] border border-[#21283a] hover:border-neon/40 p-5 rounded-2xl space-y-3 transition-all"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-[10px] text-gray-400 uppercase font-bold">
+                    SPEC 0{idx + 1}
+                  </span>
+                  <div className="w-8 h-8 rounded-lg bg-neon/10 border border-neon/30 flex items-center justify-center">
+                    <Icon className="w-4 h-4 text-neon" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white font-mono">{item.title}</h3>
+                  <p className="text-xs text-neon font-mono font-semibold mt-0.5">{item.spec}</p>
+                </div>
+                <p className="text-xs text-gray-400 font-mono leading-relaxed">
+                  {item.detail}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Dynamic Lab Showcase Gallery */}
+      {/* 2. Dynamic Lab Showcase Gallery */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-[#202738] pb-4">
           <div>
             <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
               <Layers className="w-5 h-5 text-neon" />
-              <span>Live Lab Showcase & Flight Hardware</span>
+              <span>Live Lab Showcase & Flight Testing</span>
             </h2>
             <p className="text-xs text-gray-400 font-mono mt-1">
-              Field testing, component builds, and flight testing records managed directly from Command Room.
+              Field tests, avionics bench setups, and workshop moments updated directly from the Command Room.
             </p>
           </div>
           <span className="font-mono text-xs text-neon font-semibold self-start sm:self-auto">
-            {galleryImages.length} Asset{galleryImages.length === 1 ? '' : 's'} Deployed
+            {galleryImages.length} Asset{galleryImages.length === 1 ? '' : 's'} Published
           </span>
         </div>
 
@@ -151,7 +247,7 @@ export default function AboutShowcasePage() {
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4 justify-between">
-                  <span className="font-mono text-[10px] text-neon uppercase font-bold">Inspect Hardware</span>
+                  <span className="font-mono text-[10px] text-neon uppercase font-bold">Inspect Asset</span>
                   <Maximize2 className="w-4 h-4 text-white" />
                 </div>
               </div>
@@ -161,7 +257,7 @@ export default function AboutShowcasePage() {
           <div className="bg-[#0e1017] border border-[#21283a] rounded-2xl p-10 text-center space-y-3">
             <ImageIcon className="w-8 h-8 text-gray-500 mx-auto" />
             <p className="text-xs text-gray-400 font-mono">
-              No showcase photos published yet. Upload images inside the <strong>Admin Control Room &gt; Showcase</strong> tab to display them here live.
+              Showcase photos will appear here as images are added in the <strong>Admin Control Room &gt; Showcase</strong> tab.
             </p>
           </div>
         )}
@@ -192,22 +288,102 @@ export default function AboutShowcasePage() {
         </div>
       )}
 
+      {/* 3. What You'll Take Home Section */}
+      <div className="space-y-6">
+        <div className="border-b border-[#202738] pb-4">
+          <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
+            <PackageCheck className="w-5 h-5 text-neon" />
+            <span>What You Will Take Home</span>
+          </h2>
+          <p className="text-xs text-gray-400 font-mono mt-1">
+            Tangible resources, verified credentials, and software artifacts delivered to each attendee.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {takeaways.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={idx}
+                className="bg-[#0e1017] border border-[#21283a] p-5 rounded-2xl flex items-start gap-4 hover:border-neon/30 transition-all"
+              >
+                <div className="w-10 h-10 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center shrink-0 mt-0.5">
+                  <Icon className="w-5 h-5 text-neon" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-white font-mono">{item.title}</h3>
+                  <p className="text-xs text-gray-400 font-mono leading-relaxed">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. Student FAQs Section */}
+      <div className="space-y-6">
+        <div className="border-b border-[#202738] pb-4">
+          <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
+            <HelpCircle className="w-5 h-5 text-neon" />
+            <span>Frequently Asked Questions</span>
+          </h2>
+          <p className="text-xs text-gray-400 font-mono mt-1">
+            Common questions regarding prerequisites, equipment, and session structure.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div
+                key={idx}
+                className="bg-[#0e1017] border border-[#21283a] rounded-xl overflow-hidden transition-all"
+              >
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : idx)}
+                  className="w-full p-4 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-[#12151f] transition-colors"
+                >
+                  <span className="font-mono text-xs font-bold text-white flex items-center gap-2">
+                    <span className="text-neon">Q{idx + 1}.</span> {faq.q}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-neon shrink-0 transition-transform duration-200 ${
+                      isOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-4 pb-4 pt-1 border-t border-[#1a202e] text-xs text-gray-300 font-mono leading-relaxed bg-[#0b0d13]">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Call to Action Bar */}
       <div className="bg-gradient-to-r from-[#0c1410] to-[#0e1017] border border-neon/30 p-8 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-6">
         <div className="space-y-1 text-center sm:text-left">
-          <h3 className="text-xl font-bold font-mono text-white">Join the Flight Cohort</h3>
+          <h3 className="text-xl font-bold font-mono text-white">Join the Next Flight Intake</h3>
           <p className="text-xs text-gray-400 font-mono">
-            Seats are strictly capped per batch for hands-on workbench mentoring.
+            Hands-on benches are partitioned into small batches for focused mentorship.
           </p>
         </div>
         <Link
           href="/workshops"
-          className="px-6 py-3 rounded-xl bg-neon text-black font-mono font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(0,255,102,0.3)] shrink-0"
+          className="px-6 py-3 rounded-xl bg-neon text-black font-mono font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(0,255,102,0.3)] shrink-0 cursor-pointer"
         >
-          <span>Explore Workshop Tracks</span>
+          <span>Claim Your Seat</span>
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
+
     </div>
   );
 }
