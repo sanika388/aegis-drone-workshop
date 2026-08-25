@@ -147,27 +147,7 @@ export default function ContactPage() {
       </a>
     </p>
   </div>
-
-            <div className="pt-2 border-t border-[#182133] space-y-2">
-              <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
-                <Building className="w-4 h-4" />
-                <span>Lab Venue</span>
-              </div>
-              <p className="text-gray-300 font-bold">Guru Gobind Singh College of Engineering & Research Centre (GCOERC)</p>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                Khalsa Educational Complex, Guru Gobind Singh Marg, Wadala-Parbhardi Road, Indira Nagar, Nashik, Maharashtra 422009
-              </p>
-              <a
-                href="https://maps.google.com/?q=Guru+Gobind+Singh+College+of+Engineering+and+Research+Centre+Nashik"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141b2b] hover:bg-neon hover:text-black text-gray-200 transition-all text-xs font-bold border border-[#23314f]"
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                <span>Open in Google Maps</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
+ 
           </div>
 
         </div>
