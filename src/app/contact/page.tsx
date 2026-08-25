@@ -8,12 +8,10 @@ import {
   Mail, 
   Phone, 
   MessageSquare, 
-  Clock, 
   CheckCircle2, 
   Send, 
   Loader2, 
   ExternalLink,
-  ShieldCheck,
   Building,
   Sparkles,
   SunMoon
@@ -82,7 +80,7 @@ export default function ContactPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* Left Column: Direct Coordinator & Desk Details (5 Cols) */}
+        {/* Left Column: Direct Coordinator & Desk Details */}
         <div className="lg:col-span-5 space-y-4">
           
           {/* Sole Coordinator Direct Line */}
@@ -143,8 +141,8 @@ export default function ContactPage() {
                 <span>Official Support Desk</span>
               </div>
               <p className="text-gray-300">
-                <a href="mailto:contact@aegisdrone.com" className="hover:text-neon underline text-white font-bold">
-                  contact@aegisdrone.com
+                <a href="mailto:aegisdrones.officials@gmail.com" className="hover:text-neon underline text-white font-bold">
+                  aegisdrones.officials@gmail.com
                 </a>
               </p>
             </div>
@@ -173,7 +171,7 @@ export default function ContactPage() {
 
         </div>
 
-        {/* Right Column: Interactive Inquiry Form (7 Cols) */}
+        {/* Right Column: Interactive Inquiry Form */}
         <div className="lg:col-span-7 bg-[#0b0d14] border-2 border-[#1c2438] rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
           
           <div className="border-b border-[#1b2233] pb-4">
