@@ -1,7 +1,7 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
-import DroneSimulator from '../lab/components/DroneSimulator';
+import DroneSimulator from './components/DroneSimulator';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { 
