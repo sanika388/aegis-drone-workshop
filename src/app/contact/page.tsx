@@ -143,7 +143,7 @@ export default function ContactPage() {
     </div>
     <p className="text-gray-300">
       <a href="mailto:aegisdrones.official@gmail.com" className="hover:text-neon underline text-white font-bold">
-        aegisdrones.official@gmail.com
+        aegisdrones.officials@gmail.com
       </a>
     </p>
   </div>
