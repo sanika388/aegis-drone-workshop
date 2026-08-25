@@ -13,10 +13,12 @@ import {
   QrCode, 
   Loader2,
   Mail,
-  Receipt
+  MessageSquare,
+  ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { resolveStudentWhatsAppLink } from '@/lib/workshopUtils';
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -52,9 +54,11 @@ export default function WorkshopRegistrationPage() {
     name: string;
     email: string;
     cohort: string;
+    batchNumber: number;
     mode: 'cash' | 'online';
     fee: number;
     paymentId?: string;
+    whatsappLink?: string;
   } | null>(null);
 
   useEffect(() => {
@@ -74,6 +78,7 @@ export default function WorkshopRegistrationPage() {
         if (workshopData) {
           setWorkshop(workshopData);
         } else {
+          // Dynamic fallback if no row found
           setWorkshop({
             id: requestedWorkshopId,
             title: 'Aegis Drone Avionics Master Workshop',
@@ -81,7 +86,9 @@ export default function WorkshopRegistrationPage() {
             schedule_date: 'September 2026 Intake',
             venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
             fee: 300,
-            batch_size_limit: 20,
+            batch_size_limit: 30,
+            whatsapp_links: [{ batchNumber: 1, url: '' }],
+            fallback_whatsapp_link: '',
             syllabus: [
               '01 BUILD THE BRAIN: ESP32 Flight Controller, Gyro & Sensors (MPU6050), Firmware & Motors Wiring',
               '02 BUILD THE BODY: Quadcopter Chassis Geometry, Aerodynamics & Modular Assembly',
@@ -104,7 +111,7 @@ export default function WorkshopRegistrationPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const workshopFee = Number(workshop?.fee || 300);
+    const workshopFee = Number(workshop?.fee ?? 300);
 
     try {
       // FLOW A: ONLINE RAZORPAY PAYMENT
@@ -159,15 +166,19 @@ export default function WorkshopRegistrationPage() {
                 throw new Error(verifyResult.error || 'Payment signature verification failed.');
               }
 
-              // Set instant confirmation with AEGIS-B1-xxx ID
+              const assignedBatchNum = Number(verifyResult.assignedBatch?.replace(/\D/g, '') || 1);
+              const waLink = resolveStudentWhatsAppLink(workshop, assignedBatchNum);
+
               setRegisteredNotice({
                 id: verifyResult.clearanceId || verifyResult.bookingId,
                 name: formData.fullName,
                 email: formData.email,
                 cohort: verifyResult.assignedBatch || 'Batch 1',
+                batchNumber: assignedBatchNum,
                 mode: 'online',
                 fee: workshopFee,
                 paymentId: paymentResponse.razorpay_payment_id,
+                whatsappLink: waLink,
               });
             } catch (verErr: any) {
               alert(verErr.message || 'Payment verification failed');
@@ -213,13 +224,18 @@ export default function WorkshopRegistrationPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
+      const assignedBatchNum = Number(result.batchNumber || 1);
+      const waLink = resolveStudentWhatsAppLink(workshop, assignedBatchNum);
+
       setRegisteredNotice({
         id: result.bookingId,
         name: formData.fullName,
         email: formData.email,
         cohort: result.assignedBatch || 'Batch 1',
+        batchNumber: assignedBatchNum,
         mode: 'cash',
         fee: result.fee || workshopFee,
+        whatsappLink: waLink,
       });
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
@@ -237,7 +253,7 @@ export default function WorkshopRegistrationPage() {
     );
   }
 
-  // PASS CONFIRMATION SCREEN
+  // CONFIRMATION SCREEN
   if (registeredNotice) {
     return (
       <div className="max-w-xl mx-auto px-6 py-16">
@@ -256,7 +272,6 @@ export default function WorkshopRegistrationPage() {
                   Registration Successful!
                 </h2>
                 
-                {/* Standardized Clearance Pass ID */}
                 <div className="inline-block px-4 py-2 rounded-lg bg-[#181d2a] border border-[#2c364e]">
                   <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
                   <span className="font-mono text-sm font-black text-neon tracking-wide">{registeredNotice.id}</span>
@@ -269,7 +284,28 @@ export default function WorkshopRegistrationPage() {
                   Congratulations <strong className="text-white">{registeredNotice.name}</strong>! Your workshop seat is confirmed.
                 </p>
 
-                {/* Venue Entry QR Info */}
+                {/* Direct Batch WhatsApp Link Button */}
+                {registeredNotice.whatsappLink ? (
+                  <div className="bg-[#0b1f14] border border-[#00ff66]/40 p-3.5 rounded-xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#00ff66] font-mono">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Join Your Official Cohort Group</span>
+                    </div>
+                    <p className="text-[11px] text-gray-300">
+                      Connect with fellow engineers and receive kit instructions:
+                    </p>
+                    <a
+                      href={registeredNotice.whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#00ff66] text-black font-mono font-bold text-xs hover:bg-[#00cc52] transition-all shadow-[0_0_15px_rgba(0,255,102,0.3)]"
+                    >
+                      <span>Join {registeredNotice.cohort} WhatsApp Group</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ) : null}
+
                 <div className="bg-[#0a0d14] p-4 rounded-xl border border-neon/30 space-y-2">
                   <div className="flex items-center gap-2 text-xs font-bold text-white font-mono">
                     <QrCode className="w-4 h-4 text-neon" />
@@ -280,7 +316,6 @@ export default function WorkshopRegistrationPage() {
                   </p>
                 </div>
 
-                {/* Bottom Transaction & Student Info */}
                 <div className="pt-2 border-t border-[#242e44] flex flex-col sm:flex-row justify-between text-[11px] text-gray-400 font-mono gap-1">
                   <span>Student: <strong className="text-white">{registeredNotice.name}</strong></span>
                   {registeredNotice.paymentId && (
@@ -313,6 +348,25 @@ export default function WorkshopRegistrationPage() {
                 <p className="text-xs text-gray-300 leading-relaxed">
                   Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat is reserved.
                 </p>
+
+                {registeredNotice.whatsappLink ? (
+                  <div className="bg-[#191910] border border-amber-500/40 p-3.5 rounded-xl space-y-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-amber-400 font-mono">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>Join {registeredNotice.cohort} WhatsApp Group</span>
+                    </div>
+                    <a
+                      href={registeredNotice.whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 text-black font-mono font-bold text-xs hover:bg-amber-300 transition-all"
+                    >
+                      <span>Join WhatsApp Group</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ) : null}
+
                 <div className="bg-[#111] p-3.5 rounded-xl border border-amber-500/30 space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-mono">
                     <span className="text-gray-400">Amount Due at Desk:</span>
@@ -321,9 +375,6 @@ export default function WorkshopRegistrationPage() {
                   <p className="text-[11px] text-amber-300/90 leading-relaxed">
                     ⚡ Please submit ₹{registeredNotice.fee} in cash at the Avionics Lab desk on arrival.
                   </p>
-                </div>
-                <div className="pt-2 border-t border-[#2a2a2a] text-[11px] text-gray-400 font-mono">
-                  <span>Student: <strong className="text-white">{registeredNotice.name}</strong></span>
                 </div>
               </div>
             </>
@@ -399,7 +450,7 @@ export default function WorkshopRegistrationPage() {
 
             <div className="bg-[#1a1a1a] border border-neon/20 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-gray-300 font-mono">
               <AlertTriangle className="w-4 h-4 shrink-0 text-neon" />
-              <span>Interactive cohort session: Team-based flight assembly and calibration ({workshop?.batch_size_limit || 20} seats / batch).</span>
+              <span>Interactive cohort session: Team-based flight assembly and calibration ({workshop?.batch_size_limit || 30} seats / batch).</span>
             </div>
           </div>
         </div>
@@ -412,8 +463,7 @@ export default function WorkshopRegistrationPage() {
                 <p className="text-[10px] text-gray-400 font-mono">SEAT REGISTRY ALLOTMENT</p>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-gray-500 font-mono uppercase line-through mr-1.5">₹1000</span>
-                <span className="text-2xl font-black text-neon font-mono">₹{workshop?.fee || 300}</span>
+                <span className="text-2xl font-black text-neon font-mono">₹{workshop?.fee ?? 300}</span>
               </div>
             </div>
 
@@ -499,7 +549,7 @@ export default function WorkshopRegistrationPage() {
                       <QrCode className="w-3.5 h-3.5 text-neon" />
                       <span className="text-neon font-bold text-xs font-mono">UPI / Instant Online</span>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee || 300} via Razorpay</span>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee ?? 300} via Razorpay</span>
                   </div>
 
                   <div
@@ -514,7 +564,7 @@ export default function WorkshopRegistrationPage() {
                       <Banknote className="w-3.5 h-3.5 text-amber-400" />
                       <span className="text-amber-400 font-bold text-xs font-mono">Spot Cash</span>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee || 300} at lab desk</span>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee ?? 300} at lab desk</span>
                   </div>
                 </div>
               </div>
@@ -534,7 +584,7 @@ export default function WorkshopRegistrationPage() {
                     <UserCheck className="w-4 h-4" />
                     <span>
                       {formData.paymentMode === 'online' ? 'Proceed to Pay ₹' : 'Confirm Cash Reservation ₹'}
-                      {workshop?.fee || 300}
+                      {workshop?.fee ?? 300}
                     </span>
                   </>
                 )}
