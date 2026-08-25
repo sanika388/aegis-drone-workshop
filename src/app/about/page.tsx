@@ -1,7 +1,7 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
-import DroneSimulator from './components/DroneSimulator';
+
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { 
@@ -13,9 +13,6 @@ import {
   Image as ImageIcon, 
   X, 
   Maximize2,
-  CheckCircle2,
-  ArrowRight,
-  HelpCircle,
   PackageCheck,
   ChevronDown,
   Code2,
@@ -23,9 +20,12 @@ import {
   Award,
   BookOpen,
   Wrench,
-  FileCode2
+  FileCode2,
+  HelpCircle,
+  ArrowRight
 } from 'lucide-react';
 import Link from 'next/link';
+import DroneSimulator from './components/DroneSimulator';
 
 export default function AboutShowcasePage() {
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -174,7 +174,12 @@ export default function AboutShowcasePage() {
         </p>
       </div>
 
-      {/* 1. Verified Hardware Specs Grid */}
+      {/* Interactive Drone Test Bench Component */}
+      <div className="space-y-4">
+        <DroneSimulator />
+      </div>
+
+      {/* Hardware Specs Grid */}
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
           <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
@@ -215,7 +220,7 @@ export default function AboutShowcasePage() {
         </div>
       </div>
 
-      {/* 2. Dynamic Lab Showcase Gallery */}
+      {/* Dynamic Lab Showcase Gallery */}
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-[#202738] pb-4">
           <div>
@@ -275,7 +280,7 @@ export default function AboutShowcasePage() {
           >
             <button
               onClick={() => setActiveImage(null)}
-              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:text-neon hover:bg-black transition-colors"
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:text-neon hover:bg-black transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -287,8 +292,8 @@ export default function AboutShowcasePage() {
           </div>
         </div>
       )}
- 
-      {/* 3. What You'll Take Home Section */}
+
+      {/* Take Home Section */}
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
           <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
@@ -323,7 +328,7 @@ export default function AboutShowcasePage() {
         </div>
       </div>
 
-      {/* 4. Student FAQs Section */}
+      {/* Student FAQs Section */}
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
           <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
@@ -383,7 +388,6 @@ export default function AboutShowcasePage() {
           <ArrowRight className="w-4 h-4" />
         </Link>
       </div>
-
     </div>
   );
 }
