@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
   CheckCircle2, 
@@ -11,15 +11,30 @@ import {
   AlertTriangle, 
   Banknote, 
   QrCode, 
-  Clock,
-  Sparkles,
+  Loader2,
   Phone
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 
+// Helper: Dynamically load Razorpay SDK in the browser
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export default function WorkshopRegistrationPage() {
   const routeParams = useParams();
+  const router = useRouter();
   const requestedWorkshopId = typeof routeParams?.id === 'string' ? routeParams.id : '';
 
   const [workshop, setWorkshop] = useState<any>(null);
@@ -29,7 +44,7 @@ export default function WorkshopRegistrationPage() {
     phone: '',
     college: '',
     academicYear: 'SE - Second Year',
-    paymentMode: 'cash' as 'cash' | 'online',
+    paymentMode: 'online' as 'cash' | 'online',
   });
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,10 +77,10 @@ export default function WorkshopRegistrationPage() {
             id: requestedWorkshopId,
             title: 'Aegis Drone Avionics Master Workshop',
             badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
-            date: 'September 2026 Intake',
+            schedule_date: 'September 2026 Intake',
             venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
             fee: 300,
-            max_capacity: 20,
+            batch_size_limit: 20,
             syllabus: [
               '01 BUILD THE BRAIN: ESP32 Flight Controller, Gyro & Sensors (MPU6050), Firmware & Motors Wiring',
               '02 BUILD THE BODY: Quadcopter Chassis Geometry, Aerodynamics & Modular Assembly',
@@ -88,7 +103,104 @@ export default function WorkshopRegistrationPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const workshopFee = Number(workshop?.fee || 300);
+
     try {
+      // FLOW A: ONLINE RAZORPAY PAYMENT
+      if (formData.paymentMode === 'online') {
+        const isLoaded = await loadRazorpayScript();
+        if (!isLoaded) {
+          throw new Error('Razorpay SDK failed to load. Check your internet connection.');
+        }
+
+        // 1. Create server-side order
+        const orderRes = await fetch('/api/razorpay/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: workshopFee }),
+        });
+
+        const orderData = await orderRes.json();
+        if (!orderRes.ok || !orderData.orderId) {
+          throw new Error(orderData.error || 'Failed to initialize payment gateway order.');
+        }
+
+        // 2. Open Razorpay Checkout Modal
+        const options = {
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          amount: orderData.amount,
+          currency: orderData.currency || 'INR',
+          name: 'Aegis Drone Avionics Lab',
+          description: `${workshop?.title || 'Workshop'} Clearance Pass`,
+          order_id: orderData.orderId,
+          handler: async function (paymentResponse: any) {
+            try {
+              setIsSubmitting(true);
+              // 3. Verify cryptographic HMAC signature & register
+              const verifyRes = await fetch('/api/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: paymentResponse.razorpay_order_id,
+                  razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                  razorpay_signature: paymentResponse.razorpay_signature,
+                  registrationData: {
+                    workshop_id: requestedWorkshopId || 'aegis-master-workshop',
+                    full_name: formData.fullName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    college: formData.college,
+                    academic_year: formData.academicYear,
+                    payment_mode: 'online',
+                    amount_paid: workshopFee,
+                  },
+                }),
+              });
+
+              const verifyResult = await verifyRes.json();
+              if (!verifyRes.ok || !verifyResult.success) {
+                throw new Error(verifyResult.error || 'Payment signature verification failed.');
+              }
+
+              // Route directly to the pass view
+              if (verifyResult.record?.id) {
+                router.push(`/pass/${verifyResult.record.id}`);
+              } else {
+                setRegisteredNotice({
+                  id: verifyResult.record?.id || paymentResponse.razorpay_payment_id,
+                  name: formData.fullName,
+                  cohort: `Batch ${verifyResult.record?.batch_number || 1}`,
+                  mode: 'online',
+                  fee: workshopFee,
+                });
+              }
+            } catch (verErr: any) {
+              alert(verErr.message || 'Payment verification failed');
+            } finally {
+              setIsSubmitting(false);
+            }
+          },
+          prefill: {
+            name: formData.fullName,
+            email: formData.email,
+            contact: formData.phone,
+          },
+          theme: {
+            color: '#00FF66',
+          },
+          modal: {
+            ondismiss: function () {
+              setIsSubmitting(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+        return;
+      }
+
+      // FLOW B: SPOT CASH REGISTRATION
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,7 +211,7 @@ export default function WorkshopRegistrationPage() {
           phone: formData.phone,
           college: formData.college,
           academicYear: formData.academicYear,
-          paymentMode: formData.paymentMode,
+          paymentMode: 'cash',
         }),
       });
 
@@ -110,12 +222,11 @@ export default function WorkshopRegistrationPage() {
         id: result.bookingId,
         name: formData.fullName,
         cohort: result.assignedBatch || 'Batch 1',
-        mode: formData.paymentMode,
-        fee: result.fee || workshop?.fee || 300,
+        mode: 'cash',
+        fee: result.fee || workshopFee,
       });
     } catch (err: any) {
       alert(err.message || 'Registration failed.');
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -129,85 +240,43 @@ export default function WorkshopRegistrationPage() {
     );
   }
 
-  // Differentiated Confirmation Screen based on Payment Mode (Cash vs Online UPI)
+  // Spot Cash / Offline Confirmation Screen
   if (registeredNotice) {
     return (
       <div className="max-w-xl mx-auto px-6 py-20">
         <div className="bg-[#121212] border border-[#242424] rounded-3xl p-8 text-center space-y-6 shadow-2xl">
-          
-          {registeredNotice.mode === 'online' ? (
-            /* ONLINE / UPI CONFIRMATION SCREEN */
-            <>
-              <div className="w-20 h-20 mx-auto rounded-full bg-neon/10 border-2 border-neon/40 flex items-center justify-center">
-                <QrCode className="w-10 h-10 text-neon animate-pulse" />
-              </div>
+          <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center">
+            <Banknote className="w-10 h-10 text-amber-500 animate-pulse" />
+          </div>
 
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight">
-                  ONLINE / UPI REGISTRATION LOGGED
-                </h2>
-                <div className="inline-block px-3 py-1 rounded-md bg-[#181d2a] border border-[#2c364e]">
-                  <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
-                  <span className="font-mono text-xs font-bold text-neon">{registeredNotice.id}</span>
-                </div>
-                <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
-              </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight">
+              SPOT CASH REGISTRATION LOGGED
+            </h2>
+            <div className="inline-block px-3 py-1 rounded-md bg-[#181d2a] border border-[#2c364e]">
+              <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
+              <span className="font-mono text-xs font-bold text-amber-400">{registeredNotice.id}</span>
+            </div>
+            <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
+          </div>
 
-              <div className="bg-[#141923] border border-[#28354f] p-5 rounded-2xl text-left space-y-3">
-                <p className="text-xs text-gray-300 font-sans leading-relaxed">
-                  Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat has been reserved in the master registry.
-                </p>
-                <div className="bg-[#0a0d14] p-3.5 rounded-xl border border-neon/20 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-gray-400">Intake Amount:</span>
-                    <span className="text-neon font-black">₹{registeredNotice.fee}</span>
-                  </div>
-                  <p className="text-[11px] text-gray-300 font-sans leading-relaxed">
-                    ⚡ <strong>UPI VERIFICATION AT VENUE:</strong> Complete your UPI transaction with the desk coordinator or present your payment screenshot on arrival. Your official digital pass will be confirmed and sent to your email instantly.
-                  </p>
-                </div>
-                <p className="text-[11px] text-gray-400 font-mono">
-                  📞 Help Desk Contact: <strong className="text-white">Sanika Dusane (+91 7620350524)</strong>
-                </p>
+          <div className="bg-[#1a1a1a] border border-[#333] p-5 rounded-2xl text-left space-y-3">
+            <p className="text-xs text-gray-300 font-sans leading-relaxed">
+              Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat has been reserved in the master registry.
+            </p>
+            <div className="bg-[#111] p-3.5 rounded-xl border border-amber-500/20 space-y-2">
+              <div className="flex items-center justify-between text-xs font-mono">
+                <span className="text-gray-400">Amount Due at Desk:</span>
+                <span className="text-amber-400 font-black">₹{registeredNotice.fee}</span>
               </div>
-            </>
-          ) : (
-            /* SPOT CASH CONFIRMATION SCREEN */
-            <>
-              <div className="w-20 h-20 mx-auto rounded-full bg-amber-500/10 border-2 border-amber-500/30 flex items-center justify-center">
-                <Banknote className="w-10 h-10 text-amber-500 animate-pulse" />
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight">
-                  SPOT CASH REGISTRATION LOGGED
-                </h2>
-                <div className="inline-block px-3 py-1 rounded-md bg-[#181d2a] border border-[#2c364e]">
-                  <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
-                  <span className="font-mono text-xs font-bold text-amber-400">{registeredNotice.id}</span>
-                </div>
-                <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
-              </div>
-
-              <div className="bg-[#1a1a1a] border border-[#333] p-5 rounded-2xl text-left space-y-3">
-                <p className="text-xs text-gray-300 font-sans leading-relaxed">
-                  Hello <strong className="text-white">{registeredNotice.name}</strong>, your seat has been reserved in the master registry.
-                </p>
-                <div className="bg-[#111] p-3.5 rounded-xl border border-amber-500/20 space-y-2">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-gray-400">Amount Due at Desk:</span>
-                    <span className="text-amber-400 font-black">₹{registeredNotice.fee}</span>
-                  </div>
-                  <p className="text-[11px] text-amber-300/90 font-sans leading-relaxed">
-                    ⚡ <strong>SPOT CASH PAYMENT:</strong> As you selected Spot Cash, please submit your fee of ₹{registeredNotice.fee} at the Avionics Lab desk on event day. Your pass will be confirmed and scanned on spot.
-                  </p>
-                </div>
-                <p className="text-[11px] text-gray-400 font-mono">
-                  📞 Help Desk Contact: <strong className="text-white">Sanika Dusane (+91 7620350524)</strong>
-                </p>
-              </div>
-            </>
-          )}
+              <p className="text-[11px] text-amber-300/90 font-sans leading-relaxed">
+                ⚡ <strong>SPOT CASH PAYMENT:</strong> Please submit your fee of ₹{registeredNotice.fee} at the Avionics Lab desk on event day. Your pass will be verified and scanned on the spot.
+              </p>
+            </div>
+            <p className="text-[11px] text-gray-400 font-mono">
+              📞 Help Desk Contact: <strong className="text-white">Sanika Dusane (+91 7620350524)</strong>
+            </p>
+          </div>
 
           <Link
             href="/"
@@ -224,11 +293,11 @@ export default function WorkshopRegistrationPage() {
     <div className="max-w-6xl mx-auto px-6 py-12 space-y-8">
       <div>
         <Link
-          href="/"
+          href="/workshops"
           className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-neon transition-colors font-mono"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>BACK TO HOME</span>
+          <span>BACK TO WORKSHOP CATALOG</span>
         </Link>
       </div>
 
@@ -248,7 +317,7 @@ export default function WorkshopRegistrationPage() {
             <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-400 pt-2 font-mono">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-neon shrink-0" />
-                <span>{workshop?.date || 'September 2026 Intake'}</span>
+                <span>{workshop?.schedule_date || workshop?.date || 'September 2026 Intake'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-neon shrink-0" />
@@ -277,7 +346,7 @@ export default function WorkshopRegistrationPage() {
 
             <div className="bg-[#1a1a1a] border border-neon/20 rounded-xl p-3 flex items-center gap-2.5 text-[11px] text-gray-300 font-mono">
               <AlertTriangle className="w-4 h-4 shrink-0 text-neon" />
-              <span>Interactive cohort session: Team-based flight assembly and calibration (20 seats / batch).</span>
+              <span>Interactive cohort session: Team-based flight assembly and calibration ({workshop?.batch_size_limit || 20} seats / batch).</span>
             </div>
           </div>
         </div>
@@ -366,6 +435,21 @@ export default function WorkshopRegistrationPage() {
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <div
+                    onClick={() => setFormData({ ...formData, paymentMode: 'online' })}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      formData.paymentMode === 'online'
+                        ? 'bg-[#141824] border-neon shadow-[0_0_15px_rgba(0,255,102,0.15)]'
+                        : 'bg-[#0a0c10] border-[#222736] opacity-70'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <QrCode className="w-3.5 h-3.5 text-neon" />
+                      <span className="text-neon font-bold text-xs font-mono">UPI / Instant Online</span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee || 300} via Razorpay</span>
+                  </div>
+
+                  <div
                     onClick={() => setFormData({ ...formData, paymentMode: 'cash' })}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       formData.paymentMode === 'cash'
@@ -377,22 +461,7 @@ export default function WorkshopRegistrationPage() {
                       <Banknote className="w-3.5 h-3.5 text-amber-400" />
                       <span className="text-amber-400 font-bold text-xs font-mono">Spot Cash</span>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹300 at lab desk</span>
-                  </div>
-
-                  <div
-                    onClick={() => setFormData({ ...formData, paymentMode: 'online' })}
-                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
-                      formData.paymentMode === 'online'
-                        ? 'bg-[#141824] border-neon shadow-[0_0_15px_rgba(0,255,102,0.15)]'
-                        : 'bg-[#0a0c10] border-[#222736] opacity-70'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <QrCode className="w-3.5 h-3.5 text-neon" />
-                      <span className="text-neon font-bold text-xs font-mono">UPI / Online</span>
-                    </div>
-                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Verify at lab desk</span>
+                    <span className="text-[10px] text-gray-400 font-mono block mt-0.5">Pay ₹{workshop?.fee || 300} at lab desk</span>
                   </div>
                 </div>
               </div>
@@ -400,14 +469,20 @@ export default function WorkshopRegistrationPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono"
+                className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono shadow-[0_0_20px_rgba(0,255,102,0.25)]"
               >
                 {isSubmitting ? (
-                  <span>Registering Pilot ID...</span>
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-black" />
+                    <span>Processing Secure Gateway...</span>
+                  </>
                 ) : (
                   <>
                     <UserCheck className="w-4 h-4" />
-                    <span>Confirm Registration (₹{workshop?.fee || 300})</span>
+                    <span>
+                      {formData.paymentMode === 'online' ? 'Proceed to Pay ₹' : 'Confirm Cash Reservation ₹'}
+                      {workshop?.fee || 300}
+                    </span>
                   </>
                 )}
               </button>
