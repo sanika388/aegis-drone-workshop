@@ -1,7 +1,7 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
-
+import DroneSimulator from './components/DroneSimulator';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { 
@@ -287,7 +287,9 @@ export default function AboutShowcasePage() {
           </div>
         </div>
       )}
-
+<div className="space-y-4">
+  <DroneSimulator />
+</div>
       {/* 3. What You'll Take Home Section */}
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
