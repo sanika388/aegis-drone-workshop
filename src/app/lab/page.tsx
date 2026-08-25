@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function AvionicsLabPage() {
-  const [activeLab, setActiveLab] = useState<'pid' | 'filter' | 'thrust' | 'game'>('game');
+  const [activeLab, setActiveLab] = useState<'game' | 'pid' | 'filter' | 'thrust'>('game');
 
   // --- 1. PID LAB STATES ---
   const [kp, setKp] = useState(1.8);
@@ -429,7 +429,7 @@ export default function AvionicsLabPage() {
             <div className="space-y-3 font-mono text-xs">
               <div className="space-y-1">
                 <div className="flex justify-between text-gray-300">
-                  <span>Proportional Gain ($K_p$):</span>
+                  <span>Proportional Gain (Kp):</span>
                   <span className="text-neon font-bold">{kp.toFixed(2)}</span>
                 </div>
                 <input
@@ -445,7 +445,7 @@ export default function AvionicsLabPage() {
 
               <div className="space-y-1">
                 <div className="flex justify-between text-gray-300">
-                  <span>Integral Gain ($K_i$):</span>
+                  <span>Integral Gain (Ki):</span>
                   <span className="text-neon font-bold">{ki.toFixed(3)}</span>
                 </div>
                 <input
@@ -461,7 +461,7 @@ export default function AvionicsLabPage() {
 
               <div className="space-y-1">
                 <div className="flex justify-between text-gray-300">
-                  <span>Derivative Gain ($K_d$):</span>
+                  <span>Derivative Gain (Kd):</span>
                   <span className="text-neon font-bold">{kd.toFixed(2)}</span>
                 </div>
                 <input
@@ -514,7 +514,7 @@ export default function AvionicsLabPage() {
               6-Axis IMU (MPU6050) Complementary Angle Estimator
             </h3>
             <p className="text-xs text-gray-400 font-mono mt-1">
-              $$\theta_{fused} = \alpha \cdot (\theta + \omega_{gyro} \cdot \Delta t) + (1 - \alpha) \cdot \theta_{acc}$$
+              {"Angle(t) = α · (Angle(t-1) + GyroRate · Δt) + (1 - α) · AccAngle"}
             </p>
           </div>
 
@@ -540,7 +540,7 @@ export default function AvionicsLabPage() {
 
           <div className="space-y-2 bg-[#0e111a] p-5 rounded-2xl border border-[#1f283d] font-mono text-xs">
             <div className="flex justify-between">
-              <span className="text-gray-300">Filter Coefficient ($\alpha$): <strong>{filterAlpha.toFixed(2)}</strong></span>
+              <span className="text-gray-300">Filter Coefficient (α): <strong>{filterAlpha.toFixed(2)}</strong></span>
               <span className="text-neon">{Math.round(filterAlpha * 100)}% Gyro / {Math.round((1 - filterAlpha) * 100)}% Acc</span>
             </div>
             <input
