@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { User, Radio, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
-import { Plane, User, LogOut, QrCode, Shield } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -30,91 +31,85 @@ export default function Navbar() {
     router.push('/auth');
   };
 
-  // Hide global navbar on raw auth page
-  if (pathname === '/auth') return null;
-
   const navLinks = [
     { name: 'Home', href: '/' },
     { name: 'Workshops', href: '/workshops' },
-    { name: 'My Pass & QR', href: '/profile' },
-    { name: 'About & Contact', href: '/about' },
+    { name: 'About', href: '/about' },
+    { name: 'Contact', href: '/contact' },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-[#07090f]/80 backdrop-blur-md border-b border-[#1c2336] font-mono text-xs">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0a0a0a]/95 border-b border-[#242424]">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
         
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 text-white hover:text-neon transition-colors">
-          <div className="w-8 h-8 rounded-lg bg-neon/10 border border-neon/30 flex items-center justify-center text-neon shadow-[0_0_12px_rgba(0,255,102,0.2)]">
-            <Plane className="w-4 h-4" />
+        {/* Brand Logo & Title */}
+        <Link href="/" className="flex items-center gap-4 group">
+          <div className="relative w-[68px] h-[68px] shrink-0 transition-transform duration-200 group-hover:scale-105 flex items-center justify-center">
+            <Image
+              src="/logo.png"
+              alt="Aegis Drone Workshop Logo"
+              width={140}
+              height={140}
+              className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.45)]"
+              priority
+              unoptimized
+            />
           </div>
-          <span className="font-black text-sm tracking-wider uppercase">AEGIS AVIONICS</span>
+          <span className="text-neon font-black text-2xl tracking-wider">
+            AEGIS<span className="text-white font-light">DRONES</span>
+          </span>
         </Link>
 
-        {/* Navigation Tabs */}
-        <nav className="hidden md:flex items-center gap-1 bg-[#0d111a] border border-[#1c2336] p-1 rounded-xl">
+        {/* Navigation Links */}
+        <nav className="flex items-center gap-6 text-sm font-medium">
           {navLinks.map((link) => {
             const isActive = pathname === link.href;
             return (
               <Link
                 key={link.name}
                 href={link.href}
-                className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                  isActive
-                    ? 'bg-neon text-black font-bold shadow-[0_0_10px_rgba(0,255,102,0.2)]'
-                    : 'text-gray-400 hover:text-white hover:bg-[#151a27]'
+                className={`transition-colors flex items-center gap-1.5 ${
+                  isActive ? 'text-neon font-semibold' : 'text-gray-300 hover:text-neon'
                 }`}
               >
+                {isActive && <Radio className="w-2.5 h-2.5 text-neon animate-pulse" />}
                 {link.name}
               </Link>
             );
           })}
-        </nav>
 
-        {/* User Account / Auth Actions */}
-        <div className="flex items-center gap-2.5">
+          {/* Dynamic Sign In / Logged-in Profile */}
           {sessionUser ? (
-            <div className="flex items-center gap-2 bg-[#0c1018] border border-[#1d263b] p-1.5 rounded-xl">
+            <div className="flex items-center gap-2">
               <Link
                 href="/profile"
-                className="flex items-center gap-2 px-2.5 py-1 text-gray-300 hover:text-neon transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono"
               >
-                <div className="w-6 h-6 rounded-full bg-neon/20 border border-neon/40 flex items-center justify-center text-neon text-[10px] font-bold">
+                <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon text-[10px] font-bold">
                   {sessionUser.user_metadata?.full_name?.[0]?.toUpperCase() || sessionUser.email?.[0]?.toUpperCase() || 'P'}
                 </div>
-                <span className="max-w-[120px] truncate font-bold text-white text-[11px]">
+                <span className="max-w-[100px] truncate">
                   {sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0]}
                 </span>
               </Link>
-
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 transition-all cursor-pointer"
                 title="Log Out"
+                className="p-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-red-500 hover:text-red-400 text-gray-400 transition-all cursor-pointer"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/auth"
-                className="px-3.5 py-2 rounded-xl bg-neon text-black font-bold hover:bg-[#00cc52] transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.2)]"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Pilot Log In</span>
-              </Link>
-              <Link
-                href="/auth"
-                className="p-2 rounded-xl bg-[#141824] border border-[#232d44] text-amber-400 hover:text-amber-300 transition-colors"
-                title="Admin Control Room"
-              >
-                <Shield className="w-4 h-4" />
-              </Link>
-            </div>
+            <Link
+              href="/auth"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs"
+            >
+              <User className="w-4 h-4 text-neon" />
+              <span>Sign In</span>
+            </Link>
           )}
-        </div>
+        </nav>
 
       </div>
     </header>
