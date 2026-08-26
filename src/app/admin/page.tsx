@@ -113,7 +113,7 @@ export default function AdminDashboardPage() {
 
     // 2. Fetch registrations for the selected workshop
     const currentWorkshopId = activeSelectedWorkshop ? activeSelectedWorkshop.id : selectedWorkshopId;
-    let query = supabase.from('registrations').select('*').order('registered_at', { ascending: false });
+    let query = supabase.from('registrations').select('*').order('created_at', { ascending: false });
     
     if (currentWorkshopId) {
       query = query.eq('workshop_id', currentWorkshopId);
@@ -123,23 +123,29 @@ export default function AdminDashboardPage() {
 
     if (regData) {
       setRegistrations(
-        regData.map((r) => ({
-          id: r.id,
-          workshop_id: r.workshop_id,
-          name: r.full_name,
-          email: r.email,
-          phone: r.phone,
-          college: r.college,
-          year: r.academic_year,
-          batch_number: r.batch_number || 1,
-          cohort_label: r.cohort_label || `Batch ${r.batch_number || 1}`,
-          amount: Number(r.amount_paid || 0),
-          status: r.payment_status || 'pending',
-          payment_mode: r.payment_mode || 'online',
-          attended: !!r.attended,
-          is_deleted: !!r.is_deleted,
-          registeredAt: r.registered_at ? new Date(r.registered_at).toLocaleDateString('en-IN') : 'Recent',
-        }))
+        regData.map((r) => {
+          const rawNum = r.clearance_id ? parseInt(r.clearance_id.replace(/\D/g, ''), 10) : null;
+          const parsedBatchNum = r.batch ? parseInt(r.batch.replace(/\D/g, ''), 10) : (rawNum ? Math.ceil(rawNum / (activeSelectedWorkshop?.batch_size_limit || 30)) : 1);
+          
+          return {
+            id: r.id,
+            clearance_id: r.clearance_id || r.id,
+            workshop_id: r.workshop_id,
+            name: r.full_name,
+            email: r.email,
+            phone: r.phone,
+            college: r.college,
+            year: r.academic_year,
+            batch_number: parsedBatchNum || 1,
+            cohort_label: r.batch || `Batch ${parsedBatchNum || 1}`,
+            amount: Number(r.amount_paid || 0),
+            status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'confirmed' : 'pending',
+            payment_mode: r.payment_mode || 'cash',
+            attended: !!r.attended,
+            is_deleted: !!r.is_deleted,
+            registeredAt: r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : 'Recent',
+          };
+        })
       );
     }
   };
@@ -171,7 +177,7 @@ export default function AdminDashboardPage() {
   const activeRegistrations = registrations.filter((r) => !r.is_deleted);
   const batchCap = masterWorkshop.batch_size_limit || 30;
   const confirmedRegs = activeRegistrations.filter((r) => r.status === 'confirmed');
-  const pendingRegs = activeRegistrations.filter((r) => r.status === 'pending_cash' || r.status === 'pending');
+  const pendingRegs = activeRegistrations.filter((r) => r.status === 'pending');
   const grossRevenue = confirmedRegs.reduce((acc, curr) => acc + curr.amount, 0);
   const activeCohortsCount = Math.max(1, Math.ceil(activeRegistrations.length / batchCap));
 
