@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
+import crypto from 'crypto';
 
 export async function POST(req: Request) {
   try {
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Fetch workshop details (fee, venue, schedule, batch limit)
+    // 1. Fetch workshop details
     const { data: workshop } = await supabase
       .from('workshops')
       .select('*')
@@ -18,11 +19,12 @@ export async function POST(req: Request) {
 
     const fee = workshop?.fee || 300;
 
-    // 2. Insert record (Database trigger will auto-assign clearance_id and batch)
+    // 2. Insert record with explicit UUID fallback
     const { data: registration, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
+          id: crypto.randomUUID(), // Explicit fallback UUID
           workshop_id: workshopId || 'aegis-master-workshop',
           full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
 
     if (dbError) throw dbError;
 
-    // 3. Dispatch flight pass confirmation email with QR Code
+    // 3. Dispatch confirmation pass
     const batchNum = Number(registration.batch?.replace(/\D/g, '') || 1);
 
     try {
@@ -58,7 +60,7 @@ export async function POST(req: Request) {
         }),
       });
     } catch (mailErr) {
-      console.warn('Confirmation pass dispatch error:', mailErr);
+      console.warn('Mail dispatch warning:', mailErr);
     }
 
     return NextResponse.json({
