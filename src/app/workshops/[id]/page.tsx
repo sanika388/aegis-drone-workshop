@@ -12,13 +12,26 @@ import {
   Banknote, 
   QrCode, 
   Loader2,
-  Mail,
   MessageSquare,
   ExternalLink
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
-import { resolveStudentWhatsAppLink } from '@/lib/workshopUtils';
+
+// Helper function to resolve the exact WhatsApp group URL for an assigned batch
+function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
+  const batchNum = typeof batchStrOrNum === 'number' 
+    ? batchStrOrNum 
+    : Number(String(batchStrOrNum).replace(/\D/g, '') || 1);
+
+  if (Array.isArray(workshop?.whatsapp_links)) {
+    const matched = workshop.whatsapp_links.find(
+      (item: any) => Number(item.batchNumber) === batchNum
+    );
+    if (matched?.url && matched.url.trim() !== '') return matched.url;
+  }
+  return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default';
+}
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -167,7 +180,7 @@ export default function WorkshopRegistrationPage() {
               }
 
               const assignedBatchNum = Number(verifyResult.assignedBatch?.replace(/\D/g, '') || 1);
-              const waLink = resolveStudentWhatsAppLink(workshop, assignedBatchNum);
+              const waLink = getBatchWhatsAppUrl(workshop, assignedBatchNum);
 
               setRegisteredNotice({
                 id: verifyResult.clearanceId || verifyResult.bookingId,
@@ -225,7 +238,7 @@ export default function WorkshopRegistrationPage() {
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
       const assignedBatchNum = Number(result.batchNumber || 1);
-      const waLink = resolveStudentWhatsAppLink(workshop, assignedBatchNum);
+      const waLink = getBatchWhatsAppUrl(workshop, assignedBatchNum);
 
       setRegisteredNotice({
         id: result.bookingId,

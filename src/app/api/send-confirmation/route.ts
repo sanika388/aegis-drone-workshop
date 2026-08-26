@@ -1,5 +1,16 @@
 import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
+import { supabase } from '@/lib/supabaseClient';
+
+function getBatchWhatsAppUrl(workshop: any, batchNumber: number): string {
+  if (Array.isArray(workshop?.whatsapp_links)) {
+    const matched = workshop.whatsapp_links.find(
+      (item: any) => Number(item.batchNumber) === Number(batchNumber)
+    );
+    if (matched?.url && matched.url.trim() !== '') return matched.url;
+  }
+  return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default';
+}
 
 export async function POST(req: Request) {
   try {
@@ -11,12 +22,24 @@ export async function POST(req: Request) {
       amount, 
       venue, 
       batchSchedule,
-      paymentMethod 
+      paymentMethod,
+      workshopId
     } = await req.json();
 
     if (!email || !clearanceId) {
       return NextResponse.json({ error: 'Missing required confirmation fields' }, { status: 400 });
     }
+
+    // 1. Fetch workshop metadata for WhatsApp link resolution
+    const { data: workshop } = await supabase
+      .from('workshops')
+      .select('*')
+      .eq('id', workshopId || 'aegis-master-workshop')
+      .single();
+
+    // 2. Parse batch number directly from clearanceId (e.g. "AEGIS-B2-021" -> 2)
+    const batchNum = Number(clearanceId?.split('-')[1]?.replace(/\D/g, '') || 1);
+    const batchWhatsAppLink = getBatchWhatsAppUrl(workshop, batchNum);
 
     const officialEmail = process.env.SMTP_USER || 'aegisdrones.officials@gmail.com';
 
@@ -74,6 +97,7 @@ export async function POST(req: Request) {
             .status-pending { background-color: rgba(255, 187, 0, 0.15); color: #ffbb00; border: 1px solid rgba(255, 187, 0, 0.4); }
             .qr-section { text-align: center; padding: 16px 0 8px 0; border-top: 1px solid #1a2233; margin-top: 12px; }
             .qr-image { border: 2px solid #1c2538; border-radius: 12px; padding: 8px; background: #07090f; }
+            .wa-btn { display: inline-block; padding: 12px 24px; background-color: #25D366; color: #000000; text-decoration: none; font-weight: 900; font-size: 12px; border-radius: 10px; letter-spacing: 1px; text-transform: uppercase; margin-top: 14px; }
             .footer { padding: 24px 28px; border-top: 1px solid #161e30; background-color: #07090e; text-align: center; }
             .instruction { font-size: 12px; color: #9ca3af; line-height: 1.6; margin: 0 0 16px 0; }
             .support { font-size: 11px; color: #4b5563; margin: 0; }
@@ -134,9 +158,16 @@ export async function POST(req: Request) {
 
                 <div class="qr-section">
                   <img src="${qrCodeUrl}" alt="Security QR" width="130" height="130" class="qr-image" />
-                  <p style="font-size: 10px; color: #00ff66; margin: 8px 0 0 0; letter-spacing: 1px;">
+                  <p style="font-size: 10px; color: #00ff66; margin: 8px 0 14px 0; letter-spacing: 1px;">
                     SCAN AT GATE FOR BOARDING VERIFICATION
                   </p>
+                  
+                  <!-- Batch-specific WhatsApp button in email -->
+                  <div>
+                    <a href="${batchWhatsAppLink}" target="_blank" class="wa-btn">
+                      💬 Join Batch ${batchNum} WhatsApp Group
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

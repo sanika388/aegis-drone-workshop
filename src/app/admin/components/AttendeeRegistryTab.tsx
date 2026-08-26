@@ -21,7 +21,8 @@ import {
   Banknote,
   MessageSquare,
   Copy,
-  CreditCard
+  CreditCard,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -71,6 +72,7 @@ export default function AttendeeRegistryTab({
     phone: '',
     college: '',
     academicYear: 'SE - Second Year',
+    customClearanceId: '', // '' represents auto-assign next monotonic seat
     sendPassEmail: true,
   });
 
@@ -81,6 +83,20 @@ export default function AttendeeRegistryTab({
   const deletedRegistrations = useMemo(() => {
     return registrations.filter((r) => r.is_deleted);
   }, [registrations]);
+
+  // Compute vacant/deleted slots available for backfilling
+  const vacantSlots = useMemo(() => {
+    const activeIds = new Set(activeRegistrations.map((r) => r.clearance_id).filter(Boolean));
+    const deletedWithIds = deletedRegistrations
+      .map((r) => r.clearance_id)
+      .filter((cid): cid is string => Boolean(cid && !activeIds.has(cid)));
+
+    return Array.from(new Set(deletedWithIds)).sort((a, b) => {
+      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+  }, [activeRegistrations, deletedRegistrations]);
 
   const targetDataset = viewScope === 'active' ? activeRegistrations : deletedRegistrations;
 
@@ -336,23 +352,28 @@ export default function AttendeeRegistryTab({
     setIsSubmittingManual(true);
 
     try {
+      const payload: any = {
+        workshop_id: 'aegis-master-workshop',
+        full_name: manualForm.fullName.trim(),
+        email: manualForm.email.trim().toLowerCase(),
+        phone: manualForm.phone.trim(),
+        college: manualForm.college.trim(),
+        academic_year: manualForm.academicYear,
+        payment_mode: 'cash',
+        payment_status: 'confirmed',
+        amount_paid: 300,
+        attended: true,
+        is_deleted: false,
+      };
+
+      // If admin selected a specific vacant slot to backfill, inject it
+      if (manualForm.customClearanceId && manualForm.customClearanceId.trim() !== '') {
+        payload.clearance_id = manualForm.customClearanceId.trim();
+      }
+
       const { data: newEntry, error: insertErr } = await supabase
         .from('registrations')
-        .insert([
-          {
-            workshop_id: 'aegis-master-workshop',
-            full_name: manualForm.fullName.trim(),
-            email: manualForm.email.trim().toLowerCase(),
-            phone: manualForm.phone.trim(),
-            college: manualForm.college.trim(),
-            academic_year: manualForm.academicYear,
-            payment_mode: 'cash',
-            payment_status: 'confirmed',
-            amount_paid: 300,
-            attended: true,
-            is_deleted: false,
-          }
-        ])
+        .insert([payload])
         .select('id')
         .single();
 
@@ -391,6 +412,7 @@ export default function AttendeeRegistryTab({
         phone: '',
         college: '',
         academicYear: 'SE - Second Year',
+        customClearanceId: '',
         sendPassEmail: true,
       });
       setIsManualModalOpen(false);
@@ -767,6 +789,37 @@ export default function AttendeeRegistryTab({
                 <span className="text-neon font-black text-sm">₹300 Received</span>
               </div>
 
+              {/* Seat Assignment / Vacant Slot Backfill Dropdown */}
+              <div className="space-y-1">
+                <label className="text-gray-400 flex items-center justify-between">
+                  <span>Seat Allocation Policy</span>
+                  {vacantSlots.length > 0 && (
+                    <span className="text-[10px] text-amber-400 font-bold">
+                      {vacantSlots.length} Vacant Slot{vacantSlots.length > 1 ? 's' : ''} Available
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <select
+                    value={manualForm.customClearanceId || 'auto'}
+                    onChange={(e) =>
+                      setManualForm({
+                        ...manualForm,
+                        customClearanceId: e.target.value === 'auto' ? '' : e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2.5 rounded-lg bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-neon text-xs font-mono cursor-pointer"
+                  >
+                    <option value="auto">⚡ Auto-Assign Next Sequential Seat</option>
+                    {vacantSlots.map((slot) => (
+                      <option key={slot} value={slot} className="bg-[#0e1017] text-amber-300 font-bold">
+                        ♻️ Backfill Vacant Slot: {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <label className="text-gray-400">Pilot Full Name *</label>
                 <input
@@ -813,6 +866,21 @@ export default function AttendeeRegistryTab({
                   onChange={(e) => setManualForm({ ...manualForm, college: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-white text-xs"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-gray-400">Academic Year *</label>
+                <select
+                  value={manualForm.academicYear}
+                  onChange={(e) => setManualForm({ ...manualForm, academicYear: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-white text-xs"
+                >
+                  <option value="FE - First Year">FE - First Year</option>
+                  <option value="SE - Second Year">SE - Second Year</option>
+                  <option value="TE - Third Year">TE - Third Year</option>
+                  <option value="BE - Final Year">BE - Final Year</option>
+                  <option value="School / Diploma / Other">School / Diploma / Other</option>
+                </select>
               </div>
 
               <div className="flex items-center gap-2 pt-2">
