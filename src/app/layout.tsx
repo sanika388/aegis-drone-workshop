@@ -4,6 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Toaster } from 'sonner';
 import 'katex/dist/katex.min.css';
+
 export const metadata: Metadata = {
   title: 'Aegis Drone Workshop | Gear Up. Code It. Build It. Fly It.',
   description: 'Hands-on Quadcopter Building, Hardware Assembly & Live Flight Calibration Workshop.',
@@ -16,16 +17,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className="bg-[#0a0a0a] text-gray-200 min-h-screen flex flex-col" suppressHydrationWarning>
+      <body 
+        className="bg-[#07090f] text-gray-200 min-h-screen flex flex-col selection:bg-neon selection:text-black antialiased" 
+        suppressHydrationWarning
+      >
         <Navbar />
         <main className="flex-grow">{children}</main>
         <Footer />
         <Toaster
           position="top-right"
+          theme="dark"
+          richColors
           toastOptions={{
             style: {
-              background: '#0e0e11',
-              border: '1px solid #222228',
+              background: '#0c0f17',
+              border: '1px solid #1e2538',
               color: '#ffffff',
               fontFamily: 'monospace',
               fontSize: '12px',

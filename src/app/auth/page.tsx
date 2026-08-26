@@ -1,241 +1,249 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Shield, Lock, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { Shield, User, Lock, Mail, ArrowRight, Loader2, Plane, Phone, School } from 'lucide-react';
+import { toast } from 'sonner';
 
-function AuthContent() {
+export default function AuthPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-
-  // Participant Magic Link States
-  const [email, setEmail] = useState('');
-  const [emailSent, setEmailSent] = useState(false);
-
-  const [error, setError] = useState('');
+  const [role, setRole] = useState<'participant' | 'admin'>('participant');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (searchParams.get('role') === 'admin') {
-      setIsAdmin(true);
-    }
-  }, [searchParams]);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+    phone: '',
+    college: '',
+  });
 
-  // Send Magic Link to Participant Email
-  const handleMagicLinkSignIn = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
 
     try {
-      const redirectUrl =
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/workshops`
-          : 'https://aegis-drone-workshop.vercel.app/workshops';
+      if (role === 'admin') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim(),
+          password: formData.password,
+        });
 
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: redirectUrl,
-          shouldCreateUser: true,
-        },
-      });
+        if (error) throw error;
+        toast.success('Admin authorization verified.');
+        router.push('/admin');
+        return;
+      }
 
-      if (otpError) throw otpError;
+      // Participant Flow
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.fullName.trim(),
+              phone: formData.phone.trim(),
+              college: formData.college.trim(),
+              role: 'participant',
+            },
+          },
+        });
 
-      setEmailSent(true);
+        if (error) throw error;
+        toast.success('Account created! Welcome to Aegis Command.');
+        router.push('/');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email.trim(),
+          password: formData.password,
+        });
+
+        if (error) throw error;
+        toast.success('Logged in successfully!');
+        router.push('/');
+      }
     } catch (err: any) {
-      setError(err?.message || 'Failed to send login link. Please check the email address.');
+      toast.error(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
   };
 
-  // Admin Login Handler with Secure Cookie Session
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    setTimeout(() => {
-      if (adminEmail === 'admin@aegisdrone.com' && adminPassword === 'admin123') {
-        // Set Edge Middleware session cookie
-        document.cookie = 'aegis_admin_session=authenticated; path=/; max-age=86400; SameSite=Lax; Secure';
-        localStorage.setItem('aegis_admin_auth', 'true');
-        
-        const redirectTarget = searchParams.get('redirect') || '/admin';
-        router.push(redirectTarget);
-      } else {
-        setError('Invalid admin credentials. Use admin@aegisdrone.com / admin123');
-        setLoading(false);
-      }
-    }, 600);
-  };
-
   return (
-    <div className="max-w-md mx-auto px-6 py-20">
-      <div className="bg-[#121212] border border-[#242424] rounded-2xl p-8 space-y-6 shadow-[0_0_25px_rgba(0,0,0,0.5)]">
-        {/* Toggle Switch */}
-        <div className="flex bg-[#0a0a0a] p-1 rounded-lg border border-[#242424]">
+    <div className="min-h-screen bg-[#07090f] text-white flex items-center justify-center p-6 relative overflow-hidden font-mono">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-neon/10 rounded-full blur-[120px] pointer-events-none" />
+
+      <div className="w-full max-w-md bg-[#0c0f17] border border-[#1e2538] rounded-3xl p-8 space-y-6 relative z-10 shadow-[0_0_50px_rgba(0,0,0,0.8)]">
+        
+        {/* Brand Header */}
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon shadow-[0_0_20px_rgba(0,255,102,0.2)]">
+            <Plane className="w-6 h-6" />
+          </div>
+          <h1 className="text-xl font-black tracking-wider uppercase pt-2">
+            AEGIS FLIGHT COMMAND
+          </h1>
+          <p className="text-xs text-gray-400">
+            Avionics Master Workshop Portal
+          </p>
+        </div>
+
+        {/* Role Switcher */}
+        <div className="grid grid-cols-2 gap-2 p-1 bg-[#06080d] border border-[#1a2030] rounded-xl text-xs font-bold">
           <button
             type="button"
-            onClick={() => {
-              setIsAdmin(false);
-              setError('');
-              setEmailSent(false);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
-              !isAdmin ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
+            onClick={() => setRole('participant')}
+            className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              role === 'participant'
+                ? 'bg-neon text-black shadow-[0_0_15px_rgba(0,255,102,0.3)]'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
-            Participant Login
+            <User className="w-3.5 h-3.5" />
+            <span>Participant</span>
           </button>
           <button
             type="button"
-            onClick={() => {
-              setIsAdmin(true);
-              setError('');
-              setEmailSent(false);
-            }}
-            className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${
-              isAdmin ? 'bg-neon text-black' : 'text-gray-400 hover:text-white'
+            onClick={() => { setRole('admin'); setIsSignUp(false); }}
+            className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              role === 'admin'
+                ? 'bg-amber-400 text-black shadow-[0_0_15px_rgba(251,191,36,0.3)]'
+                : 'text-gray-400 hover:text-white'
             }`}
           >
-            Admin Login
+            <Shield className="w-3.5 h-3.5" />
+            <span>Admin Control</span>
           </button>
         </div>
 
-        {/* Error Notification */}
-        {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-950/40 border border-red-500/50 rounded-lg text-red-300 text-xs">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Participant Flow */}
-        {!isAdmin ? (
-          <div className="space-y-4">
-            <div className="text-center space-y-1">
-              <h1 className="text-xl font-bold text-white">Participant Portal</h1>
-              <p className="text-xs text-gray-400">
-                {emailSent
-                  ? 'Check your email inbox for the sign-in link.'
-                  : 'Enter your email to receive a passwordless sign-in link.'}
-              </p>
-            </div>
-
-            {!emailSent ? (
-              <form onSubmit={handleMagicLinkSignIn} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-400">Email Address</label>
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-[#242424] rounded-lg">
-                    <Mail className="w-4 h-4 text-neon shrink-0" />
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="student@example.com"
-                      className="bg-transparent text-sm text-white outline-none w-full"
-                    />
-                  </div>
+        {/* Form */}
+        <form onSubmit={handleAuth} className="space-y-3.5 text-xs font-sans">
+          
+          {role === 'participant' && isSignUp && (
+            <>
+              <div className="space-y-1 font-mono">
+                <label className="text-gray-400 text-[11px]">Full Name *</label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Sanika Dusane"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
+                  />
                 </div>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
-                >
-                  {loading ? 'Sending Link...' : 'Send Sign-In Link'}
-                </button>
-              </form>
+              <div className="space-y-1 font-mono">
+                <label className="text-gray-400 text-[11px]">WhatsApp Phone Number *</label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 7620350524"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1 font-mono">
+                <label className="text-gray-400 text-[11px]">College / Institute *</label>
+                <div className="relative">
+                  <School className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. GCOERC Nashik"
+                    value={formData.college}
+                    onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="space-y-1 font-mono">
+            <label className="text-gray-400 text-[11px]">Email Address *</label>
+            <div className="relative">
+              <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="email"
+                required
+                placeholder="pilot@example.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1 font-mono">
+            <label className="text-gray-400 text-[11px]">Password *</label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className={`w-full py-3 rounded-xl font-bold font-mono text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer mt-2 ${
+              role === 'admin'
+                ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-[0_0_20px_rgba(251,191,36,0.3)]'
+                : 'bg-neon hover:bg-[#00cc52] text-black shadow-[0_0_20px_rgba(0,255,102,0.3)]'
+            } disabled:opacity-50`}
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <div className="space-y-4 text-center">
-                <div className="p-4 bg-[#181818] border border-neon/30 rounded-xl space-y-2">
-                  <CheckCircle2 className="w-8 h-8 text-neon mx-auto" />
-                  <p className="text-sm font-semibold text-white">Link Sent!</p>
-                  <p className="text-xs text-gray-400">
-                    We sent a confirmation link to <span className="text-neon">{email}</span>. Click the link in your email to enter.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmailSent(false);
-                    setError('');
-                  }}
-                  className="text-xs text-gray-400 hover:text-white underline underline-offset-4 cursor-pointer"
-                >
-                  Try with a different email
-                </button>
-              </div>
+              <>
+                <span>
+                  {role === 'admin'
+                    ? 'Verify Admin Access'
+                    : isSignUp
+                    ? 'Create Pilot Account'
+                    : 'Log In to Profile'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             )}
-          </div>
-        ) : (
-          /* Admin Flow */
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <div className="text-center space-y-1">
-              <h1 className="text-xl font-bold text-white flex items-center justify-center gap-2">
-                <Shield className="w-5 h-5 text-neon" /> Admin Portal
-              </h1>
-              <p className="text-xs text-gray-400 font-mono">RESTRICTED ACCESS ONLY</p>
-            </div>
+          </button>
+        </form>
 
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Admin Email</label>
-              <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-[#242424] rounded-lg">
-                <Mail className="w-4 h-4 text-neon shrink-0" />
-                <input
-                  type="email"
-                  required
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  placeholder="admin@aegisdrone.com"
-                  className="bg-transparent text-sm text-white outline-none w-full"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Password</label>
-              <div className="flex items-center gap-2 px-3 py-2 bg-[#0a0a0a] border border-[#242424] rounded-lg">
-                <Lock className="w-4 h-4 text-neon shrink-0" />
-                <input
-                  type="password"
-                  required
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="bg-transparent text-sm text-white outline-none w-full"
-                />
-              </div>
-            </div>
-
+        {role === 'participant' && (
+          <div className="text-center pt-2 border-t border-[#1a2030]">
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 rounded-lg bg-neon text-black font-bold hover:bg-[#00cc52] transition-all text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-xs text-gray-400 hover:text-neon transition-colors cursor-pointer"
             >
-              {loading ? 'Authenticating...' : 'Sign In to Admin Dashboard'}
+              {isSignUp ? (
+                <>Already have an account? <span className="text-neon font-bold">Log in</span></>
+              ) : (
+                <>New pilot? <span className="text-neon font-bold">Create an account</span></>
+              )}
             </button>
-          </form>
+          </div>
         )}
+
       </div>
     </div>
-  );
-}
-
-export default function AuthPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}>
-      <AuthContent />
-    </Suspense>
   );
 }
