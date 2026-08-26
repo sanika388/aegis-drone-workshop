@@ -1,78 +1,75 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
-export const dynamic = 'force-dynamic';
-
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { workshopId, fullName, email, phone, college, academicYear, paymentMode } = body;
+    const { workshopId, fullName, email, phone, college, academicYear } = await req.json();
 
-    const cleanWorkshopId = workshopId || 'aegis-master-workshop';
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanFullName = (fullName || '').trim();
-    const cleanPhone = (phone || '').trim();
-    const cleanCollege = (college || '').trim();
-    const cleanYear = academicYear || 'SE - Second Year';
-
-    if (!cleanFullName || !cleanEmail || !cleanPhone) {
-      return NextResponse.json(
-        { error: 'Missing required attendee fields (Name, Email, Phone).' },
-        { status: 400 }
-      );
+    if (!fullName || !email || !phone) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 1. Check if attendee is already registered
-    const { data: existingReg } = await supabase
-      .from('registrations')
+    // 1. Fetch workshop details (fee, venue, schedule, batch limit)
+    const { data: workshop } = await supabase
+      .from('workshops')
       .select('*')
-      .eq('workshop_id', cleanWorkshopId)
-      .eq('email', cleanEmail)
-      .maybeSingle();
+      .eq('id', workshopId || 'aegis-master-workshop')
+      .single();
 
-    if (existingReg) {
-      return NextResponse.json({
-        success: true,
-        bookingId: existingReg.id,
-        assignedBatch: `Batch ${existingReg.batch_number || 1}`,
-        batchNumber: existingReg.batch_number || 1,
-        fee: existingReg.amount_paid || 300,
-        status: existingReg.payment_status,
-        alreadyRegistered: true,
+    const fee = workshop?.fee || 300;
+
+    // 2. Insert record (Database trigger will auto-assign clearance_id and batch)
+    const { data: registration, error: dbError } = await supabase
+      .from('registrations')
+      .insert([
+        {
+          workshop_id: workshopId || 'aegis-master-workshop',
+          full_name: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          college: college?.trim() || '',
+          academic_year: academicYear || 'SE - Second Year',
+          payment_mode: 'cash',
+          payment_status: 'pending',
+          amount_paid: 0,
+        },
+      ])
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+
+    // 3. Dispatch flight pass confirmation email with QR Code
+    const batchNum = Number(registration.batch?.replace(/\D/g, '') || 1);
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: registration.email,
+          name: registration.full_name,
+          clearanceId: registration.clearance_id,
+          workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
+          amount: fee,
+          venue: workshop?.venue || 'GCOERC Nashik',
+          batchSchedule: workshop?.schedule_date || 'September Intake',
+          paymentMethod: 'cash',
+        }),
       });
-    }
-
-    // 2. Execute Atomic SQL Sequential Procedure in Supabase
-    const { data, error: rpcError } = await supabase.rpc('register_student_atomic', {
-      p_workshop_id: cleanWorkshopId,
-      p_full_name: cleanFullName,
-      p_email: cleanEmail,
-      p_phone: cleanPhone,
-      p_college: cleanCollege,
-      p_academic_year: cleanYear,
-      p_payment_mode: 'cash',
-      p_payment_status: 'pending_cash',
-      p_payment_id: null,
-      p_order_id: null,
-    });
-
-    if (rpcError) {
-      throw new Error(rpcError.message || 'Database registration procedure failed.');
+    } catch (mailErr) {
+      console.warn('Confirmation pass dispatch error:', mailErr);
     }
 
     return NextResponse.json({
       success: true,
-      bookingId: data.booking_id,
-      assignedBatch: data.cohort_label,
-      batchNumber: data.batch_number,
-      fee: data.fee,
-      status: 'pending_cash',
-      alreadyRegistered: false,
+      bookingId: registration.clearance_id,
+      assignedBatch: registration.batch,
+      batchNumber: batchNum,
+      fee,
     });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || 'An unexpected error occurred during registration.' },
-      { status: 500 }
-    );
+    console.error('Registration error:', err);
+    return NextResponse.json({ error: err.message || 'Registration failed' }, { status: 500 });
   }
 }

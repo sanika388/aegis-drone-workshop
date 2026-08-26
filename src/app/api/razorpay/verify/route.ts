@@ -2,70 +2,77 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabaseClient';
 
-export const dynamic = 'force-dynamic';
-
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      registrationData,
-    } = body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationData } = await req.json();
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json(
-        { success: false, error: 'Missing payment signature parameters' },
-        { status: 400 }
-      );
-    }
-
-    // 1. Verify HMAC SHA256 Signature
-    const secret = process.env.RAZORPAY_KEY_SECRET || '';
-    const generatedSignature = crypto
-      .createHmac('sha256', secret)
+    // 1. Verify Razorpay Signature
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
-    if (generatedSignature !== razorpay_signature) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid payment signature' },
-        { status: 400 }
-      );
+    if (expectedSignature !== razorpay_signature) {
+      return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
     }
 
-    // 2. Insert atomically via Supabase RPC
-    const { data, error: rpcError } = await supabase.rpc('register_student_atomic', {
-      p_workshop_id: registrationData?.workshop_id || 'aegis-master-workshop',
-      p_full_name: (registrationData?.full_name || '').trim(),
-      p_email: (registrationData?.email || '').trim().toLowerCase(),
-      p_phone: (registrationData?.phone || '').trim(),
-      p_college: (registrationData?.college || '').trim(),
-      p_academic_year: registrationData?.academic_year || 'SE - Second Year',
-      p_payment_mode: 'online',
-      p_payment_status: 'confirmed',
-      p_payment_id: razorpay_payment_id,
-      p_order_id: razorpay_order_id,
-    });
+    // 2. Fetch workshop data
+    const { data: workshop } = await supabase
+      .from('workshops')
+      .select('*')
+      .eq('id', registrationData.workshop_id || 'aegis-master-workshop')
+      .single();
 
-    if (rpcError) {
-      throw new Error(rpcError.message || 'Database atomic registration failed.');
+    // 3. Save to Supabase (Database trigger assigns clearance_id & batch)
+    const { data: registration, error: dbError } = await supabase
+      .from('registrations')
+      .insert([
+        {
+          workshop_id: registrationData.workshop_id,
+          full_name: registrationData.full_name,
+          email: registrationData.email.trim().toLowerCase(),
+          phone: registrationData.phone,
+          college: registrationData.college,
+          academic_year: registrationData.academic_year,
+          payment_mode: 'online',
+          payment_status: 'paid',
+          amount_paid: registrationData.amount_paid,
+          razorpay_payment_id,
+          razorpay_order_id,
+        },
+      ])
+      .select()
+      .single();
+
+    if (dbError) throw dbError;
+
+    // 4. Dispatch Email with QR
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: registration.email,
+          name: registration.full_name,
+          clearanceId: registration.clearance_id,
+          workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
+          amount: registration.amount_paid,
+          venue: workshop?.venue || 'GCOERC Nashik',
+          batchSchedule: workshop?.schedule_date || 'September Intake',
+          paymentMethod: 'online',
+        }),
+      });
+    } catch (mailErr) {
+      console.warn('Mail dispatch warning:', mailErr);
     }
 
     return NextResponse.json({
       success: true,
-      clearanceId: data.booking_id,
-      assignedBatch: data.cohort_label,
-      paymentId: razorpay_payment_id,
-      fee: data.fee,
-      record: data.record,
+      clearanceId: registration.clearance_id,
+      assignedBatch: registration.batch,
     });
-  } catch (error: any) {
-    console.error('Payment verification error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Payment verification failed' },
-      { status: 500 }
-    );
+  } catch (err: any) {
+    console.error('Verify error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
