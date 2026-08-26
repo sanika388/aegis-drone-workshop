@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import AuthGuard from '@/components/AuthGuard';
 
 // Helper function to resolve the exact WhatsApp group URL for an assigned batch
 function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
@@ -47,7 +48,7 @@ const loadRazorpayScript = () => {
   });
 };
 
-export default function WorkshopRegistrationPage() {
+function WorkshopRegistrationContent() {
   const routeParams = useParams();
   const requestedWorkshopId = typeof routeParams?.id === 'string' ? routeParams.id : '';
 
@@ -75,13 +76,25 @@ export default function WorkshopRegistrationPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
-      setLoading(false);
-      return;
-    }
-
     async function loadData() {
       try {
+        // Pre-fill user data from current authenticated session
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setFormData((prev) => ({
+            ...prev,
+            email: user.email || prev.email,
+            fullName: user.user_metadata?.full_name || user.user_metadata?.name || prev.fullName,
+            phone: user.user_metadata?.phone || prev.phone,
+            college: user.user_metadata?.college || prev.college,
+          }));
+        }
+
+        if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
+          setLoading(false);
+          return;
+        }
+
         const { data: workshopData } = await supabase
           .from('workshops')
           .select('*')
@@ -259,9 +272,9 @@ export default function WorkshopRegistrationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3 font-mono">
         <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs font-mono text-gray-400">Loading flight lab track...</p>
+        <p className="text-xs text-gray-400">Loading flight lab track...</p>
       </div>
     );
   }
@@ -486,7 +499,7 @@ export default function WorkshopRegistrationPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Sanika Dusane"
+                  placeholder="e.g. Pilot Name"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
@@ -510,7 +523,7 @@ export default function WorkshopRegistrationPage() {
                 <input
                   type="tel"
                   required
-                  placeholder="+91 7620350524"
+                  placeholder="+91 9876543210"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
@@ -522,7 +535,7 @@ export default function WorkshopRegistrationPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. GCOERC Nashik"
+                  placeholder="e.g. Engineering Institute"
                   value={formData.college}
                   onChange={(e) => setFormData({ ...formData, college: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
@@ -607,5 +620,13 @@ export default function WorkshopRegistrationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function WorkshopRegistrationPage() {
+  return (
+    <AuthGuard>
+      <WorkshopRegistrationContent />
+    </AuthGuard>
   );
 }
