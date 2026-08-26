@@ -31,10 +31,24 @@ export default function ContactPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [copied, setCopied] = useState(false);
 
+  const officialEmail = 'aegisdrones.officials@gmail.com';
+
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText('aegisdrones.officials@gmail.com');
+    navigator.clipboard.writeText(officialEmail);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleOpenMailClient = () => {
+    window.location.href = `mailto:${officialEmail}?subject=Aegis%20Workshop%20Inquiry`;
+  };
+
+  const handleOpenWebGmail = () => {
+    window.open(
+      `https://mail.google.com/mail/?view=cm&fs=1&to=${officialEmail}&su=Aegis%20Workshop%20Inquiry`,
+      '_blank',
+      'noopener,noreferrer'
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,47 +154,62 @@ export default function ContactPage() {
             </div>
           </div>
 
-          {/* Official Aegis Email Desk */}
-          <div className="bg-[#0b0e14] border border-[#1c2438] hover:border-neon/40 rounded-2xl p-6 space-y-3 font-mono text-xs shadow-lg transition-all relative z-10">
+          {/* Official Aegis Email Interactive Hub */}
+          <div className="bg-[#0b0e14] border-2 border-[#1c2438] hover:border-neon/40 rounded-2xl p-6 space-y-4 font-mono text-xs shadow-xl transition-all">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
                 <Mail className="w-4 h-4" />
                 <span>Official Support Desk</span>
               </div>
-              <span className="text-[10px] text-gray-400 uppercase">Direct Relay</span>
+              <span className="text-[10px] text-gray-400 uppercase">Interactive</span>
             </div>
 
-            <div className="space-y-2">
-              <a 
-                href="https://mail.google.com/mail/?view=cm&fs=1&to=aegisdrones.officials@gmail.com&su=Aegis%20Workshop%20Inquiry"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-between p-3 rounded-xl bg-[#07090e] border border-[#1a2133] hover:border-neon hover:bg-neon/10 transition-all text-white font-bold cursor-pointer group"
+            {/* Display Badge */}
+            <div className="p-3 rounded-xl bg-[#07090e] border border-[#1a2133] flex items-center justify-between">
+              <span className="text-white font-bold text-xs truncate">
+                {officialEmail}
+              </span>
+            </div>
+
+            {/* Direct Action Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleOpenWebGmail}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#141c2c] hover:bg-[#1e2a42] border border-[#233352] hover:border-neon text-white font-bold transition-all cursor-pointer text-[11px]"
               >
-                <span className="text-gray-200 group-hover:text-neon transition-colors truncate">
-                  aegisdrones.officials@gmail.com
-                </span>
-                <ExternalLink className="w-4 h-4 text-neon shrink-0 ml-2" />
-              </a>
+                <span>Compose in Gmail</span>
+                <ExternalLink className="w-3.5 h-3.5 text-neon" />
+              </button>
 
               <button
                 type="button"
-                onClick={handleCopyEmail}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[#121826] hover:bg-[#1a2438] border border-[#232f48] text-gray-300 hover:text-white transition-all cursor-pointer text-[11px]"
+                onClick={handleOpenMailClient}
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#141c2c] hover:bg-[#1e2a42] border border-[#233352] hover:border-neon text-white font-bold transition-all cursor-pointer text-[11px]"
               >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-neon" />
-                    <span className="text-neon font-bold">Email Copied to Clipboard!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Click to Copy Email Address</span>
-                  </>
-                )}
+                <span>Default Mail App</span>
+                <Mail className="w-3.5 h-3.5 text-neon" />
               </button>
             </div>
+
+            {/* Copy Button */}
+            <button
+              type="button"
+              onClick={handleCopyEmail}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#0d121d] hover:bg-[#141b2a] border border-[#1f2a3e] text-gray-300 hover:text-white transition-all cursor-pointer text-[11px]"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-neon" />
+                  <span className="text-neon font-bold">Email Copied to Clipboard!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Click to Copy Email Address</span>
+                </>
+              )}
+            </button>
           </div>
 
         </div>
