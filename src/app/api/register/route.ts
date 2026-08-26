@@ -17,14 +17,14 @@ export async function POST(req: Request) {
       .eq('id', workshopId || 'aegis-master-workshop')
       .single();
 
-    const fee = workshop?.fee || 300;
+    const fee = Number(workshop?.fee ?? 300);
 
-    // 2. Insert record with explicit UUID fallback
-    const { data: registration, error: dbError } = await supabase
+    // 2. Insert record
+    const { data: inserted, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
-          id: crypto.randomUUID(), // Explicit fallback UUID
+          id: crypto.randomUUID(),
           workshop_id: workshopId || 'aegis-master-workshop',
           full_name: fullName.trim(),
           email: email.trim().toLowerCase(),
@@ -34,16 +34,26 @@ export async function POST(req: Request) {
           payment_mode: 'cash',
           payment_status: 'pending',
           amount_paid: 0,
+          is_deleted: false,
         },
       ])
-      .select()
+      .select('id')
       .single();
 
     if (dbError) throw dbError;
 
-    // 3. Dispatch confirmation pass
+    // 3. Query the re-indexed record for calculated clearance_id & batch
+    const { data: registration, error: fetchError } = await supabase
+      .from('registrations')
+      .select('*')
+      .eq('id', inserted.id)
+      .single();
+
+    if (fetchError || !registration) throw (fetchError || new Error('Failed to retrieve registration pass'));
+
     const batchNum = Number(registration.batch?.replace(/\D/g, '') || 1);
 
+    // 4. Dispatch confirmation pass email
     try {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
         method: 'POST',

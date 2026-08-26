@@ -23,30 +23,41 @@ export async function POST(req: Request) {
       .eq('id', registrationData.workshop_id || 'aegis-master-workshop')
       .single();
 
-    // 3. Save to Supabase (Database trigger assigns clearance_id & batch)
-    const { data: registration, error: dbError } = await supabase
+    // 3. Save to Supabase
+    const { data: inserted, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
-          workshop_id: registrationData.workshop_id,
-          full_name: registrationData.full_name,
+          id: crypto.randomUUID(),
+          workshop_id: registrationData.workshop_id || 'aegis-master-workshop',
+          full_name: registrationData.full_name.trim(),
           email: registrationData.email.trim().toLowerCase(),
-          phone: registrationData.phone,
-          college: registrationData.college,
-          academic_year: registrationData.academic_year,
+          phone: registrationData.phone.trim(),
+          college: registrationData.college?.trim() || '',
+          academic_year: registrationData.academic_year || 'SE - Second Year',
           payment_mode: 'online',
           payment_status: 'paid',
-          amount_paid: registrationData.amount_paid,
+          amount_paid: registrationData.amount_paid || workshop?.fee || 300,
           razorpay_payment_id,
           razorpay_order_id,
+          is_deleted: false,
         },
       ])
-      .select()
+      .select('id')
       .single();
 
     if (dbError) throw dbError;
 
-    // 4. Dispatch Email with QR
+    // 4. Query the re-indexed record for calculated clearance_id & batch
+    const { data: registration, error: fetchError } = await supabase
+      .from('registrations')
+      .select('*')
+      .eq('id', inserted.id)
+      .single();
+
+    if (fetchError || !registration) throw (fetchError || new Error('Failed to retrieve registration pass'));
+
+    // 5. Dispatch Email with QR
     try {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
         method: 'POST',
