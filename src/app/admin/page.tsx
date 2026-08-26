@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
           
           return {
             id: r.id,
-            clearance_id: r.clearance_id || r.id,
+            clearance_id: r.clearance_id || null,
             workshop_id: r.workshop_id,
             name: r.full_name,
             email: r.email,
@@ -140,7 +140,8 @@ export default function AdminDashboardPage() {
             cohort_label: r.batch || `Batch ${parsedBatchNum || 1}`,
             amount: Number(r.amount_paid || 0),
             status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'confirmed' : 'pending',
-            payment_mode: r.payment_mode || 'cash',
+            payment_mode: r.payment_mode || (r.razorpay_payment_id ? 'online' : 'cash'),
+            transaction_id: r.razorpay_payment_id || null,
             attended: !!r.attended,
             is_deleted: !!r.is_deleted,
             registeredAt: r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : 'Recent',
