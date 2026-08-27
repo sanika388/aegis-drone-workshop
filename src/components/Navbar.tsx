@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { User, Radio, LogOut } from 'lucide-react';
+import { User, Radio, LogOut, Menu, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,8 +27,26 @@ export default function Navbar() {
     };
   }, []);
 
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Lock body scroll when mobile slider is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [mobileMenuOpen]);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    setMobileMenuOpen(false);
     router.push('/auth');
   };
 
@@ -39,79 +58,179 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0a0a0a]/95 border-b border-[#242424]">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        
-        {/* Brand Logo & Title */}
-        <Link href="/" className="flex items-center gap-4 group">
-          <div className="relative w-[68px] h-[68px] shrink-0 transition-transform duration-200 group-hover:scale-105 flex items-center justify-center">
-            <Image
-              src="/logo.png"
-              alt="Aegis Drone Workshop Logo"
-              width={140}
-              height={140}
-              className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.45)]"
-              priority
-              unoptimized
-            />
-          </div>
-          <span className="text-neon font-black text-2xl tracking-wider">
-            AEGIS<span className="text-white font-light">DRONES</span>
-          </span>
-        </Link>
+    <>
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0a0a0a]/95 border-b border-[#242424]">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          {/* Brand Logo & Title */}
+          <Link href="/" className="flex items-center gap-3.5 group">
+            <div className="relative w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] shrink-0 transition-transform duration-200 group-hover:scale-105 flex items-center justify-center">
+              <Image
+                src="/logo.png"
+                alt="Aegis Drone Workshop Logo"
+                width={140}
+                height={140}
+                className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.45)]"
+                priority
+                unoptimized
+              />
+            </div>
+            <span className="text-neon font-black text-xl sm:text-2xl tracking-wider">
+              AEGIS<span className="text-white font-light">DRONES</span>
+            </span>
+          </Link>
 
-        {/* Navigation Links */}
-        <nav className="flex items-center gap-6 text-sm font-medium">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            return (
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`transition-colors flex items-center gap-1.5 font-mono text-xs ${
+                    isActive ? 'text-neon font-semibold' : 'text-gray-300 hover:text-neon'
+                  }`}
+                >
+                  {isActive && <Radio className="w-2.5 h-2.5 text-neon animate-pulse" />}
+                  {link.name}
+                </Link>
+              );
+            })}
+
+            {/* Dynamic Sign In / Logged-in Profile (Desktop) */}
+            {sessionUser ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono"
+                >
+                  <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon text-[10px] font-bold">
+                    {sessionUser.user_metadata?.full_name?.[0]?.toUpperCase() || sessionUser.email?.[0]?.toUpperCase() || 'P'}
+                  </div>
+                  <span className="max-w-[110px] truncate">
+                    {sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0]}
+                  </span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  title="Log Out"
+                  className="p-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-red-500 hover:text-red-400 text-gray-400 transition-all cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
               <Link
-                key={link.name}
-                href={link.href}
-                className={`transition-colors flex items-center gap-1.5 ${
-                  isActive ? 'text-neon font-semibold' : 'text-gray-300 hover:text-neon'
-                }`}
+                href="/auth"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono uppercase"
               >
-                {isActive && <Radio className="w-2.5 h-2.5 text-neon animate-pulse" />}
-                {link.name}
+                <User className="w-4 h-4 text-neon" />
+                <span>Sign In</span>
               </Link>
-            );
-          })}
+            )}
+          </nav>
 
-          {/* Dynamic Sign In / Logged-in Profile */}
+          {/* Mobile Hamburger Button */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle Menu"
+            className="md:hidden p-2 rounded-xl bg-[#141414] border border-[#2a2a2a] text-gray-300 hover:text-neon transition-colors cursor-pointer"
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+
+        </div>
+      </header>
+
+      {/* Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden transition-opacity duration-300"
+        />
+      )}
+
+      {/* Mobile Slider Drawer */}
+      <aside
+        className={`fixed top-0 right-0 z-50 h-full w-[280px] bg-[#0c0f17] border-l border-[#1e2538] p-6 flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:hidden shadow-[-10px_0_30px_rgba(0,0,0,0.8)] ${
+          mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="space-y-6">
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between border-b border-[#1c2336] pb-4">
+            <span className="text-xs font-mono font-bold text-gray-400 tracking-wider">
+              NAVIGATION
+            </span>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1.5 rounded-lg bg-[#141824] text-gray-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Mobile Links */}
+          <nav className="flex flex-col space-y-2">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-xl font-mono text-sm flex items-center justify-between transition-all ${
+                    isActive
+                      ? 'bg-neon/10 border border-neon/30 text-neon font-bold'
+                      : 'text-gray-300 hover:bg-[#141824] hover:text-white'
+                  }`}
+                >
+                  <span>{link.name}</span>
+                  {isActive && <Radio className="w-3 h-3 text-neon animate-pulse" />}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Drawer Bottom Auth Section */}
+        <div className="border-t border-[#1c2336] pt-5 space-y-3 font-mono">
           {sessionUser ? (
-            <div className="flex items-center gap-2">
+            <>
               <Link
                 href="/profile"
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#141824] border border-neon/30 text-neon font-bold text-xs"
               >
-                <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon text-[10px] font-bold">
+                <div className="w-6 h-6 rounded-full bg-neon/20 flex items-center justify-center text-neon text-xs">
                   {sessionUser.user_metadata?.full_name?.[0]?.toUpperCase() || sessionUser.email?.[0]?.toUpperCase() || 'P'}
                 </div>
-                <span className="max-w-[100px] truncate">
+                <span className="truncate">
                   {sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0]}
                 </span>
               </Link>
               <button
                 onClick={handleLogout}
-                title="Log Out"
-                className="p-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-red-500 hover:text-red-400 text-gray-400 transition-all cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 font-bold text-xs flex items-center justify-center gap-2 hover:bg-red-500/20 transition-all cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
+                <span>Log Out</span>
               </button>
-            </div>
+            </>
           ) : (
             <Link
               href="/auth"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs"
+              onClick={() => setMobileMenuOpen(false)}
+              className="w-full py-3 px-4 rounded-xl bg-neon text-black font-black text-xs uppercase flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,102,0.3)] hover:bg-[#00cc52] transition-all"
             >
-              <User className="w-4 h-4 text-neon" />
-              <span>Sign In</span>
+              <User className="w-4 h-4" />
+              <span>Pilot Sign In</span>
             </Link>
           )}
-        </nav>
-
-      </div>
-    </header>
+        </div>
+      </aside>
+    </>
   );
 }
