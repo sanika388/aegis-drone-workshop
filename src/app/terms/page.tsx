@@ -35,8 +35,7 @@ export default function TermsAndConditions() {
               <CheckCircle2 className="w-4 h-4 text-[#00ff66]" /> 1. Registration & Clearance Passes
             </h2>
             <ul className="list-disc list-inside space-y-1 text-zinc-400 text-xs font-mono pl-2">
-              <li>Early Bird passes (₹300) are strictly limited to the first 10 confirmed registrations.</li>
-              <li>Standard passes are priced at ₹500 thereafter.</li>
+              
               <li>Each digital pass QR is unique to the registered individual and is non-transferable.</li>
             </ul>
           </section>
