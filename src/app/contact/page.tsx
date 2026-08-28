@@ -66,16 +66,11 @@ export default function ContactPage() {
       
       {/* Header Banner */}
       <div className="space-y-4 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>AVIONICS COMMAND DESK & SUPPORT</span>
-        </div>
+         
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Get in Touch
         </h1>
-        <p className="text-xs sm:text-sm text-gray-400 font-mono max-w-3xl leading-relaxed">
-          Direct communication desk for batch allocations, spot confirmations, hardware kit inquiries, and institutional registrations.
-        </p>
+         
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -88,15 +83,14 @@ export default function ContactPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-neon font-mono text-xs font-bold uppercase tracking-wider">
                 <Phone className="w-4 h-4" />
-                <span>Sole Coordinator Desk</span>
+                <span>Coordinator Desk</span>
               </div>
               <span className="w-2 h-2 rounded-full bg-neon animate-pulse" title="Direct Line Active"></span>
             </div>
 
             <div className="space-y-1.5 font-mono text-xs">
               <p className="text-lg font-black text-white">Sanika Dusane</p>
-              <p className="text-gray-400">Avionics Lead & Flight Workshop Coordinator</p>
-              
+               
               <div className="pt-3 flex flex-col gap-2">
                 <a 
                   href="tel:+917620350524" 
@@ -169,11 +163,9 @@ export default function ContactPage() {
           <div className="border-b border-[#1b2233] pb-4">
             <h2 className="text-lg font-bold text-white font-mono uppercase flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-neon" />
-              <span>Transmit an Official Inquiry</span>
+              <span>Official Inquiry</span>
             </h2>
-            <p className="text-xs text-gray-400 font-mono mt-1">
-              All submissions are logged to the Aegis Command Room and dispatched instantly to the lead coordinator.
-            </p>
+             
           </div>
 
           {isSubmitted ? (
@@ -184,7 +176,7 @@ export default function ContactPage() {
               <div className="space-y-1">
                 <h3 className="text-lg font-bold text-white font-mono uppercase">Inquiry Successfully Transmitted</h3>
                 <p className="text-xs text-gray-300 font-mono leading-relaxed">
-                  Your query has been recorded. Sanika Dusane will respond to your email or reach out on WhatsApp shortly.
+                  Your query has been recorded. Team Aegis will respond to your email or reach out on WhatsApp shortly.
                 </p>
               </div>
               <button
@@ -209,7 +201,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Rahul Sharma"
+                     
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -221,7 +213,7 @@ export default function ContactPage() {
                   <input
                     type="email"
                     required
-                    placeholder="student@example.com"
+                    placeholder="student@gmail.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -234,7 +226,7 @@ export default function ContactPage() {
                   <label className="text-gray-400 font-mono text-[11px] block">WhatsApp / Contact Number</label>
                   <input
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="+91 **********"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -262,7 +254,7 @@ export default function ContactPage() {
                 <textarea
                   rows={4}
                   required
-                  placeholder="Provide details about your query, batch preference, or college squad size..."
+                  placeholder="Provide details about your query."
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"

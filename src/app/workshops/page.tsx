@@ -93,16 +93,11 @@ export default function WorkshopsCatalogPage() {
     <div className="max-w-5xl mx-auto px-6 py-14 space-y-10">
       {/* Page Header */}
       <div className="space-y-3 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>OFFICIAL GCOERC AVIONICS FLIGHT INTAKE</span>
-        </div>
+         
         <h1 className="text-3xl sm:text-4xl font-black text-white font-mono uppercase tracking-tight">
           Aegis Drone Avionics Catalog
         </h1>
-        <p className="text-xs sm:text-sm text-gray-400 font-mono">
-          Indigenous Make in India hardware architecture • 100% scratch-built FC & firmware • 3kg+ heavy payload chassis
-        </p>
+         
       </div>
 
       {/* Dynamic Workshop Cards Mapping */}
@@ -127,9 +122,7 @@ export default function WorkshopsCatalogPage() {
                   <span className="px-3 py-1 rounded-md bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono uppercase">
                     {workshop.badge || 'CERTIFIED WORKSHOP'}
                   </span>
-                  <span className="px-3 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs font-mono uppercase flex items-center gap-1.5">
-                    <Flag className="w-3 h-3" /> Make In India
-                  </span>
+                   
                 </div>
 
                 {/* Dynamic Batch Status Indicator based on Admin Capacity */}
@@ -151,7 +144,7 @@ export default function WorkshopsCatalogPage() {
                   {workshop.title}
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-300 leading-relaxed font-sans max-w-3xl">
-                  Design, assemble, solder, calibrate, and fly. You build the flight controller board from bare silicon, develop native stabilization firmware, engineer a 3D printed chassis capable of lifting 3kg+ functional payload, and interface GPS navigation.
+                  Design, assemble, solder, calibrate, and fly. You build the flight controller board from bare silicon, develop native stabilization firmware, engineer a 3D printed chassis capable of lifting 3kg+ functional payload.
                 </p>
               </div>
 
@@ -169,10 +162,7 @@ export default function WorkshopsCatalogPage() {
                   <Weight className="w-4 h-4 text-neon shrink-0" />
                   <span className="truncate">3kg+ Heavy Lift</span>
                 </div>
-                <div className="bg-[#10131d] border border-[#1e2536] p-3 rounded-xl flex items-center gap-2 text-gray-300 font-mono text-xs">
-                  <Navigation className="w-4 h-4 text-neon shrink-0" />
-                  <span className="truncate">GPS Navigation</span>
-                </div>
+                 
                 <div className="bg-[#10131d] border border-[#1e2536] p-3 rounded-xl flex items-center gap-2 text-gray-300 font-mono text-xs col-span-2 sm:col-span-1">
                   <Layers className="w-4 h-4 text-neon shrink-0" />
                   <span className="truncate">3D Print Chassis</span>

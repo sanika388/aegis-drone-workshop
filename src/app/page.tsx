@@ -127,15 +127,9 @@ export default function HomePage() {
         <div className="lg:col-span-7 space-y-6">
           
           <div className="flex flex-wrap gap-2 items-center">
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon text-xs font-mono font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>SEPTEMBER 2026 INTAKE • FIRST 10 SEATS ₹300 (70% OFF)</span>
-            </div>
+            
 
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-mono font-bold">
-              <Flag className="w-3.5 h-3.5 text-amber-400" />
-              <span>INDIGENOUS MAKE IN INDIA AVIONICS</span>
-            </div>
+            
           </div>
 
            <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
@@ -152,7 +146,7 @@ export default function HomePage() {
 
           <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl font-sans">
 
-            A comprehensive, practical avionics masterclass. Wire ESP32 flight controllers, calibrate 6-axis gyro sensors, configure brushless motors, and understand PID stability curves in a hands-on flight lab.
+            A comprehensive, practical avionics workshop. Wire ESP32 flight controllers, calibrate 6-axis gyro sensors, configure brushless motors, and understand PID stability curves in a hands-on flight lab.
 
           </p>
 
@@ -161,7 +155,7 @@ export default function HomePage() {
               href={`/workshops/${workshopSlug}`}
               className="px-6 py-3.5 rounded-xl bg-neon font-bold flex items-center gap-2 hover:bg-[#00cc52] transition-all text-black text-xs uppercase tracking-wider cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.3)] font-mono"
             >
-              <span>Register For September Batch</span>
+              <span>Register</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -174,10 +168,7 @@ export default function HomePage() {
           </div>
 
           <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-gray-400 font-mono">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-neon" />
-              <span>100% Lab Hardware & 3D Printed Parts Provided</span>
-            </div>
+             
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-neon" />
               <span>Open to All Branches & Academic Years</span>
@@ -252,10 +243,10 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-6 space-y-10">
           <div className="text-center space-y-2 max-w-3xl mx-auto">
             <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest">
-              INDIGENOUS HARDWARE ARCHITECTURE
+              HARDWARE ARCHITECTURE
             </span>
             <h2 className="text-3xl font-black text-white font-mono uppercase">
-              100% Scratch-Built Avionics & 3kg+ Payload Structure
+              Scratch-Built Avionics & 3kg+ Payload Structure
             </h2>
             <p className="text-xs text-gray-400 font-sans">
               Promoting Indian engineering self-reliance. Learn how flight computers are fabricated from ground-up electronic components and high-thrust airframes are engineered to carry functional multi-kilogram payloads.
@@ -271,7 +262,7 @@ export default function HomePage() {
               </div>
               <h3 className="font-mono text-sm font-bold text-white uppercase">Scratch-Built Flight Controller</h3>
               <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-                ESP32 dual-core flight computer built from discrete components. No pre-assembled or imported FC boards.
+                ESP32 dual-core flight computer built from discrete components. No pre-assembled board.
               </p>
             </div>
 
@@ -282,15 +273,15 @@ export default function HomePage() {
               </div>
               <h3 className="font-mono text-sm font-bold text-white uppercase">Self-Built Native Firmware</h3>
               <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-                Write line-by-line flight logic, interrupt timers, and custom PWM registers from scratch without generic black-box code.
+                Write line-by-line flight logic, interrupt timers, and custom PWM registers from scratch.
               </p>
             </div>
 
             {/* 3. 3D Printed 3kg+ Heavy-Lift Chassis */}
             <div className="bg-[#10131d] border border-neon/30 p-5 rounded-2xl space-y-3 shadow-[0_0_20px_rgba(0,255,102,0.06)]">
-              <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
-                <Weight className="w-4 h-4" />
-              </div>
+            <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
+              <Weight className="w-4 h-4" />
+            </div>
               <h3 className="font-mono text-sm font-bold text-white uppercase">3kg+ Heavy-Lift 3D Chassis</h3>
               <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
                 High-stress reinforced 3D printed airframe designed for 3kg+ heavy payload capacity, vibration damping, and dynamic structural equilibrium.
@@ -308,18 +299,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* 5. GPS Navigation */}
-            <div className="bg-[#10131d] border border-[#202738] p-5 rounded-2xl space-y-3">
-              <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
-                <Navigation className="w-4 h-4" />
-              </div>
-              <h3 className="font-mono text-sm font-bold text-white uppercase">GPS Navigation Telemetry</h3>
-              <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-                GNSS / GPS positioning, altitude lock, NMEA sentence parsing, and autonomous waypoint telemetry streaming.
-              </p>
-            </div>
-
-            {/* 6. High-Torque BLDC & ESCs */}
+             
+            {/* 5. High-Torque BLDC & ESCs */}
             <div className="bg-[#10131d] border border-[#202738] p-5 rounded-2xl space-y-3">
               <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
                 <Zap className="w-4 h-4" />
@@ -338,7 +319,7 @@ export default function HomePage() {
       <div className="py-16 max-w-7xl mx-auto px-6 space-y-12">
         <div className="text-center space-y-2 max-w-2xl mx-auto">
           <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest">
-            SESSION ROADMAP
+          WORKSHOP ROADMAP
           </span>
           <h2 className="text-3xl font-black text-white font-mono uppercase">
             From Bare Components To Heavy-Lift Flight
@@ -351,7 +332,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 01</span>
-                <span className="px-2 py-0.5 rounded bg-neon/10 text-neon font-mono text-[10px] font-bold">NATIVE ARCHITECTURE</span>
+                
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Build The Brain From Scratch</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
@@ -361,7 +342,7 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
-                  <span>Developing proprietary firmware — no ready-made flight stacks.</span>
+                  <span>Developing proprietary firmware, no ready-made flight stacks.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
@@ -376,7 +357,7 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 02</span>
-                <span className="px-2 py-0.5 rounded bg-neon/10 text-neon font-mono text-[10px] font-bold">3D DESIGN & 3KG+ AERO</span>
+ 
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Heavy-Lift Chassis & Body</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
@@ -401,21 +382,21 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 03</span>
-                <span className="px-2 py-0.5 rounded bg-neon/10 text-neon font-mono text-[10px] font-bold">LIVE STABILIZATION</span>
+ 
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Test, Tune & Fly</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
-                  <span>PID loop tuning calibrated for high-inertia payload stability.</span>
+                  <span>PID loop tuning calibrated for high-inertia stability and hover control.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
-                  <span>GPS telemetry tracking, failsafe cutoffs & thrust optimization.</span>
+                  <span>ESC calibration, gyro dampening, failsafe cutoffs & dynamic thrust optimization.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-neon shrink-0 mt-0.5" />
-                  <span>Live demonstration flight with telemetry verification.</span>
+                  <span>Live flight demonstration with flight data calibration and telemetry verification.</span>
                 </li>
               </ul>
             </div>
@@ -423,78 +404,12 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 5. Pricing & Intake Logistics Matrix */}
-      <div className="border-t border-[#1a1f2c] bg-[#08090e] py-16">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="bg-[#10131d] border-2 border-neon/40 rounded-3xl p-8 sm:p-12 shadow-[0_0_50px_rgba(0,255,102,0.1)] grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
-            
-            <div className="md:col-span-7 space-y-5">
-              <div className="inline-block px-3 py-1 rounded-md bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase">
-                LIMITED COHORT CAPACITY
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white font-mono uppercase">
-                September 2026 Intake Pass
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-300 font-sans leading-relaxed">
-                To guarantee full hands-on access to test gear and flight benches, each batch is capped strictly per squad.
-              </p>
-
-              <div className="space-y-2.5 text-xs font-mono text-gray-300">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-neon shrink-0" />
-                  <span>Intake Schedule: <strong>September 2026</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-neon shrink-0" />
-                  <span>Guru Gobind Singh College of Engineering and Research Centre, Nashik</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-neon shrink-0" />
-                  <span>Aegis Certified Drone Avionics Credential</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-neon shrink-0" />
-                  <span>Coordinator Desk: <strong>Sanika Dusane (+91 7620350524)</strong></span>
-                </div>
-              </div>
-            </div>
-
-            <div className="md:col-span-5 bg-[#08090e] border border-[#232a3c] rounded-2xl p-6 text-center space-y-5">
-              <div className="space-y-1">
-                <span className="text-xs text-gray-500 font-mono line-through uppercase">Standard Fee: ₹1,000</span>
-                <div className="flex items-center justify-center gap-1">
-                  <span className="text-3xl sm:text-4xl font-black text-neon font-mono">₹300</span>
-                  <span className="text-xs text-gray-400 font-mono">/ Pilot</span>
-                </div>
-                <p className="text-[11px] font-mono text-neon font-bold">
-                  ★ 70% Early Bird (First 10 Seats) • Later ₹500
-                </p>
-              </div>
-
-              <div className="text-left text-[11px] font-mono text-gray-400 bg-[#121622] p-3 rounded-xl space-y-1 border border-[#1e2536]">
-                <p>• Spot cash or instant online entry</p>
-                <p>• Scannable QR pass to your email</p>
-                <p>• Open to all colleges, diploma & schools</p>
-              </div>
-
-              <Link
-                href={`/workshops/${workshopSlug}`}
-                className="w-full py-3.5 rounded-xl bg-neon font-bold flex items-center justify-center gap-2 hover:bg-[#00cc52] transition-all text-black text-xs uppercase tracking-wider cursor-pointer shadow-[0_0_20px_rgba(0,255,102,0.3)] font-mono"
-              >
-                <span>Claim Clearance Pass</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
+       
       {/* 6. Frequently Asked Questions */}
       <div className="py-16 max-w-5xl mx-auto px-6 space-y-10">
         <div className="text-center space-y-2">
           <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest">
-            PILOT BRIEFING
+         BRIEFING
           </span>
           <h2 className="text-3xl font-black text-white font-mono uppercase">
             Frequently Asked Questions
@@ -518,20 +433,56 @@ export default function HomePage() {
               Are we using ready-made flight controllers?
             </h4>
             <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-              No. In alignment with Make in India, you will build the flight computer board from discrete components, write custom firmware line-by-line, and assemble a 3D printed chassis capable of 3kg+ heavy payloads.
+              No. In alignment with Make in India, you will build the flight computer board from discrete components, write custom firmware, and assemble a 3D printed chassis capable of 3kg+ heavy payloads.
             </p>
           </div>
 
           <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-              Do I need to bring a laptop or tools?
-            </h4>
-            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-              No tools or laptops are required. All flight controllers, GPS modules, 3D printed parts, motors, sensors, and testing equipment are provided inside the lab.
-            </p>
-          </div>
+  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+    Do I need to bring a laptop or tools?
+  </h4>
+  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+    Bringing a laptop is completely optional, you may carry one if you wish to configure software, take notes, or save code directly on your machine. All drone frames, flight controller components, sensors, tools, and testing rigs are provided in the lab, so a laptop is not compulsory to participate.
+  </p>
+</div>
 
+<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+    How do I receive my workshop clearance pass?
+  </h4>
+  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+    Immediately after registering (via online payment or spot cash reservation), a digital pass containing your unique QR Clearance ID is generated on your profile dashboard and dispatched directly to your registered email.
+  </p>
+</div>
+<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+    Will I receive an official certificate?
+  </h4>
+  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+    Yes. Every attendee who completes the hands-on hardware assembly and flight testing tracks receives an official Aegis Certified Drone Avionics Credential.
+  </p>
+</div>
+<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+    How does Spot Cash reservation work?
+  </h4>
+  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+    Selecting Spot Cash reserves your seat in your assigned cohort immediately. You will receive a provisional Clearance ID and simply settle the registration fee in cash at the registration desk upon arriving at the lab.
+  </p>
+</div>
+<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+    Do we get to take the drone kit home?
+  </h4>
+  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+    This is an intensive hands-on training workshop where all high-grade flight controllers, sensor arrays, tools, and demonstration test rigs are provided for in-lab assembly and flight calibration. Drone kits are not takeaway items.
+  </p>
+</div>
           <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
             <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-neon shrink-0" />
@@ -548,12 +499,8 @@ export default function HomePage() {
       <footer className="border-t border-[#1a1f2c] bg-[#040507] py-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="space-y-1 text-center sm:text-left">
-            <span className="font-mono text-sm font-black text-white uppercase tracking-wider">
-              AEGIS DRONE AVIONICS
-            </span>
-            <p className="text-xs text-gray-500 font-mono">
-              Guru Gobind Singh College of Engineering and Research Centre, Nashik
-            </p>
+             
+            
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono text-gray-400">

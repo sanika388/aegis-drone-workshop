@@ -90,7 +90,7 @@ export default function AboutShowcasePage() {
     },
     {
       title: 'ESC & Propulsion',
-      spec: '30A Brushless ESCs + High-KV Motors',
+      spec: '40A Brushless ESCs + High-KV Motors',
       detail: 'High-discharge electronic speed controllers running calibrated PWM signal lines for dynamic thrust modulation.',
       icon: Radio,
     },
@@ -117,7 +117,7 @@ export default function AboutShowcasePage() {
   const takeaways = [
     {
       title: 'Official Certified Completion Pass',
-      desc: 'Verified Aegis Avionics Master Workshop credential endorsed with your unique sequential clearance ID.',
+      desc: 'Aegis Avionics Master Workshop Certifiate',
       icon: Award,
     },
     {
@@ -143,9 +143,9 @@ export default function AboutShowcasePage() {
       a: 'No prior drone or avionics experience is required. The masterclass starts from the ground up—covering basic micro-controller wiring, sensor integration, code logic, and flight dynamics step-by-step.',
     },
     {
-      q: 'What should I bring to the workshop?',
-      a: 'Bring your personal laptop (with VS Code / Arduino IDE installed) and charger. All drone frames, flight controller components, sensors, motors, tools, and testing rigs are provided at the lab workbenches.',
-    },
+  q: 'What should I bring to the workshop?',
+  a: 'Bringing a laptop is optional, you may bring one if you wish to configure software, take notes, or save code directly on your machine. All drone frames, flight controller components, sensors, tools, and testing rigs are provided in the lab, so a laptop is not compulsory to participate.',
+},
     {
       q: 'How are the batches and cohorts organized?',
       a: 'To guarantee hands-on workbench access and direct mentor guidance, each cohort is strictly capped per batch. Attendees work in collaborative engineering squads.',
@@ -158,17 +158,40 @@ export default function AboutShowcasePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-16 space-y-20">
+      {/* Student Initiative & Mission Card */}
+<div className="relative overflow-hidden rounded-3xl bg-[#0c0f17] border border-neon/30 p-8 md:p-10 shadow-[0_0_40px_rgba(0,255,102,0.08)]">
+  <div className="absolute top-0 right-0 w-64 h-64 bg-neon/5 rounded-full blur-3xl pointer-events-none" />
+  
+  <div className="max-w-3xl space-y-4 relative z-10">
+    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase tracking-wider">
+       
+      <span>STUDENT-LED INITIATIVE</span>
+    </div>
+
+    <h2 className="text-2xl md:text-3xl font-black text-white font-mono uppercase tracking-tight">
+      Built by Students, for Future Engineers.
+    </h2>
+
+    <p className="text-sm md:text-base text-gray-300 font-sans leading-relaxed">
+      Aegis Drones was founded on a simple conviction: the best way to master avionics and aerospace hardware is through uncompromised, peer-to-peer practical execution. We demystify flight controllers, firmware calibration, and aerodynamics through hands-on collaboration.
+    </p>
+
+    <blockquote className="border-l-2 border-neon pl-4 py-1 text-xs md:text-sm font-mono text-neon/90 italic">
+      “Learn relentlessly. Build fearlessly. Elevate each other.”
+    </blockquote>
+  </div>
+</div>
       {/* Header Section */}
       <div className="space-y-4 text-center sm:text-left">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
-          <Sparkles className="w-3.5 h-3.5" />
+           
           <span>AEGIS AUTONOMOUS FLIGHT LAB</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Avionics & Lab Engineering
         </h1>
         <p className="text-xs sm:text-sm text-gray-400 font-mono max-w-3xl leading-relaxed">
-          Indigenous hardware-in-the-loop firmware programming, high-discharge ESC telemetry calibration, and heavy-payload modular airframe assembly at Guru Gobind Singh College of Engineering and Research Centre, Nashik.
+        Hardware-in-the-loop firmware programming, high-discharge ESC telemetry calibration, and heavy-payload modular airframe assembly.
         </p>
       </div>
 
@@ -176,12 +199,10 @@ export default function AboutShowcasePage() {
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
           <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
-            <Cpu className="w-5 h-5 text-neon" />
+             
             <span>Hardware Architecture & Telemetry Specs</span>
           </h2>
-          <p className="text-xs text-gray-400 font-mono mt-1">
-            Core functional silicon, sensor modules, and propulsion electronics actively used in our laboratory.
-          </p>
+           
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -218,11 +239,11 @@ export default function AboutShowcasePage() {
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-[#202738] pb-4">
           <div>
             <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
-              <Layers className="w-5 h-5 text-neon" />
+               
               <span>Live Lab Showcase & Flight Testing</span>
             </h2>
             <p className="text-xs text-gray-400 font-mono mt-1">
-              Field tests, avionics bench setups, and workshop moments updated directly from the Command Room.
+              Field tests, avionics bench setups, and workshop moments.
             </p>
           </div>
           <span className="font-mono text-xs text-neon font-semibold self-start sm:self-auto">
@@ -293,9 +314,7 @@ export default function AboutShowcasePage() {
             <PackageCheck className="w-5 h-5 text-neon" />
             <span>What You Will Take Home</span>
           </h2>
-          <p className="text-xs text-gray-400 font-mono mt-1">
-            Tangible resources, verified credentials, and software artifacts delivered to each attendee.
-          </p>
+          
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

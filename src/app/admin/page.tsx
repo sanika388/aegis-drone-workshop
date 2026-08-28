@@ -188,13 +188,9 @@ export default function AdminDashboardPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black text-white uppercase">Aegis Flight Command Center</h1>
-                  <span className="px-2 py-0.5 rounded bg-neon/10 border border-neon/30 text-neon font-bold text-[10px] uppercase flex items-center gap-1">
-                    <Radio className="w-3 h-3 animate-pulse" /> Live Telemetry
-                  </span>
+                   
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  CORE WORKSHOP INTAKE • BATCH-WISE WHATSAPP ROUTING • DYNAMIC CAPACITY & REVENUE METRICS
-                </p>
+                 
               </div>
 
               {/* Action Controls & Tab Navigation */}

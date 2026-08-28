@@ -16,7 +16,10 @@ import {
   Calendar,
   MapPin,
   ArrowLeft,
-  Ticket
+  Ticket,
+  Edit3,
+  X,
+  Save
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -25,6 +28,13 @@ export default function ParticipantProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit Modal State
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editCollege, setEditCollege] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -48,6 +58,16 @@ export default function ParticipantProfilePage() {
 
           if (!regError && regs) {
             setRegistrations(regs);
+            
+            // Set initial state for editing from latest registration or auth metadata
+            const latestReg = regs[0];
+            setEditFullName(latestReg?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '');
+            setEditPhone(latestReg?.phone || user.user_metadata?.phone || '');
+            setEditCollege(latestReg?.college || user.user_metadata?.college || '');
+          } else {
+            setEditFullName(user.user_metadata?.full_name || user.user_metadata?.name || '');
+            setEditPhone(user.user_metadata?.phone || '');
+            setEditCollege(user.user_metadata?.college || '');
           }
         }
       } catch (err) {
@@ -63,6 +83,54 @@ export default function ParticipantProfilePage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/auth');
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      // 1. Update Supabase Auth user metadata
+      const { data: updatedAuth, error: authUpdateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: editFullName,
+          phone: editPhone,
+          college: editCollege,
+        },
+      });
+
+      if (authUpdateError) throw authUpdateError;
+      if (updatedAuth.user) setUser(updatedAuth.user);
+
+      // 2. Sync changes across existing registration records
+      if (user?.email) {
+        await supabase
+          .from('registrations')
+          .update({
+            full_name: editFullName,
+            phone: editPhone,
+            college: editCollege,
+          })
+          .eq('email', user.email.toLowerCase().trim());
+
+        // Update local registration view
+        setRegistrations((prev) =>
+          prev.map((reg) => ({
+            ...reg,
+            full_name: editFullName,
+            phone: editPhone,
+            college: editCollege,
+          }))
+        );
+      }
+
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error('Failed to update profile:', err);
+      alert('Could not update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -89,7 +157,7 @@ export default function ParticipantProfilePage() {
   const userCollege = 
     firstReg?.college || 
     user?.user_metadata?.college || 
-    'Engineering Department';
+    'Not provided';
 
   return (
     <div className="min-h-screen bg-[#07090f] text-white p-6 md:p-12 font-mono">
@@ -120,7 +188,7 @@ export default function ParticipantProfilePage() {
               href="/"
               className="px-4 py-2 rounded-xl bg-[#141824] hover:bg-[#1f2638] text-gray-300 hover:text-white text-xs font-bold transition-all border border-[#232b3f]"
             >
-              Command Home
+            Return to Home
             </Link>
             <button
               onClick={handleLogout}
@@ -137,16 +205,25 @@ export default function ParticipantProfilePage() {
           
           {/* Pilot Info Sidebar */}
           <div className="md:col-span-4 bg-[#0c0f17] border border-[#1e2538] rounded-2xl p-6 space-y-6 sticky top-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-[#161c2c] border border-[#00ff66]/40 flex items-center justify-center text-[#00ff66] font-black text-xl shadow-[0_0_15px_rgba(0,255,102,0.15)]">
-                {pilotName[0]?.toUpperCase() || 'P'}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-13 h-13 rounded-2xl bg-[#161c2c] border border-[#00ff66]/40 flex items-center justify-center text-[#00ff66] font-black text-xl shadow-[0_0_15px_rgba(0,255,102,0.15)] shrink-0">
+                  {pilotName[0]?.toUpperCase() || 'P'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white truncate">
+                    {pilotName}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate">{user?.email}</p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white truncate">
-                  {pilotName}
-                </p>
-                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
-              </div>
+              <button
+                onClick={() => setIsEditing(true)}
+                title="Edit Details"
+                className="p-2 rounded-lg bg-[#141824] border border-[#252f45] hover:border-[#00ff66] text-gray-300 hover:text-[#00ff66] transition-all cursor-pointer shrink-0"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
             </div>
 
             <div className="space-y-3 pt-4 border-t border-[#182033] text-xs">
@@ -156,15 +233,31 @@ export default function ParticipantProfilePage() {
               </div>
               <div className="flex items-center gap-2.5 text-gray-300">
                 <Phone className="w-4 h-4 text-[#00ff66] shrink-0" />
-                <span>{userPhone}</span>
+                <span className={userPhone === 'Not provided' ? 'text-amber-400/80 italic' : ''}>
+                  {userPhone}
+                </span>
               </div>
               <div className="flex items-center gap-2.5 text-gray-300">
                 <School className="w-4 h-4 text-[#00ff66] shrink-0" />
-                <span className="truncate">{userCollege}</span>
+                <span className={`truncate ${userCollege === 'Not provided' ? 'text-amber-400/80 italic' : ''}`}>
+                  {userCollege}
+                </span>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-[#182033]">
+            {(userPhone === 'Not provided' || userCollege === 'Not provided') && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300/90 leading-relaxed">
+                ⚠️ Complete your phone & college info for smooth on-site verification.
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-[#182033] space-y-2">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="w-full text-center py-2.5 rounded-lg bg-[#161d2d] border border-[#243049] text-gray-300 hover:text-white font-bold text-xs uppercase hover:border-[#00ff66] transition-all cursor-pointer"
+              >
+                Edit Pilot Profile
+              </button>
               <Link
                 href="/workshops"
                 className="block text-center py-2.5 rounded-lg bg-[#141a29] border border-[#00ff66]/40 text-[#00ff66] font-bold text-xs uppercase hover:bg-[#00ff66] hover:text-black transition-all"
@@ -291,6 +384,94 @@ export default function ParticipantProfilePage() {
         </div>
 
       </div>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0d111a] border border-[#212b3e] w-full max-w-md rounded-2xl p-6 space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-[#1c2436] pb-3">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-[#00ff66]" />
+                Update Pilot Profile
+              </h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4 text-xs">
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-mono block">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editFullName}
+                  onChange={(e) => setEditFullName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-[#00ff66] outline-none text-white font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-mono block">WhatsApp / Phone Number</label>
+                <div className="relative flex items-center">
+                  <div className="absolute left-3 flex items-center gap-1.5 pointer-events-none select-none border-r border-[#212b3e] pr-2.5">
+                    <span className="text-sm leading-none">🇮🇳</span>
+                    <span className="text-gray-300 font-mono text-xs font-semibold">+91</span>
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="9876543210"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    className="w-full pl-20 pr-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-[#00ff66] outline-none text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-gray-400 font-mono block">College / Institution / Department</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. GCOERC Nashik (Comp Engg)"
+                  value={editCollege}
+                  onChange={(e) => setEditCollege(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-[#00ff66] outline-none text-white font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="w-1/2 py-2.5 rounded-xl bg-[#141824] text-gray-300 hover:text-white font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-1/2 py-2.5 rounded-xl bg-[#00ff66] hover:bg-[#00cc52] text-black font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,255,102,0.3)] disabled:opacity-50 cursor-pointer"
+                >
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
