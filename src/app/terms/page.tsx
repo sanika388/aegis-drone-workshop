@@ -19,14 +19,12 @@ export default function TermsAndConditions() {
         <div className="border-b border-[#1f242d] pb-6 space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] text-xs font-mono">
             <FileText className="w-3.5 h-3.5" />
-            <span>ACADEMIC WORKSHOP CODE OF CONDUCT</span>
+            <span> WORKSHOP CODE OF CONDUCT</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white uppercase">
             Terms & <span className="text-[#00ff66]">Conditions</span>
           </h1>
-          <p className="text-xs text-zinc-400 font-mono">
-            Host: Guru Gobind Singh College of Engineering & Research Centre, Nashik
-          </p>
+           
         </div>
 
         {/* Terms Content */}
