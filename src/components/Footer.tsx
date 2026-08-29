@@ -11,22 +11,30 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-12 gap-10">
         {/* Startup Info */}
         <div className="md:col-span-5 space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-20 h-20 shrink-0 flex items-center justify-center">
-              <Image
-                src="/logo.png"
-                alt="Aegis Drone Logo"
-                width={200}
-                height={200}
-                className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(0,255,102,0.6)]"
-                priority
-                unoptimized
-              />
-            </div>
-            <span className="text-neon font-black text-xl tracking-wider">
-              AEGIS<span className="text-white font-light">DRONES</span>
-            </span>
-          </div>
+  <div className="flex items-center gap-4">
+    {/* Scaled Responsive Logo Container */}
+    <div className="relative w-16 h-16 sm:w-20 sm:h-20 shrink-0 flex items-center justify-center">
+      <Image
+        src="/logo.png"
+        alt="Aegis Drone Logo"
+        fill
+        sizes="(max-width: 640px) 64px, 80px"
+        className="object-contain drop-shadow-[0_0_20px_rgba(0,255,102,0.55)]"
+        priority
+        unoptimized
+      />
+    </div>
+
+    {/* Aligned Typography */}
+    <div className="flex flex-col justify-center">
+      <span className="text-neon font-black text-2xl sm:text-3xl tracking-wider leading-tight">
+        AEGIS<span className="text-white font-light">DRONES</span>
+      </span>
+      <span className="text-[11px] text-neutral-400 font-mono tracking-widest uppercase">
+        Avionics Master Workshop
+      </span>
+    </div>
+  </div>
           <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
             Gear Up. Code It. Build It. Fly It. Hands-on aerospace training, flight mechanics, firmware programming, and quadcopter aerodynamics.
           </p>
@@ -71,15 +79,14 @@ export default function Footer() {
       <div className="border-t border-[#1a1a1a] bg-[#070707] py-4 px-6">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4 text-center md:text-left">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-black/80 border border-[#333333] shadow-lg shadow-black/60 shrink-0">
-              <Image
-                src="/irisforge-logo.png"
-                alt="Irisforge Studio"
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </div>
+            <div className="relative w-10 h-10 shrink-0 flex items-center justify-center">
+  <Image
+    src="/irisforge-logo.png"
+    alt="Irisforge"
+    fill
+    className="object-contain drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]"
+  />
+</div>
             
             <div className="text-left space-y-0.5">
               <p className="text-xs text-zinc-300 font-medium tracking-tight">

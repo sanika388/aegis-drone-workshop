@@ -63,23 +63,27 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
           {/* Brand Logo & Title */}
-          <Link href="/" className="flex items-center gap-3.5 group">
-            <div className="relative w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] shrink-0 transition-transform duration-200 group-hover:scale-105 flex items-center justify-center">
-              <Image
-                src="/logo.png"
-                alt="Aegis Drone Workshop Logo"
-                width={140}
-                height={140}
-                className="w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.45)]"
-                priority
-                unoptimized
-              />
-            </div>
-            <span className="text-neon font-black text-xl sm:text-2xl tracking-wider">
-              AEGIS<span className="text-white font-light">DRONES</span>
-            </span>
-          </Link>
-
+          <Link href="/" className="flex items-center gap-3.5 sm:gap-4 group py-1">
+  <div className="relative w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 shrink-0 transition-transform duration-300 group-hover:scale-105 flex items-center justify-center">
+    <Image
+      src="/logo.png"
+      alt="Aegis Drone Workshop Logo"
+      fill
+      sizes="(max-width: 640px) 56px, (max-width: 768px) 64px, 80px"
+      className="object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.4)]"
+      priority
+      unoptimized
+    />
+  </div>
+  <div className="flex flex-col justify-center">
+    <span className="text-neon font-black text-xl sm:text-2xl md:text-3xl tracking-wider leading-none">
+      AEGIS<span className="text-white font-light">DRONES</span>
+    </span>
+    <span className="text-[10px] sm:text-xs text-neutral-400 font-mono tracking-widest uppercase mt-0.5">
+      Avionics Master Workshop
+    </span>
+  </div>
+</Link>
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             {navLinks.map((link) => {
