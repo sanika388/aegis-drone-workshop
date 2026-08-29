@@ -163,7 +163,7 @@ function WorkshopRegistrationContent() {
           key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: orderData.amount,
           currency: orderData.currency || 'INR',
-          name: 'Aegis Drone Avionics Lab',
+          name: 'Aegis Drones',
           description: `${workshop?.title || 'Workshop'} Clearance Pass`,
           order_id: orderData.orderId,
           handler: async function (paymentResponse: any) {
