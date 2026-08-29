@@ -6,27 +6,26 @@ export async function POST(req: Request) {
     const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
+    // Detailed check
     if (!keyId || !keySecret) {
-      console.error('Server Missing Keys:', {
-        hasKeyId: Boolean(keyId),
-        hasKeySecret: Boolean(keySecret),
-      });
       return NextResponse.json(
-        { error: 'Razorpay keys not configured on server runtime.' },
+        { 
+          error: `Missing Keys on Server: [RAZORPAY_KEY_ID: ${Boolean(keyId) ? 'FOUND' : 'MISSING'}] | [RAZORPAY_KEY_SECRET: ${Boolean(keySecret) ? 'FOUND' : 'MISSING'}]` 
+        },
         { status: 500 }
       );
     }
 
     const instance = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
+      key_id: keyId.trim(),
+      key_secret: keySecret.trim(),
     });
 
     const body = await req.json().catch(() => ({}));
     const amount = Number(body?.amount) || 300;
 
     const options = {
-      amount: Math.round(amount * 100), // In paise (30000)
+      amount: Math.round(amount * 100),
       currency: 'INR',
       receipt: `rcpt_${Date.now().toString().slice(-8)}`,
       payment_capture: true,
@@ -38,12 +37,12 @@ export async function POST(req: Request) {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: keyId,
+      keyId: keyId.trim(),
     });
   } catch (error: any) {
-    console.error('Order creation error details:', error);
+    console.error('Razorpay Order Error:', error);
     return NextResponse.json(
-      { error: error?.message || 'Failed to create Razorpay order' },
+      { error: error?.message || 'Razorpay order creation failed' },
       { status: 500 }
     );
   }
