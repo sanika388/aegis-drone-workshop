@@ -7,43 +7,43 @@ export async function POST(req: Request) {
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
-      console.error('Environment variable mismatch in API route:', {
+      console.error('Server Missing Keys:', {
         hasKeyId: Boolean(keyId),
         hasKeySecret: Boolean(keySecret),
       });
       return NextResponse.json(
-        { error: 'Razorpay API keys are missing in environment variables.' },
+        { error: 'Razorpay keys not configured on server runtime.' },
         { status: 500 }
       );
     }
 
-    const razorpay = new Razorpay({
+    const instance = new Razorpay({
       key_id: keyId,
       key_secret: keySecret,
     });
 
-    const body = await req.json();
-    const { amount, receipt } = body;
+    const body = await req.json().catch(() => ({}));
+    const amount = Number(body?.amount) || 300;
 
     const options = {
-      amount: Math.round(Number(amount || 300) * 100), // In paise (₹300 -> 30000)
+      amount: Math.round(amount * 100), // In paise (30000)
       currency: 'INR',
-      receipt: receipt || `rec_${Date.now().toString().slice(-8)}`,
+      receipt: `rcpt_${Date.now().toString().slice(-8)}`,
       payment_capture: true,
     };
 
-    const order = await razorpay.orders.create(options);
+    const order = await instance.orders.create(options);
 
     return NextResponse.json({
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: keyId, // <--- Passes the key directly to frontend
+      keyId: keyId,
     });
   } catch (error: any) {
-    console.error('Razorpay order creation failed:', error);
+    console.error('Order creation error details:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create order' },
+      { error: error?.message || 'Failed to create Razorpay order' },
       { status: 500 }
     );
   }
