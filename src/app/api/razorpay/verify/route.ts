@@ -2,13 +2,29 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { supabase } from '@/lib/supabaseClient';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationData } = await req.json();
 
-    // 1. Verify Razorpay Signature
+    const keySecret = (
+      process.env.RAZORPAY_KEY_SECRET ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
+      process.env.RAZORPAY_SECRET ||
+      ''
+    ).trim();
+
+    if (!keySecret) {
+      return NextResponse.json(
+        { error: 'Server secret key missing for verification' },
+        { status: 500 }
+      );
+    }
+
+    // 1. Verify Razorpay HMAC SHA256 Signature
     const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+      .createHmac('sha256', keySecret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
@@ -59,7 +75,8 @@ export async function POST(req: Request) {
 
     // 5. Dispatch Email with QR
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
+      await fetch(`${appUrl}/api/send-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,10 +97,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       clearanceId: registration.clearance_id,
-      assignedBatch: registration.batch,
+      assignedBatch: registration.batch || registration.assigned_batch || 'Batch 1',
     });
   } catch (err: any) {
     console.error('Verify error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err?.message || 'Verification failed' }, { status: 500 });
   }
 }

@@ -1,15 +1,27 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
-    const keyId = (process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '').trim();
-    const keySecret = (process.env.RAZORPAY_KEY_SECRET || process.env.RAZORPAY_SECRET || '').trim();
+    const keyId = (
+      process.env.RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      ''
+    ).trim();
+
+    const keySecret = (
+      process.env.RAZORPAY_KEY_SECRET ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
+      process.env.RAZORPAY_SECRET ||
+      ''
+    ).trim();
 
     if (!keyId || !keySecret) {
       return NextResponse.json(
         {
-          error: `Missing Keys on Server: [KEY_ID: ${keyId ? 'PRESENT' : 'MISSING'}] | [KEY_SECRET: ${keySecret ? 'PRESENT' : 'MISSING'}]`,
+          error: `Server Missing Keys: [KEY_ID: ${keyId ? 'PRESENT' : 'MISSING'}] | [KEY_SECRET: ${keySecret ? 'PRESENT' : 'MISSING'}]`,
         },
         { status: 500 }
       );
