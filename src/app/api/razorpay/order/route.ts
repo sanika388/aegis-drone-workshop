@@ -3,14 +3,21 @@ import Razorpay from 'razorpay';
 
 export async function POST(req: Request) {
   try {
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId =
+      process.env.RAZORPAY_KEY_ID ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      '';
 
-    // Detailed check
-    if (!keyId || !keySecret) {
+    const keySecret =
+      process.env.RAZORPAY_KEY_SECRET ||
+      process.env.RAZORPAY_SECRET ||
+      process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
+      '';
+
+    if (!keyId.trim() || !keySecret.trim()) {
       return NextResponse.json(
-        { 
-          error: `Missing Keys on Server: [RAZORPAY_KEY_ID: ${Boolean(keyId) ? 'FOUND' : 'MISSING'}] | [RAZORPAY_KEY_SECRET: ${Boolean(keySecret) ? 'FOUND' : 'MISSING'}]` 
+        {
+          error: `Missing Keys: [KEY_ID: ${Boolean(keyId) ? 'OK' : 'MISSING'}] | [KEY_SECRET: ${Boolean(keySecret) ? 'MISSING' : 'OK'}]`,
         },
         { status: 500 }
       );
@@ -40,7 +47,7 @@ export async function POST(req: Request) {
       keyId: keyId.trim(),
     });
   } catch (error: any) {
-    console.error('Razorpay Order Error:', error);
+    console.error('Razorpay Error:', error);
     return NextResponse.json(
       { error: error?.message || 'Razorpay order creation failed' },
       { status: 500 }
