@@ -158,8 +158,9 @@ function WorkshopRegistrationContent() {
           throw new Error(orderData.error || 'Failed to initialize payment gateway order.');
         }
 
+        // Update lines ~138-142 in src/app/workshops/[id]/page.tsx:
         const options = {
-          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+          key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: orderData.amount,
           currency: orderData.currency || 'INR',
           name: 'Aegis Drone Avionics Lab',
