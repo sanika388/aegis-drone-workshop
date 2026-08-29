@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       process.env.RAZORPAY_KEY_SECRET ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      ''
+      'cFwMi64v17YUQgb34zgxy0Xk' // <- Put your exact full Razorpay Live Secret Key string here
     ).trim();
 
     if (!keySecret) {

@@ -8,14 +8,15 @@ export async function POST(req: Request) {
     const keyId = (
       process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-      ''
+      'rzp_live_TU0S8UUkdBmnWc'
     ).trim();
 
+    // Direct fallback to ensure zero runtime drops
     const keySecret = (
       process.env.RAZORPAY_KEY_SECRET ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      ''
+      'cFwMi64v17YUQgb34zgxy0Xk' // <- Put your exact full Razorpay Live Secret Key string here
     ).trim();
 
     if (!keyId || !keySecret) {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     const amount = Number(body?.amount) || 300;
 
     const options = {
-      amount: Math.round(amount * 100), // convert ₹300 -> 30000 paise
+      amount: Math.round(amount * 100), // paise (₹300 -> 30000)
       currency: 'INR',
       receipt: `rcpt_${Date.now().toString().slice(-8)}`,
       payment_capture: true,
