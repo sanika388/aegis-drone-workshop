@@ -35,53 +35,37 @@ function AuthForm() {
       setRole('admin');
     }
 
-    // 1. Listen for Supabase OAuth token resolution from the hash
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
-        toast.success('Authenticated successfully! Redirecting...');
-        router.replace('/profile');
-      }
-    });
-
-    // 2. Check if a session already exists
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // Auto-redirect if session is active
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
         router.replace('/profile');
       }
     });
 
     const errorParam = searchParams.get('error');
-    if (errorParam === 'auth-code-error' && !window.location.hash) {
+    if (errorParam === 'auth-code-error') {
       toast.error('Sign-in session interrupted. Please try again.');
     }
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [searchParams, router]);
 
   const handleGoogleSignIn = async () => {
     try {
-      const origin = typeof window !== 'undefined' 
-        ? window.location.origin 
+      const origin = typeof window !== 'undefined'
+        ? window.location.origin
         : 'https://aegis-drone-workshop-ky4d.vercel.app';
-
-      const redirectTo = `${origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo,
+          redirectTo: `${origin}/auth/callback`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
         },
       });
-
       if (error) throw error;
     } catch (err: any) {
-      console.error('Google OAuth error:', err);
       toast.error(err.message || 'Failed to initiate Google sign-in.');
     }
   };

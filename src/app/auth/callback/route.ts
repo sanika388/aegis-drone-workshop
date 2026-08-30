@@ -9,7 +9,6 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next') ?? '/profile';
 
-  // Extract public origin safely across proxies and Vercel deployments
   const forwardedHost = request.headers.get('x-forwarded-host');
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
   const baseUrl = forwardedHost
@@ -32,7 +31,7 @@ export async function GET(request: Request) {
                 cookieStore.set(name, value, options)
               );
             } catch {
-              // Ignore in Server Component context
+              // Server component context handler
             }
           },
         },
@@ -43,9 +42,8 @@ export async function GET(request: Request) {
     if (!error) {
       return NextResponse.redirect(`${baseUrl}${next}`);
     }
-    console.error('Code exchange failed:', error.message);
+    console.error('OAuth exchange error:', error.message);
   }
 
-  // Redirect to auth page with fallback
   return NextResponse.redirect(`${baseUrl}/auth?error=auth-code-error`);
 }
