@@ -35,34 +35,37 @@ function AuthForm() {
       setRole('admin');
     }
 
-    const errorParam = searchParams.get('error');
-
-    // 1. Recover session if tokens landed in URL hash from OAuth
-    if (typeof window !== 'undefined' && window.location.hash) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          toast.success('Logged in successfully!');
-          router.replace('/profile');
-        }
-      });
-      return;
-    }
-
-    // 2. Auto-redirect if already logged in
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
+    // 1. Listen for Supabase OAuth token resolution from the hash
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
+        toast.success('Authenticated successfully! Redirecting...');
         router.replace('/profile');
       }
     });
 
+    // 2. Check if a session already exists
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/profile');
+      }
+    });
+
+    const errorParam = searchParams.get('error');
     if (errorParam === 'auth-code-error' && !window.location.hash) {
-      toast.error('Sign-in session expired or interrupted. Please try again.');
+      toast.error('Sign-in session interrupted. Please try again.');
     }
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [searchParams, router]);
 
   const handleGoogleSignIn = async () => {
     try {
-      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
+      const currentOrigin = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : (process.env.NEXT_PUBLIC_SITE_URL || '');
+      
       const callbackUrl = `${currentOrigin.replace(/\/+$/, '')}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
