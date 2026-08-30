@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import crypto from 'crypto';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { workshopId, fullName, email, phone, college, academicYear } = await req.json();
@@ -15,12 +17,12 @@ export async function POST(req: Request) {
       .from('workshops')
       .select('*')
       .eq('id', workshopId || 'aegis-master-workshop')
-      .single();
+      .maybeSingle();
 
     const fee = Number(workshop?.fee ?? 300);
 
-    // 2. Insert record
-    const { data: inserted, error: dbError } = await supabase
+    // 2. Insert record and fetch generated trigger data in one query
+    const { data: registration, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
@@ -37,37 +39,36 @@ export async function POST(req: Request) {
           is_deleted: false,
         },
       ])
-      .select('id')
-      .single();
-
-    if (dbError) throw dbError;
-
-    // 3. Query the re-indexed record for calculated clearance_id & batch
-    const { data: registration, error: fetchError } = await supabase
-      .from('registrations')
       .select('*')
-      .eq('id', inserted.id)
       .single();
 
-    if (fetchError || !registration) throw (fetchError || new Error('Failed to retrieve registration pass'));
+    if (dbError || !registration) {
+      console.error('Registration Insert Error:', dbError);
+      throw dbError || new Error('Failed to record cash reservation');
+    }
 
-    const batchNum = Number(registration.batch?.replace(/\D/g, '') || 1);
+    const assignedBatch = registration.batch || registration.assigned_batch || 'Batch 1';
+    const batchNum = Number(assignedBatch.replace(/\D/g, '') || 1);
 
-    // 4. Dispatch confirmation pass email
+    // 3. Dispatch confirmation pass email
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/send-confirmation`, {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
+      await fetch(`${appUrl}/api/send-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: registration.email,
-          name: registration.full_name,
-          clearanceId: registration.clearance_id,
-          workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
-          amount: fee,
-          venue: workshop?.venue || 'GCOERC Nashik',
-          batchSchedule: workshop?.schedule_date || 'September Intake',
-          paymentMethod: 'cash',
-        }),
+       body: JSON.stringify({
+  email: registration.email,
+  name: registration.full_name,
+  clearanceId: registration.clearance_id,
+  workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
+  amount: fee,
+  venue: workshop?.venue || 'GCOERC Nashik',
+  batchSchedule: workshop?.schedule_date || 'September Intake',
+  paymentMethod: 'cash',
+  workshopId: workshopId || 'aegis-master-workshop',
+  assignedBatch: registration.batch || registration.assigned_batch || 'Batch 1',
+  batchNumber: Number((registration.batch || registration.assigned_batch || '1').replace(/\D/g, '')),
+}),
       });
     } catch (mailErr) {
       console.warn('Mail dispatch warning:', mailErr);
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       bookingId: registration.clearance_id,
-      assignedBatch: registration.batch,
+      assignedBatch,
       batchNumber: batchNum,
       fee,
     });

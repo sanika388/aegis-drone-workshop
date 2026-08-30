@@ -15,14 +15,11 @@ export default function CreateTrackModal({ isOpen, onClose, onCreated }: CreateT
     id: '',
     title: 'Aegis Drone Workshop Batch 2',
     badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
-    date: 'September Month',
+    schedule_date: 'September 2026 Intake',
     venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
     fee: 300,
-    max_capacity: 20,
-    status: 'active',
-    notice: 'First 20 seats per batch. Hands-on flight hardware provided in lab.',
-    whatsapp_group_name: 'Aegis Flight Cohort',
-    whatsapp_group_link: '',
+    batch_size_limit: 20,
+    fallback_whatsapp_link: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,15 +31,29 @@ export default function CreateTrackModal({ isOpen, onClose, onCreated }: CreateT
 
     try {
       const cleanSlug = formData.id.toLowerCase().trim().replace(/\s+/g, '-');
+      const cleanDate = formData.schedule_date.trim() || 'September 2026 Intake';
+
       const payload = {
-        ...formData,
         id: cleanSlug,
+        title: formData.title.trim(),
+        badge: formData.badge.trim(),
+        date: cleanDate,                   // Satisfies legacy NOT NULL constraint
+        schedule_date: cleanDate,          // Primary date column
+        venue: formData.venue.trim(),
+        fee: Number(formData.fee),
+        batch_size_limit: Number(formData.batch_size_limit),
+        fallback_whatsapp_link: formData.fallback_whatsapp_link.trim(),
+        whatsapp_links: [
+          { batchNumber: 1, url: formData.fallback_whatsapp_link.trim() }
+        ],
         syllabus: [
           '01 BUILD THE BRAIN: ESP Module (ESP32), Gyro & Sensors (MPU6050/BMI270), Firmware & Motors Wiring',
           '02 BUILD THE BODY: 3D Printed Quadcopter Chassis, Aerodynamics & Modular Assembly',
           '03 TEST. TUNE. TRUST: PID Tuning, Thrust Control, Hover & Flight Optimization',
           '100% Hands-on Practical with Real Components & Connectors',
         ],
+        poster_images: [],
+        gallery_images: [],
       };
 
       const { error } = await supabase.from('workshops').insert([payload]);
@@ -96,24 +107,37 @@ export default function CreateTrackModal({ isOpen, onClose, onCreated }: CreateT
             />
           </div>
 
+          <div className="space-y-1">
+            <label className="text-gray-400 uppercase font-bold text-[10px]">Schedule / Intake Date</label>
+            <input
+              type="text"
+              required
+              value={formData.schedule_date}
+              onChange={(e) => setFormData({ ...formData, schedule_date: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-gray-400 uppercase font-bold text-[10px]">Entry Fee (₹)</label>
               <input
                 type="number"
                 required
+                min="0"
                 value={formData.fee}
                 onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) })}
                 className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-gray-400 uppercase font-bold text-[10px]">Seat Limit</label>
+              <label className="text-gray-400 uppercase font-bold text-[10px]">Cohort Seat Limit</label>
               <input
                 type="number"
                 required
-                value={formData.max_capacity}
-                onChange={(e) => setFormData({ ...formData, max_capacity: Number(e.target.value) })}
+                min="1"
+                value={formData.batch_size_limit}
+                onChange={(e) => setFormData({ ...formData, batch_size_limit: Number(e.target.value) })}
                 className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white"
               />
             </div>
@@ -135,8 +159,8 @@ export default function CreateTrackModal({ isOpen, onClose, onCreated }: CreateT
             <input
               type="url"
               placeholder="https://chat.whatsapp.com/..."
-              value={formData.whatsapp_group_link}
-              onChange={(e) => setFormData({ ...formData, whatsapp_group_link: e.target.value })}
+              value={formData.fallback_whatsapp_link}
+              onChange={(e) => setFormData({ ...formData, fallback_whatsapp_link: e.target.value })}
               className="w-full px-3 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white"
             />
           </div>

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
@@ -9,24 +11,34 @@ import Link from 'next/link';
 
 export default function InteractivePassPage() {
   const params = useParams();
-  const passId = typeof params?.id === 'string' ? params.id : '';
+  const passId = typeof params?.id === 'string' ? params.id.trim() : '';
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
     async function fetchRegistration() {
-      if (!passId) return;
-      const { data: reg } = await supabase
-        .from('registrations')
-        .select('*')
-        .eq('id', passId)
-        .single();
-
-      if (reg) {
-        setData(reg);
+      if (!passId) {
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        // Query by clearance_id first, then fallback to uuid
+        const { data: reg, error } = await supabase
+          .from('registrations')
+          .select('*')
+          .or(`clearance_id.eq.${passId},id.eq.${passId}`)
+          .maybeSingle();
+
+        if (reg) {
+          setData(reg);
+        }
+      } catch (err) {
+        console.error('Pass retrieval error:', err);
+      } finally {
+        setLoading(false);
+      }
     }
     fetchRegistration();
   }, [passId]);
@@ -71,10 +83,20 @@ export default function InteractivePassPage() {
   }
 
   const studentName = data?.full_name || 'Pilot Attendee';
-  const cohort = data?.cohort_label || 'Batch 1';
-  const bookingId = data?.id || passId || 'AEGIS-B1-001';
+  const cohort = data?.cohort_label || (data?.batch_number ? `Batch ${data.batch_number}` : 'Batch 1');
+  const bookingId = data?.clearance_id || data?.id || passId || 'AEGIS-B1-001';
+
+  // Standardized QR payload compatible with Gate Scanner
+  const qrPayload = JSON.stringify({
+    id: bookingId,
+    pilot: studentName,
+    batch: cohort,
+    status: data?.payment_status === 'confirmed' ? 'VERIFIED_PAID' : 'PENDING',
+    org: 'AEGIS_FLIGHT_LAB',
+  });
+
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
-    typeof window !== 'undefined' ? window.location.href : bookingId
+    qrPayload
   )}&bgcolor=08090d&color=00ff66`;
 
   return (
@@ -143,18 +165,18 @@ export default function InteractivePassPage() {
             <div className="space-y-2 text-xs font-mono text-gray-400 bg-[#12151d] p-3.5 rounded-xl border border-[#1e2330]">
               <div className="flex items-center gap-2 text-gray-300">
                 <Calendar className="w-4 h-4 text-neon shrink-0" />
-                <span>September Month Intake</span>
+                <span>September 2026 Intake</span>
               </div>
               <div className="flex items-center gap-2 text-gray-300">
                 <MapPin className="w-4 h-4 text-neon shrink-0" />
-                <span>GCOERC Avionics Lab, Nashik</span>
+                <span>Guru Gobind Singh College of Engineering, Nashik</span>
               </div>
             </div>
 
-            {/* Real Dynamic QR Image Box */}
+            {/* Dynamic QR Box */}
             <div className="bg-[#08090d] border border-[#1b202c] p-4 rounded-xl flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono text-neon block uppercase font-bold">● Desk Telemetry QR</span>
+                <span className="text-[10px] font-mono text-neon block uppercase font-bold">● Gate Telemetry QR</span>
                 <span className="text-xs font-bold font-mono text-white">Present at Lab Entry</span>
               </div>
               <img src={qrUrl} alt="Pass QR" className="w-16 h-16 rounded-lg border border-neon/40 shadow-[0_0_15px_rgba(0,255,102,0.2)]" />

@@ -32,11 +32,24 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     verify();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setAuthenticated(false);
+        router.replace('/auth');
+      } else if (session?.user) {
+        setAuthenticated(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3 font-mono text-[#00ff66]">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-3 font-mono text-neon">
         <Loader2 className="w-8 h-8 animate-spin" />
         <p className="text-xs tracking-wider">VERIFYING PILOT CLEARANCE...</p>
       </div>

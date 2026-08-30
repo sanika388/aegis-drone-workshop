@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { 
@@ -13,11 +15,13 @@ import {
   QrCode, 
   Loader2,
   MessageSquare,
-  ExternalLink
+  ExternalLink,
+  Ticket
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import AuthGuard from '@/components/AuthGuard';
+import { toast } from 'sonner';
 
 // Helper function to resolve the exact WhatsApp group URL for an assigned batch
 function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
@@ -25,13 +29,23 @@ function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): str
     ? batchStrOrNum 
     : Number(String(batchStrOrNum).replace(/\D/g, '') || 1);
 
+  const batchKey = `Batch ${batchNum}`;
+
+  // 1. Check dictionary format
+  if (workshop?.cohort_whatsapp_links && workshop.cohort_whatsapp_links[batchKey]) {
+    return workshop.cohort_whatsapp_links[batchKey];
+  }
+
+  // 2. Check structured array format
   if (Array.isArray(workshop?.whatsapp_links)) {
     const matched = workshop.whatsapp_links.find(
       (item: any) => Number(item.batchNumber) === batchNum
     );
     if (matched?.url && matched.url.trim() !== '') return matched.url;
   }
-  return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default';
+
+  // 3. Fallback link
+  return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default-aegis-community';
 }
 
 const loadRazorpayScript = () => {
@@ -99,7 +113,7 @@ function WorkshopRegistrationContent() {
           .from('workshops')
           .select('*')
           .eq('id', requestedWorkshopId)
-          .single();
+          .maybeSingle();
 
         if (workshopData) {
           setWorkshop(workshopData);
@@ -158,7 +172,6 @@ function WorkshopRegistrationContent() {
           throw new Error(orderData.error || 'Failed to initialize payment gateway order.');
         }
 
-        // Update lines ~138-142 in src/app/workshops/[id]/page.tsx:
         const options = {
           key: orderData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
           amount: orderData.amount,
@@ -166,7 +179,6 @@ function WorkshopRegistrationContent() {
           name: 'Aegis Drones',
           description: `${workshop?.title || 'Workshop'} Clearance Pass`,
           order_id: orderData.orderId,
-          // ADD THIS NOTES OBJECT:
           notes: {
             workshop_id: requestedWorkshopId || 'aegis-master-workshop',
             full_name: formData.fullName,
@@ -205,6 +217,8 @@ function WorkshopRegistrationContent() {
               const assignedBatchNum = Number(verifyResult.assignedBatch?.replace(/\D/g, '') || 1);
               const waLink = getBatchWhatsAppUrl(workshop, assignedBatchNum);
 
+              toast.success('Payment verified! Seat confirmed.');
+
               setRegisteredNotice({
                 id: verifyResult.clearanceId || verifyResult.bookingId,
                 name: formData.fullName,
@@ -217,7 +231,7 @@ function WorkshopRegistrationContent() {
                 whatsappLink: waLink,
               });
             } catch (verErr: any) {
-              alert(verErr.message || 'Payment verification failed');
+              toast.error(verErr.message || 'Payment verification failed');
             } finally {
               setIsSubmitting(false);
             }
@@ -263,6 +277,8 @@ function WorkshopRegistrationContent() {
       const assignedBatchNum = Number(result.batchNumber || 1);
       const waLink = getBatchWhatsAppUrl(workshop, assignedBatchNum);
 
+      toast.success('Spot cash seat reserved successfully!');
+
       setRegisteredNotice({
         id: result.bookingId,
         name: formData.fullName,
@@ -274,7 +290,7 @@ function WorkshopRegistrationContent() {
         whatsappLink: waLink,
       });
     } catch (err: any) {
-      alert(err.message || 'Registration failed.');
+      toast.error(err.message || 'Registration failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -282,9 +298,9 @@ function WorkshopRegistrationContent() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3 font-mono">
-        <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-xs text-gray-400">Loading flight lab track...</p>
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3 font-mono text-neon">
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <p className="text-xs">Loading flight lab track...</p>
       </div>
     );
   }
@@ -293,7 +309,7 @@ function WorkshopRegistrationContent() {
   if (registeredNotice) {
     return (
       <div className="max-w-xl mx-auto px-6 py-16">
-        <div className="bg-[#121212] border border-neon/50 rounded-3xl p-8 text-center space-y-6 shadow-[0_0_40px_rgba(0,255,102,0.12)]">
+        <div className="bg-[#121212] border border-neon/50 rounded-3xl p-8 text-center space-y-6 shadow-[0_0_40px_rgba(0,255,102,0.12)] font-mono">
           {registeredNotice.mode === 'online' ? (
             <>
               <div className="w-20 h-20 mx-auto rounded-full bg-neon/10 border-2 border-neon flex items-center justify-center">
@@ -301,18 +317,18 @@ function WorkshopRegistrationContent() {
               </div>
 
               <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full bg-neon/10 text-neon font-mono text-[11px] font-bold border border-neon/30 uppercase tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-neon/10 text-neon text-[11px] font-bold border border-neon/30 uppercase tracking-wider">
                   ✓ Payment Confirmed • Allotment Secured
                 </span>
-                <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight pt-2">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight pt-2">
                   Registration Successful!
                 </h2>
                 
                 <div className="inline-block px-4 py-2 rounded-lg bg-[#181d2a] border border-[#2c364e]">
-                  <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
-                  <span className="font-mono text-sm font-black text-neon tracking-wide">{registeredNotice.id}</span>
+                  <span className="text-xs text-gray-400">CLEARANCE ID: </span>
+                  <span className="text-sm font-black text-neon tracking-wide">{registeredNotice.id}</span>
                 </div>
-                <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
+                <p className="text-xs text-gray-400">Assigned Cohort: {registeredNotice.cohort}</p>
               </div>
 
               <div className="bg-[#141923] border border-[#28354f] p-5 rounded-2xl text-left space-y-3 font-sans">
@@ -334,7 +350,7 @@ function WorkshopRegistrationContent() {
                       href={registeredNotice.whatsappLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#00ff66] text-black font-mono font-bold text-xs hover:bg-[#00cc52] transition-all shadow-[0_0_15px_rgba(0,255,102,0.3)]"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#00ff66] text-black font-mono font-bold text-xs hover:bg-[#00cc52] transition-all shadow-[0_0_15px_rgba(0,255,102,0.3)] cursor-pointer"
                     >
                       <span>Join {registeredNotice.cohort} WhatsApp Group</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -367,17 +383,17 @@ function WorkshopRegistrationContent() {
               </div>
 
               <div className="space-y-2">
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 font-mono text-[11px] font-bold border border-amber-500/30 uppercase tracking-wider">
+                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-bold border border-amber-500/30 uppercase tracking-wider">
                   Spot Cash Reserved
                 </span>
-                <h2 className="text-2xl font-black text-white font-mono uppercase tracking-tight pt-2">
+                <h2 className="text-2xl font-black text-white uppercase tracking-tight pt-2">
                   Seat Reserved!
                 </h2>
                 <div className="inline-block px-4 py-2 rounded-lg bg-[#181d2a] border border-[#2c364e]">
-                  <span className="font-mono text-xs text-gray-400">CLEARANCE ID: </span>
-                  <span className="font-mono text-sm font-black text-amber-400 tracking-wide">{registeredNotice.id}</span>
+                  <span className="text-xs text-gray-400">CLEARANCE ID: </span>
+                  <span className="text-sm font-black text-amber-400 tracking-wide">{registeredNotice.id}</span>
                 </div>
-                <p className="text-xs text-gray-400 font-mono">Assigned Cohort: {registeredNotice.cohort}</p>
+                <p className="text-xs text-gray-400">Assigned Cohort: {registeredNotice.cohort}</p>
               </div>
 
               <div className="bg-[#1a1a1a] border border-[#333] p-5 rounded-2xl text-left space-y-3 font-sans">
@@ -395,7 +411,7 @@ function WorkshopRegistrationContent() {
                       href={registeredNotice.whatsappLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 text-black font-mono font-bold text-xs hover:bg-amber-300 transition-all"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-400 text-black font-mono font-bold text-xs hover:bg-amber-300 transition-all cursor-pointer"
                     >
                       <span>Join WhatsApp Group</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -416,12 +432,19 @@ function WorkshopRegistrationContent() {
             </>
           )}
 
-          <div className="pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <Link
+              href={`/pass/${registeredNotice.id}`}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-neon text-black font-bold font-mono text-xs uppercase hover:bg-[#00cc52] transition-all flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(0,255,102,0.25)]"
+            >
+              <Ticket className="w-4 h-4" />
+              <span>View Clearance Pass</span>
+            </Link>
             <Link
               href="/"
-              className="inline-block px-6 py-2.5 rounded-xl bg-neon text-black font-bold font-mono text-xs uppercase hover:bg-[#00cc52] transition-all shadow-[0_0_20px_rgba(0,255,102,0.25)]"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#141824] border border-[#232b3d] text-gray-300 hover:text-white font-bold font-mono text-xs uppercase transition-all"
             >
-              ← Return to Command Home
+              Command Home
             </Link>
           </div>
         </div>

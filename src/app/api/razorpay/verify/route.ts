@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const keySecret = (
       process.env.RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      'cFwMi64v17YUQgb34zgxy02D' // Put your live secret here as fallback
+      'cFwMi64v17YUQgb34zgxy02D'
     ).trim();
 
     if (!keySecret) {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       console.error('Missing Razorpay verification payload:', {
         razorpay_order_id,
         razorpay_payment_id,
-        hasSignature: !!razorpay_signature,
+        hasSignature: !razorpay_signature,
       });
       return NextResponse.json(
         { error: 'Incomplete payment response payload from gateway' },
@@ -58,8 +58,8 @@ export async function POST(req: Request) {
       .eq('id', registrationData?.workshop_id || 'aegis-master-workshop')
       .maybeSingle();
 
-    // 5. Save to Supabase
-    const { data: inserted, error: dbError } = await supabase
+    // 5. Save to Supabase and return the populated row (trigger values included) in 1 query
+    const { data: registration, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
@@ -78,41 +78,33 @@ export async function POST(req: Request) {
           is_deleted: false,
         },
       ])
-      .select('id')
-      .single();
-
-    if (dbError) {
-      console.error('Supabase DB Insert Error:', dbError);
-      throw dbError;
-    }
-
-    // 6. Query the record for clearance_id & batch
-    const { data: registration, error: fetchError } = await supabase
-      .from('registrations')
       .select('*')
-      .eq('id', inserted.id)
       .single();
 
-    if (fetchError || !registration) {
-      throw fetchError || new Error('Failed to retrieve registration pass');
+    if (dbError || !registration) {
+      console.error('Supabase DB Insert Error:', dbError);
+      throw dbError || new Error('Failed to record registration');
     }
 
-    // 7. Dispatch Email with QR
+    // 6. Dispatch Email with QR
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
       await fetch(`${appUrl}/api/send-confirmation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: registration.email,
-          name: registration.full_name,
-          clearanceId: registration.clearance_id,
-          workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
-          amount: registration.amount_paid,
-          venue: workshop?.venue || 'GCOERC Nashik',
-          batchSchedule: workshop?.schedule_date || 'September Intake',
-          paymentMethod: 'online',
-        }),
+  email: registration.email,
+  name: registration.full_name,
+  clearanceId: registration.clearance_id,
+  workshopTitle: workshop?.title || 'Aegis Drone Avionics Master Workshop',
+  amount: registration.amount_paid,
+  venue: workshop?.venue || 'GCOERC Nashik',
+  batchSchedule: workshop?.schedule_date || 'September Intake',
+  paymentMethod: 'online',
+  workshopId: registration.workshop_id || 'aegis-master-workshop',
+  assignedBatch: registration.batch || registration.assigned_batch || 'Batch 1',
+  batchNumber: Number((registration.batch || registration.assigned_batch || '1').replace(/\D/g, '')),
+}),
       });
     } catch (mailErr) {
       console.warn('Mail dispatch warning:', mailErr);

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { resend } from '@/lib/resend';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     const { fullName, email, phone, subject, message } = await req.json();
@@ -27,7 +29,7 @@ export async function POST(req: Request) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (dbError) {
       console.error('Supabase DB error:', dbError);
@@ -36,20 +38,20 @@ export async function POST(req: Request) {
     // 2. Dispatch Email via Resend to Official Aegis Inbox
     const targetEmail = process.env.AEGIS_SUPPORT_EMAIL || 'aegisdrones.official@gmail.com';
 
-    if (process.env.RESEND_API_KEY) {
+    if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== 're_build_placeholder_key') {
       try {
         await resend.emails.send({
-          from: 'Aegis Contact Desk <onboarding@resend.dev>',
+          from: process.env.RESEND_FROM_EMAIL || 'Aegis Contact Desk <onboarding@resend.dev>',
           to: [targetEmail],
           replyTo: email,
-          subject: `[Aegis Inquiry] ${subject} - ${fullName}`,
+          subject: `[Aegis Inquiry] ${subject || 'General'} - ${fullName}`,
           html: `
             <div style="font-family: Arial, sans-serif; background-color: #0b0e14; color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid #1c2438;">
               <h2 style="color: #00ff66; margin-top: 0;">New Workshop Inquiry Received</h2>
               <p><strong>Sender:</strong> ${fullName}</p>
               <p><strong>Email:</strong> ${email}</p>
               <p><strong>Contact / WhatsApp:</strong> ${phone || 'Not provided'}</p>
-              <p><strong>Category:</strong> ${subject}</p>
+              <p><strong>Category:</strong> ${subject || 'Workshop Inquiry'}</p>
               <hr style="border: 1px solid #1c2438; margin: 16px 0;" />
               <p><strong>Message:</strong></p>
               <div style="background-color: #121826; padding: 14px; border-radius: 8px; font-family: monospace; white-space: pre-line;">
@@ -60,7 +62,7 @@ export async function POST(req: Request) {
           `,
         });
       } catch (mailErr) {
-        console.warn('Resend email error (inquiry saved in DB):', mailErr);
+        console.warn('Resend email error (inquiry safely saved in DB):', mailErr);
       }
     }
 

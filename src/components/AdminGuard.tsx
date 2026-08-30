@@ -17,16 +17,40 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     async function checkAdmin() {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
 
-      if (!session || !ADMIN_EMAILS.includes(session.user.email?.toLowerCase().trim() || '')) {
+        if (error || !user) {
+          setAuthorized(false);
+          return;
+        }
+
+        const userEmail = user.email?.toLowerCase().trim() || '';
+        if (ADMIN_EMAILS.includes(userEmail)) {
+          setAuthorized(true);
+        } else {
+          setAuthorized(false);
+        }
+      } catch (err) {
+        console.error('Admin authorization verification failure:', err);
         setAuthorized(false);
-      } else {
-        setAuthorized(true);
       }
     }
 
     checkAdmin();
+
+    // Listen for real-time auth events (e.g. sign-out in another tab)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setAuthorized(false);
+      } else if (session?.user?.email && ADMIN_EMAILS.includes(session.user.email.toLowerCase().trim())) {
+        setAuthorized(true);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   if (authorized === null) {
@@ -52,7 +76,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         </p>
         <Link
           href="/auth"
-          className="px-5 py-2.5 rounded-xl bg-neon text-black font-bold text-xs uppercase hover:bg-[#00cc52] transition-all shadow-[0_0_15px_rgba(0,255,102,0.25)]"
+          className="px-5 py-2.5 rounded-xl bg-neon text-black font-bold text-xs uppercase hover:bg-[#00cc52] transition-all shadow-[0_0_15px_rgba(0,255,102,0.25)] cursor-pointer"
         >
           Authenticate as Admin
         </Link>

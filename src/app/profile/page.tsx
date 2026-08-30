@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -22,6 +24,7 @@ import {
   Save
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function ParticipantProfilePage() {
   const router = useRouter();
@@ -59,14 +62,13 @@ export default function ParticipantProfilePage() {
           if (!regError && regs) {
             setRegistrations(regs);
             
-            // Set initial state for editing from latest registration or auth metadata
             const latestReg = regs[0];
             setEditFullName(latestReg?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || '');
-            setEditPhone(latestReg?.phone || user.user_metadata?.phone || '');
+            setEditPhone(latestReg?.phone?.replace('+91', '').trim() || user.user_metadata?.phone?.replace('+91', '').trim() || '');
             setEditCollege(latestReg?.college || user.user_metadata?.college || '');
           } else {
             setEditFullName(user.user_metadata?.full_name || user.user_metadata?.name || '');
-            setEditPhone(user.user_metadata?.phone || '');
+            setEditPhone(user.user_metadata?.phone?.replace('+91', '').trim() || '');
             setEditCollege(user.user_metadata?.college || '');
           }
         }
@@ -82,6 +84,9 @@ export default function ParticipantProfilePage() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    document.cookie = 'aegis_admin_session=; path=/; max-age=0;';
+    localStorage.removeItem('aegis_admin_auth');
+    toast.success('Logged out successfully');
     router.replace('/auth');
   };
 
@@ -89,45 +94,48 @@ export default function ParticipantProfilePage() {
     e.preventDefault();
     setSaving(true);
 
+    const formattedPhone = editPhone.startsWith('+91') ? editPhone : `+91 ${editPhone.trim()}`;
+
     try {
       // 1. Update Supabase Auth user metadata
       const { data: updatedAuth, error: authUpdateError } = await supabase.auth.updateUser({
         data: {
-          full_name: editFullName,
-          phone: editPhone,
-          college: editCollege,
+          full_name: editFullName.trim(),
+          phone: formattedPhone,
+          college: editCollege.trim(),
         },
       });
 
       if (authUpdateError) throw authUpdateError;
       if (updatedAuth.user) setUser(updatedAuth.user);
 
-      // 2. Sync changes across existing registration records
+      // 2. Sync changes across active registration records
       if (user?.email) {
         await supabase
           .from('registrations')
           .update({
-            full_name: editFullName,
-            phone: editPhone,
-            college: editCollege,
+            full_name: editFullName.trim(),
+            phone: formattedPhone,
+            college: editCollege.trim(),
           })
           .eq('email', user.email.toLowerCase().trim());
 
-        // Update local registration view
+        // Update local state
         setRegistrations((prev) =>
           prev.map((reg) => ({
             ...reg,
-            full_name: editFullName,
-            phone: editPhone,
-            college: editCollege,
+            full_name: editFullName.trim(),
+            phone: formattedPhone,
+            college: editCollege.trim(),
           }))
         );
       }
 
+      toast.success('Pilot profile updated successfully');
       setIsEditing(false);
     } catch (err: any) {
       console.error('Failed to update profile:', err);
-      alert('Could not update profile. Please try again.');
+      toast.error(err.message || 'Could not update profile. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -188,7 +196,7 @@ export default function ParticipantProfilePage() {
               href="/"
               className="px-4 py-2 rounded-xl bg-[#141824] hover:bg-[#1f2638] text-gray-300 hover:text-white text-xs font-bold transition-all border border-[#232b3f]"
             >
-            Return to Home
+              Return to Home
             </Link>
             <button
               onClick={handleLogout}
@@ -207,7 +215,7 @@ export default function ParticipantProfilePage() {
           <div className="md:col-span-4 bg-[#0c0f17] border border-[#1e2538] rounded-2xl p-6 space-y-6 sticky top-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-13 h-13 rounded-2xl bg-[#161c2c] border border-[#00ff66]/40 flex items-center justify-center text-[#00ff66] font-black text-xl shadow-[0_0_15px_rgba(0,255,102,0.15)] shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-[#161c2c] border border-[#00ff66]/40 flex items-center justify-center text-[#00ff66] font-black text-xl shadow-[0_0_15px_rgba(0,255,102,0.15)] shrink-0">
                   {pilotName[0]?.toUpperCase() || 'P'}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -247,7 +255,7 @@ export default function ParticipantProfilePage() {
 
             {(userPhone === 'Not provided' || userCollege === 'Not provided') && (
               <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300/90 leading-relaxed">
-                ⚠️ Complete your phone & college info for smooth on-site verification.
+                ⚠️ Complete your phone & college info for smooth on-site gate check-in.
               </div>
             )}
 
@@ -273,11 +281,11 @@ export default function ParticipantProfilePage() {
               registrations.map((reg, idx) => {
                 const qrPayload = encodeURIComponent(
                   JSON.stringify({
-                    id: reg.clearance_id || 'PENDING',
+                    id: reg.clearance_id || reg.id || 'PENDING',
                     pilot: reg.full_name || pilotName,
                     workshop: reg.workshop_title || reg.track || 'Aegis Drone Workshop',
                     status: reg.payment_status === 'confirmed' || reg.payment_status === 'paid' ? 'VERIFIED_PAID' : 'PENDING_DESK',
-                    batch: reg.batch || 'Batch 1',
+                    batch: reg.cohort_label || (reg.batch_number ? `Batch ${reg.batch_number}` : 'Batch 1'),
                   })
                 );
                 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&color=00ff66&bgcolor=0c0f17`;
@@ -292,7 +300,7 @@ export default function ParticipantProfilePage() {
                         <div className="flex items-center gap-2 mb-1">
                           <Ticket className="w-4 h-4 text-[#00ff66]" />
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                            {reg.workshop_title || reg.track || 'OFFICIAL CLEARANCE PASS'}
+                            {reg.workshop_title || 'OFFICIAL CLEARANCE PASS'}
                           </span>
                         </div>
                         <span className="text-base font-black text-[#00ff66]">
@@ -301,7 +309,7 @@ export default function ParticipantProfilePage() {
                       </div>
                       <div className="text-right">
                         <span className="px-2.5 py-1 rounded-md bg-[#161c2c] border border-[#2b3752] text-xs font-bold text-white">
-                          {reg.batch || 'Batch 1'}
+                          {reg.cohort_label || `Batch ${reg.batch_number || 1}`}
                         </span>
                       </div>
                     </div>
@@ -313,7 +321,7 @@ export default function ParticipantProfilePage() {
                           alt="Security QR" 
                           width={110} 
                           height={110} 
-                          className="rounded-lg border border-[#00ff66]/40" 
+                          className="rounded-lg border border-[#00ff66]/40 shrink-0" 
                         />
                         <div className="space-y-2 text-xs">
                           <div className="flex items-center gap-1.5">
@@ -328,7 +336,7 @@ export default function ParticipantProfilePage() {
                             )}
                           </div>
                           <p className="text-[11px] text-gray-400 leading-relaxed">
-                            Present this boarding QR pass at the entrance station for clearance check-in.
+                            Present this gate QR pass at the entrance scanner station for biometric/optical verification.
                           </p>
                         </div>
                       </div>
@@ -338,7 +346,7 @@ export default function ParticipantProfilePage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-xs font-bold text-[#00ff66]">
                             <MessageSquare className="w-4 h-4" />
-                            <span>{reg.batch || 'Batch 1'} Official Cohort</span>
+                            <span>{reg.cohort_label || `Batch ${reg.batch_number || 1}`} Official Cohort</span>
                           </div>
                           <a
                             href={reg.whatsapp_link || 'https://chat.whatsapp.com/'}
@@ -355,7 +363,7 @@ export default function ParticipantProfilePage() {
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-400 pt-2 border-t border-[#182033]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-[#00ff66]" />
-                          <span>{reg.event_date || 'September 2026'}</span>
+                          <span>{reg.schedule_date || 'September 2026'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-[#00ff66]" />

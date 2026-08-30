@@ -113,12 +113,14 @@ export default function AdminDashboardPage() {
       }
 
       const { data: regData } = await query;
-
-      if (regData) {
+if (regData) {
         setRegistrations(
           regData.map((r) => {
             const rawNum = r.clearance_id ? parseInt(r.clearance_id.replace(/\D/g, ''), 10) : null;
-            const parsedBatchNum = r.batch ? parseInt(r.batch.replace(/\D/g, ''), 10) : (rawNum ? Math.ceil(rawNum / (activeSelectedWorkshop?.batch_size_limit || 30)) : 1);
+            const rawBatchStr = r.batch || r.assigned_batch || '';
+            const parsedBatchNum = rawBatchStr
+              ? parseInt(rawBatchStr.replace(/\D/g, ''), 10)
+              : (rawNum ? Math.floor((rawNum - 1) / (activeSelectedWorkshop?.batch_size_limit || 30)) + 1 : 1);
             
             return {
               id: r.id,
@@ -130,7 +132,7 @@ export default function AdminDashboardPage() {
               college: r.college,
               year: r.academic_year,
               batch_number: parsedBatchNum || 1,
-              cohort_label: r.batch || `Batch ${parsedBatchNum || 1}`,
+              cohort_label: r.batch || r.assigned_batch || `Batch ${parsedBatchNum || 1}`,
               amount: Number(r.amount_paid || 0),
               status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'confirmed' : 'pending',
               payment_mode: r.payment_mode || (r.razorpay_payment_id ? 'online' : 'cash'),

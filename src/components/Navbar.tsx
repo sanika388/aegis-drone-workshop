@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { User, Radio, LogOut, Menu, X } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,9 +15,11 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionUser(session?.user ?? null);
-    });
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setSessionUser(user ?? null);
+    }
+    loadUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSessionUser(session?.user ?? null);
@@ -32,7 +35,7 @@ export default function Navbar() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when mobile slider is open
+  // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (mobileMenuOpen) {
       document.body.style.overflow = 'hidden';
@@ -46,7 +49,11 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    document.cookie = 'aegis_admin_session=; path=/; max-age=0;';
+    localStorage.removeItem('aegis_admin_auth');
+    setSessionUser(null);
     setMobileMenuOpen(false);
+    toast.success('Logged out successfully');
     router.push('/auth');
   };
 
@@ -59,31 +66,32 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-[#0a0a0a]/95 border-b border-[#242424]">
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-[#07090f]/95 border-b border-[#1e2538]">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
           {/* Brand Logo & Title */}
           <Link href="/" className="flex items-center gap-3.5 sm:gap-4 group py-1">
-  <div className="relative w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 shrink-0 transition-transform duration-300 group-hover:scale-105 flex items-center justify-center">
-    <Image
-      src="/logo.png"
-      alt="Aegis Drone Workshop Logo"
-      fill
-      sizes="(max-width: 640px) 56px, (max-width: 768px) 64px, 80px"
-      className="object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.4)]"
-      priority
-      unoptimized
-    />
-  </div>
-  <div className="flex flex-col justify-center">
-    <span className="text-neon font-black text-xl sm:text-2xl md:text-3xl tracking-wider leading-none">
-      AEGIS<span className="text-white font-light">DRONES</span>
-    </span>
-    <span className="text-[10px] sm:text-xs text-neutral-400 font-mono tracking-widest uppercase mt-0.5">
-      Avionics Master Workshop
-    </span>
-  </div>
-</Link>
+            <div className="relative w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 shrink-0 transition-transform duration-300 group-hover:scale-105 flex items-center justify-center">
+              <Image
+                src="/logo.png"
+                alt="Aegis Drone Workshop Logo"
+                fill
+                sizes="(max-width: 640px) 56px, (max-width: 768px) 64px, 80px"
+                className="object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.4)]"
+                priority
+                unoptimized
+              />
+            </div>
+            <div className="flex flex-col justify-center">
+              <span className="text-neon font-black text-xl sm:text-2xl md:text-3xl tracking-wider leading-none font-mono">
+                AEGIS<span className="text-white font-light">DRONES</span>
+              </span>
+              <span className="text-[10px] sm:text-xs text-gray-400 font-mono tracking-widest uppercase mt-0.5">
+                Avionics Master Workshop
+              </span>
+            </div>
+          </Link>
+
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
             {navLinks.map((link) => {
@@ -107,7 +115,7 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0e121c] border border-[#232b3d] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.2)] font-semibold text-xs font-mono"
                 >
                   <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon text-[10px] font-bold">
                     {sessionUser.user_metadata?.full_name?.[0]?.toUpperCase() || sessionUser.email?.[0]?.toUpperCase() || 'P'}
@@ -119,7 +127,7 @@ export default function Navbar() {
                 <button
                   onClick={handleLogout}
                   title="Log Out"
-                  className="p-2 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-red-500 hover:text-red-400 text-gray-400 transition-all cursor-pointer"
+                  className="p-2 rounded-xl bg-[#0e121c] border border-[#232b3d] hover:border-red-500 hover:text-red-400 text-gray-400 transition-all cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -127,7 +135,7 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/auth"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#181818] border border-[#2e2e2e] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono uppercase"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0e121c] border border-[#232b3d] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.25)] font-semibold text-xs font-mono uppercase"
               >
                 <User className="w-4 h-4 text-neon" />
                 <span>Sign In</span>
@@ -140,7 +148,8 @@ export default function Navbar() {
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle Menu"
-            className="md:hidden p-2 rounded-xl bg-[#141414] border border-[#2a2a2a] text-gray-300 hover:text-neon transition-colors cursor-pointer"
+            aria-expanded={mobileMenuOpen}
+            className="md:hidden p-2 rounded-xl bg-[#0e121c] border border-[#232b3d] text-gray-300 hover:text-neon transition-colors cursor-pointer"
           >
             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -156,7 +165,7 @@ export default function Navbar() {
         />
       )}
 
-      {/* Mobile Slider Drawer */}
+      {/* Mobile Drawer */}
       <aside
         className={`fixed top-0 right-0 z-50 h-full w-[280px] bg-[#0c0f17] border-l border-[#1e2538] p-6 flex flex-col justify-between transform transition-transform duration-300 ease-in-out md:hidden shadow-[-10px_0_30px_rgba(0,0,0,0.8)] ${
           mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'

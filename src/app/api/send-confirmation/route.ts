@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import { supabase } from '@/lib/supabaseClient';
 
+export const dynamic = 'force-dynamic';
+
 function getBatchWhatsAppUrl(workshop: any, batchNumber: number): string {
   if (Array.isArray(workshop?.whatsapp_links)) {
     const matched = workshop.whatsapp_links.find(
@@ -23,24 +25,31 @@ export async function POST(req: Request) {
       venue, 
       batchSchedule,
       paymentMethod,
-      workshopId
+      workshopId,
+      batchNumber,
+      assignedBatch
     } = await req.json();
 
     if (!email || !clearanceId) {
       return NextResponse.json({ error: 'Missing required confirmation fields' }, { status: 400 });
     }
 
-    // 1. Fetch workshop metadata for WhatsApp link resolution
+    // 1. Fetch workshop metadata
     const { data: workshop } = await supabase
       .from('workshops')
       .select('*')
       .eq('id', workshopId || 'aegis-master-workshop')
-      .single();
+      .maybeSingle();
 
-    // 2. Parse batch number directly from clearanceId (e.g. "AEGIS-B2-021" -> 2)
-    const batchNum = Number(clearanceId?.split('-')[1]?.replace(/\D/g, '') || 1);
-    const batchWhatsAppLink = getBatchWhatsAppUrl(workshop, batchNum);
+    // 2. Resolve batch number safely
+    let resolvedBatchNum = 1;
+    if (batchNumber && !isNaN(Number(batchNumber))) {
+      resolvedBatchNum = Number(batchNumber);
+    } else if (assignedBatch) {
+      resolvedBatchNum = Number(String(assignedBatch).replace(/\D/g, '') || 1);
+    }
 
+    const batchWhatsAppLink = getBatchWhatsAppUrl(workshop, resolvedBatchNum);
     const officialEmail = process.env.SMTP_USER || 'aegisdrones.officials@gmail.com';
 
     const transporter = nodemailer.createTransport({
@@ -60,6 +69,7 @@ export async function POST(req: Request) {
       JSON.stringify({
         id: clearanceId,
         pilot: name,
+        batch: `Batch ${resolvedBatchNum}`,
         status: isSpotCash ? 'CASH_PENDING' : 'VERIFIED_PAID',
         org: 'AEGIS_FLIGHT_LAB'
       })
@@ -135,23 +145,23 @@ export async function POST(req: Request) {
                       <p class="value">${workshopTitle || 'Avionics Master Workshop'}</p>
                     </div>
                     <div class="col" style="text-align: right;">
-                      <div class="label">HARDWARE KIT PASS</div>
-                      <span class="status-tag ${isSpotCash ? 'status-pending' : 'status-paid'}">
-                        ${isSpotCash ? 'DESK SPOT CASH (₹' + (amount || '300') + ')' : 'APPROVED (₹' + (amount || '300') + ')'}
-                      </span>
+                      <div class="label">ASSIGNED COHORT</div>
+                      <p class="value" style="color: #00ff66;">Batch ${resolvedBatchNum}</p>
                     </div>
                   </div>
                 </div>
 
-                <div class="grid" style="margin-bottom: 0;">
+                <div class="grid">
                   <div class="row">
                     <div class="col">
                       <div class="label">FLIGHT HANGAR & VENUE</div>
                       <p class="value">${venue || 'GCOERC Nashik'}</p>
                     </div>
                     <div class="col" style="text-align: right;">
-                      <div class="label">SCHEDULE</div>
-                      <p class="value">${batchSchedule || 'Intake Cycle'}</p>
+                      <div class="label">PAYMENT STATUS</div>
+                      <span class="status-tag ${isSpotCash ? 'status-pending' : 'status-paid'}">
+                        ${isSpotCash ? 'SPOT CASH (₹' + (amount || '300') + ')' : 'PAID (₹' + (amount || '300') + ')'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -162,10 +172,9 @@ export async function POST(req: Request) {
                     SCAN AT GATE FOR BOARDING VERIFICATION
                   </p>
                   
-                  <!-- Batch-specific WhatsApp button in email -->
                   <div>
                     <a href="${batchWhatsAppLink}" target="_blank" class="wa-btn">
-                      💬 Join Batch ${batchNum} WhatsApp Group
+                      💬 Join Batch ${resolvedBatchNum} WhatsApp Group
                     </a>
                   </div>
                 </div>

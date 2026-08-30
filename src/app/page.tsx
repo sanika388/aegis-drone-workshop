@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { 
   ArrowRight, 
   ShieldCheck, 
-  Sparkles, 
   ChevronLeft, 
   ChevronRight, 
   Radio, 
@@ -15,16 +14,8 @@ import {
   Compass, 
   Zap, 
   CheckCircle2, 
-  Phone, 
-  Calendar, 
-  MapPin, 
-  Award, 
   HelpCircle,
-  Layers,
-  Navigation,
   Code2,
-  Flag,
-  Box,
   Weight
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
@@ -62,7 +53,7 @@ export default function HomePage() {
         .select('*')
         .order('created_at', { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (wsData) {
         setWorkshop(wsData);
@@ -126,28 +117,18 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 space-y-6">
           
-          <div className="flex flex-wrap gap-2 items-center">
-            
-
-            
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase tracking-wider">
+            <span>AVIONICS MASTERCLASS 2026</span>
           </div>
 
-           <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
-
+          <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
             Build The Brain. <br />
-
             Assemble The Frame. <br />
-
             <span className="text-neon">Master The Flight.</span>
-
           </h1>
 
-
-
           <p className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl font-sans">
-
             A comprehensive, practical avionics workshop. Wire ESP32 flight controllers, calibrate 6-axis gyro sensors, configure brushless motors, and understand PID stability curves in a hands-on flight lab.
-
           </p>
 
           <div className="flex flex-wrap gap-4 pt-2">
@@ -155,7 +136,7 @@ export default function HomePage() {
               href={`/workshops/${workshopSlug}`}
               className="px-6 py-3.5 rounded-xl bg-neon font-bold flex items-center gap-2 hover:bg-[#00cc52] transition-all text-black text-xs uppercase tracking-wider cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.3)] font-mono"
             >
-              <span>Register</span>
+              <span>Register Now</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
 
@@ -168,7 +149,6 @@ export default function HomePage() {
           </div>
 
           <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-gray-400 font-mono">
-             
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-neon" />
               <span>Open to All Branches & Academic Years</span>
@@ -176,7 +156,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Dynamic Multi-Poster Showcase (GPU Accelerated - Full Height, Zero Distortion) */}
+        {/* Dynamic Multi-Poster Showcase */}
         <div className="lg:col-span-5 bg-[#121212] border border-[#242424] rounded-3xl p-3 sm:p-4 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center transform-gpu">
           <div className="relative w-full rounded-2xl overflow-hidden bg-[#0a0a0a] flex items-center justify-center min-h-[480px] max-h-[720px] group border border-[#1e2330] transform-gpu will-change-transform">
             
@@ -207,12 +187,14 @@ export default function HomePage() {
               <>
                 <button
                   onClick={prevPoster}
+                  aria-label="Previous Poster"
                   className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-colors cursor-pointer backdrop-blur-md shadow-lg z-10"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextPoster}
+                  aria-label="Next Poster"
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/80 border border-white/20 text-white hover:bg-neon hover:text-black transition-colors cursor-pointer backdrop-blur-md shadow-lg z-10"
                 >
                   <ChevronRight className="w-4 h-4" />
@@ -223,6 +205,7 @@ export default function HomePage() {
                     <button
                       key={idx}
                       onClick={() => setCurrentPosterIdx(idx)}
+                      aria-label={`Go to slide ${idx + 1}`}
                       className={`h-1.5 rounded-full transition-all cursor-pointer ${
                         currentPosterIdx === idx ? 'w-5 bg-neon' : 'w-1.5 bg-white/40'
                       }`}
@@ -279,9 +262,9 @@ export default function HomePage() {
 
             {/* 3. 3D Printed 3kg+ Heavy-Lift Chassis */}
             <div className="bg-[#10131d] border border-neon/30 p-5 rounded-2xl space-y-3 shadow-[0_0_20px_rgba(0,255,102,0.06)]">
-            <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
-              <Weight className="w-4 h-4" />
-            </div>
+              <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
+                <Weight className="w-4 h-4" />
+              </div>
               <h3 className="font-mono text-sm font-bold text-white uppercase">3kg+ Heavy-Lift 3D Chassis</h3>
               <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
                 High-stress reinforced 3D printed airframe designed for 3kg+ heavy payload capacity, vibration damping, and dynamic structural equilibrium.
@@ -299,9 +282,8 @@ export default function HomePage() {
               </p>
             </div>
 
-             
             {/* 5. High-Torque BLDC & ESCs */}
-            <div className="bg-[#10131d] border border-[#202738] p-5 rounded-2xl space-y-3">
+            <div className="bg-[#10131d] border border-[#202738] p-5 rounded-2xl space-y-3 md:col-span-2 lg:col-span-1">
               <div className="w-9 h-9 rounded-xl bg-neon/10 border border-neon/30 flex items-center justify-center text-neon">
                 <Zap className="w-4 h-4" />
               </div>
@@ -319,7 +301,7 @@ export default function HomePage() {
       <div className="py-16 max-w-7xl mx-auto px-6 space-y-12">
         <div className="text-center space-y-2 max-w-2xl mx-auto">
           <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest">
-          WORKSHOP ROADMAP
+            WORKSHOP ROADMAP
           </span>
           <h2 className="text-3xl font-black text-white font-mono uppercase">
             From Bare Components To Heavy-Lift Flight
@@ -332,7 +314,6 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 01</span>
-                
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Build The Brain From Scratch</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
@@ -357,7 +338,6 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 02</span>
- 
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Heavy-Lift Chassis & Body</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
@@ -382,7 +362,6 @@ export default function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1b2233] pb-3">
                 <span className="font-mono text-xs font-bold text-neon uppercase tracking-wider">MODULE 03</span>
- 
               </div>
               <h3 className="text-xl font-bold text-white font-mono uppercase">Test, Tune & Fly</h3>
               <ul className="space-y-2.5 text-xs text-gray-400 font-sans">
@@ -404,12 +383,11 @@ export default function HomePage() {
         </div>
       </div>
 
-       
-      {/* 6. Frequently Asked Questions */}
+      {/* 5. Frequently Asked Questions */}
       <div className="py-16 max-w-5xl mx-auto px-6 space-y-10">
         <div className="text-center space-y-2">
           <span className="text-neon font-mono text-xs font-bold uppercase tracking-widest">
-         BRIEFING
+            BRIEFING
           </span>
           <h2 className="text-3xl font-black text-white font-mono uppercase">
             Frequently Asked Questions
@@ -438,51 +416,55 @@ export default function HomePage() {
           </div>
 
           <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-    Do I need to bring a laptop or tools?
-  </h4>
-  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-    Bringing a laptop is completely optional, you may carry one if you wish to configure software, take notes, or save code directly on your machine. All drone frames, flight controller components, sensors, tools, and testing rigs are provided in the lab, so a laptop is not compulsory to participate.
-  </p>
-</div>
+            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+              Do I need to bring a laptop or tools?
+            </h4>
+            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+              Bringing a laptop is completely optional, you may carry one if you wish to configure software, take notes, or save code directly on your machine. All drone frames, flight controller components, sensors, tools, and testing rigs are provided in the lab, so a laptop is not compulsory to participate.
+            </p>
+          </div>
 
-<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-    How do I receive my workshop clearance pass?
-  </h4>
-  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-    Immediately after registering (via online payment or spot cash reservation), a digital pass containing your unique QR Clearance ID is generated on your profile dashboard and dispatched directly to your registered email.
-  </p>
-</div>
-<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-    Will I receive an official certificate?
-  </h4>
-  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-    Yes. Every attendee who completes the hands-on hardware assembly and flight testing tracks receives an official Aegis Certified Drone Avionics Credential.
-  </p>
-</div>
-<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-    How does Spot Cash reservation work?
-  </h4>
-  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-    Selecting Spot Cash reserves your seat in your assigned cohort immediately. You will receive a provisional Clearance ID and simply settle the registration fee in cash at the registration desk upon arriving at the lab.
-  </p>
-</div>
-<div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
-  <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
-    <HelpCircle className="w-4 h-4 text-neon shrink-0" />
-    Do we get to take the drone kit home?
-  </h4>
-  <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-    This is an intensive hands-on training workshop where all high-grade flight controllers, sensor arrays, tools, and demonstration test rigs are provided for in-lab assembly and flight calibration. Drone kits are not takeaway items.
-  </p>
-</div>
+          <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+              How do I receive my workshop clearance pass?
+            </h4>
+            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+              Immediately after registering (via online payment or spot cash reservation), a digital pass containing your unique QR Clearance ID is generated on your profile dashboard and dispatched directly to your registered email.
+            </p>
+          </div>
+
+          <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+              Will I receive an official certificate?
+            </h4>
+            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+              Yes. Every attendee who completes the hands-on hardware assembly and flight testing tracks receives an official Aegis Certified Drone Avionics Credential.
+            </p>
+          </div>
+
+          <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+              How does Spot Cash reservation work?
+            </h4>
+            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+              Selecting Spot Cash reserves your seat in your assigned cohort immediately. You will receive a provisional Clearance ID and simply settle the registration fee in cash at the registration desk upon arriving at the lab.
+            </p>
+          </div>
+
+          <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
+            <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-neon shrink-0" />
+              Do we get to take the drone kit home?
+            </h4>
+            <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
+              This is an intensive hands-on training workshop where all high-grade flight controllers, sensor arrays, tools, and demonstration test rigs are provided for in-lab assembly and flight calibration. Drone kits are not takeaway items.
+            </p>
+          </div>
+
           <div className="bg-[#0e1017] border border-[#1f2638] p-6 rounded-2xl space-y-2">
             <h4 className="text-sm font-bold text-white font-mono flex items-center gap-2">
               <HelpCircle className="w-4 h-4 text-neon shrink-0" />
@@ -494,33 +476,6 @@ export default function HomePage() {
           </div>
         </div>
       </div>
-
-      {/* 7. Footer & Desk Help Line */}
-      <footer className="border-t border-[#1a1f2c] bg-[#040507] py-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="space-y-1 text-center sm:text-left">
-             
-            
-          </div>
-
-          <div className="flex items-center gap-4 text-xs font-mono text-gray-400">
-            <a
-              href="tel:+917620350524"
-              className="flex items-center gap-1.5 hover:text-neon transition-colors"
-            >
-              <Phone className="w-3.5 h-3.5 text-neon" />
-              <span>Coordinator: Sanika Dusane (+91 7620350524)</span>
-            </a>
-            <span className="text-gray-700">|</span>
-            <Link
-              href="/auth?role=admin"
-              className="hover:text-neon transition-colors"
-            >
-              Admin Desk
-            </Link>
-          </div>
-        </div>
-      </footer>
 
     </div>
   );

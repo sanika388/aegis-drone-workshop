@@ -142,14 +142,21 @@ export default function WorkshopLifecycleTab({
   };
 
   // 2. Save Workshop-Specific Dynamic Cohort WhatsApp Links
+  // 2. Save Workshop-Specific Dynamic Cohort WhatsApp Links
   const handleSaveCohortLinks = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingLinks(true);
     try {
+      const formattedWhatsappLinks = Object.entries(cohortLinks).map(([batchKey, url]) => ({
+        batchNumber: Number(batchKey.replace(/\D/g, '') || 1),
+        url: String(url).trim(),
+      }));
+
       const { error } = await supabase
         .from('workshops')
         .update({
           cohort_whatsapp_links: cohortLinks,
+          whatsapp_links: formattedWhatsappLinks,
           fallback_whatsapp_link: fallbackLink.trim(),
         })
         .eq('id', selectedBatch);

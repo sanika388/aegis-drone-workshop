@@ -11,7 +11,6 @@ import {
   Send, 
   Loader2, 
   ExternalLink,
-  Sparkles,
   SunMoon
 } from 'lucide-react';
 
@@ -28,7 +27,7 @@ export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const officialEmail = 'aegisdrones.officials@gmail.com';
+  const officialEmail = 'aegisdrones.official@gmail.com';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +65,15 @@ export default function ContactPage() {
       
       {/* Header Banner */}
       <div className="space-y-4 text-center sm:text-left">
-         
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
+          <span>COORDINATOR & FLIGHT DESK</span>
+        </div>
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Get in Touch
         </h1>
-         
+        <p className="text-xs sm:text-sm text-gray-400 font-mono max-w-2xl leading-relaxed">
+          Reach out for squad cohort scheduling, on-desk spot cash verification, or group student admissions.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -90,7 +93,8 @@ export default function ContactPage() {
 
             <div className="space-y-1.5 font-mono text-xs">
               <p className="text-lg font-black text-white">Sanika Dusane</p>
-               
+              <p className="text-gray-400">Lead Program & Technical Coordinator</p>
+              
               <div className="pt-3 flex flex-col gap-2">
                 <a 
                   href="tel:+917620350524" 
@@ -139,9 +143,9 @@ export default function ContactPage() {
 
             <div className="pt-1">
               <a 
-                href="https://mail.google.com/mail/?view=cm&fs=1&to=aegisdrones.officials@gmail.com&su=Aegis%20Workshop%20Inquiry"
-                target="_blank"
-                rel="noopener noreferrer"
+                href={`https://mail.google.com/mail/?view=cm&fs=1&to=${officialEmail}&su=Aegis%20Workshop%20Inquiry`}
+                target="_blank" 
+                rel="noopener noreferrer" 
                 className="px-4 py-2.5 rounded-xl bg-[#121826] border border-[#232f48] hover:border-neon text-white font-bold flex items-center justify-between transition-colors cursor-pointer group"
               >
                 <span className="text-gray-200 group-hover:text-neon transition-colors truncate">
@@ -149,7 +153,7 @@ export default function ContactPage() {
                 </span>
                 <span className="text-[10px] text-neon uppercase flex items-center gap-1">
                   <span>Compose</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </span>
               </a>
             </div>
@@ -163,9 +167,11 @@ export default function ContactPage() {
           <div className="border-b border-[#1b2233] pb-4">
             <h2 className="text-lg font-bold text-white font-mono uppercase flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-neon" />
-              <span>Official Inquiry</span>
+              <span>Official Inquiry Transmission</span>
             </h2>
-             
+            <p className="text-xs text-gray-400 font-mono mt-1">
+              Send your query directly to the flight desk team.
+            </p>
           </div>
 
           {isSubmitted ? (
@@ -201,7 +207,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     required
-                     
+                    placeholder="e.g. Sanika Dusane"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -213,7 +219,7 @@ export default function ContactPage() {
                   <input
                     type="email"
                     required
-                    placeholder="student@gmail.com"
+                    placeholder="student@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -226,7 +232,7 @@ export default function ContactPage() {
                   <label className="text-gray-400 font-mono text-[11px] block">WhatsApp / Contact Number</label>
                   <input
                     type="tel"
-                    placeholder="+91 **********"
+                    placeholder="+91 9876543210"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -254,7 +260,7 @@ export default function ContactPage() {
                 <textarea
                   rows={4}
                   required
-                  placeholder="Provide details about your query."
+                  placeholder="Provide details about your query..."
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"

@@ -1,13 +1,33 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Toaster } from 'sonner';
-import 'katex/dist/katex.min.css';
+
+export const viewport: Viewport = {
+  themeColor: '#07090f',
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: 'Aegis Drone Workshop | Gear Up. Code It. Build It. Fly It.',
-  description: 'Hands-on Quadcopter Building, Hardware Assembly & Live Flight Calibration Workshop.',
+  description: 'Hands-on Quadcopter Building, Bare-Silicon ESP32 Flight Firmware & Live Flight Calibration Workshop.',
+  keywords: ['Drone Workshop', 'Avionics', 'ESP32 Flight Controller', 'Nashik Drones', 'Aegis Drones', 'GCOERC'],
+  authors: [{ name: 'Aegis Flight Lab' }],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://aegis-drone-workshop-ky4d.vercel.app'),
+  openGraph: {
+    title: 'Aegis Drone Avionics Master Workshop',
+    description: '100% Practical Quadcopter Assembly, Firmware Calibration & Live Flight Testing.',
+    url: '/',
+    siteName: 'Aegis Drones',
+    locale: 'en_IN',
+    type: 'website',
+  },
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

@@ -76,37 +76,56 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
     setScanStatus('processing');
 
     try {
-      let bookingId = scannedPayload;
-      if (scannedPayload.includes('/pass/')) {
-        const parts = scannedPayload.split('/pass/');
-        bookingId = parts[1]?.split('?')[0]?.trim();
+      let lookupId = scannedPayload.trim();
+
+      // 1. Try parsing JSON format if generated from confirmation email
+      try {
+        const parsed = JSON.parse(scannedPayload);
+        if (parsed.id) {
+          lookupId = parsed.id.trim();
+        }
+      } catch {
+        // Not a JSON string, check for URL paths
+        if (scannedPayload.includes('/pass/')) {
+          const parts = scannedPayload.split('/pass/');
+          lookupId = parts[1]?.split('?')[0]?.trim();
+        }
       }
 
+      // 2. Query by clearance_id or uuid
       const { data: attendee, error: fetchErr } = await supabase
         .from('registrations')
         .select('*')
-        .eq('id', bookingId)
-        .single();
+        .or(`clearance_id.eq.${lookupId},id.eq.${lookupId}`)
+        .maybeSingle();
 
       if (fetchErr || !attendee) {
         setScanStatus('error');
-        setErrorMessage(`Unknown Clearance ID: ${bookingId}`);
-        toast.error(`Invalid pass: ${bookingId}`);
+        setErrorMessage(`Unknown Clearance Pass: ${lookupId}`);
+        toast.error(`Invalid pass: ${lookupId}`);
         setTimeout(() => setScanStatus('idle'), 2200);
         return;
       }
 
+      // 3. Prevent duplicate check-in confusion
+      const wasAlreadyAttended = attendee.attended;
+
       const { error: updateErr } = await supabase
         .from('registrations')
-        .update({ attended: true, payment_status: 'confirmed' })
+        .update({ attended: true, payment_status: 'paid' })
         .eq('id', attendee.id);
 
       if (updateErr) throw updateErr;
 
       setLastScanned(attendee);
       setScanStatus('success');
-      toast.success(`Verified: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
-      
+
+      if (wasAlreadyAttended) {
+        toast.warning(`Already Checked In: ${attendee.full_name} (${attendee.batch || 'Batch 1'})`);
+      } else {
+        toast.success(`Verified & Admitted: ${attendee.full_name} (${attendee.batch || 'Batch 1'})`);
+      }
+
       onRefresh();
 
       setTimeout(() => {

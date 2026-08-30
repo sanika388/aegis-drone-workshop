@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -28,10 +30,18 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      // Always use current active browser origin for dynamic preview & production support
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
+      const callbackUrl = `${currentOrigin.replace(/\/+$/, '')}/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: callbackUrl,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
       if (error) throw error;
@@ -59,8 +69,9 @@ export default function AuthPage() {
 
         if (error) throw error;
 
-        // Set admin session cookie so middleware grants access to /admin
+        // Set admin session cookie so middleware & AdminGuard grant access to /admin
         document.cookie = 'aegis_admin_session=authenticated; path=/; max-age=86400; SameSite=Lax; Secure';
+        localStorage.setItem('aegis_admin_auth', 'true');
 
         toast.success('Admin authorization verified.');
         router.push('/admin');
@@ -117,15 +128,15 @@ export default function AuthPage() {
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <div className="flex justify-center items-center py-2">
-  <Image 
-    src="/logo.png" 
-    alt="Aegis Logo" 
-    width={100} 
-    height={100} 
-    className="object-contain drop-shadow-[0_0_20px_rgba(0,255,102,0.35)]" 
-    priority
-  />
-</div>
+            <Image 
+              src="/logo.png" 
+              alt="Aegis Logo" 
+              width={100} 
+              height={100} 
+              className="object-contain drop-shadow-[0_0_20px_rgba(0,255,102,0.35)]" 
+              priority
+            />
+          </div>
           <h1 className="text-xl font-black tracking-wider uppercase pt-2">
             AEGIS FLIGHT COMMAND
           </h1>
@@ -275,7 +286,7 @@ export default function AuthPage() {
               role === 'admin'
                 ? 'bg-amber-400 hover:bg-amber-300 text-black shadow-[0_0_20px_rgba(251,191,36,0.3)]'
                 : 'bg-neon hover:bg-[#00cc52] text-black shadow-[0_0_20px_rgba(0,255,102,0.3)]'
-            } disabled:opacity-50`}
+            }`}
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />

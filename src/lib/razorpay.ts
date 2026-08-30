@@ -7,9 +7,9 @@ export const getRazorpayInstance = () => {
     ''
   ).trim();
 
+  // Server-only key secret (never expose via NEXT_PUBLIC)
   const key_secret = (
     process.env.RAZORPAY_KEY_SECRET ||
-    process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
     process.env.RAZORPAY_SECRET ||
     ''
   ).trim();

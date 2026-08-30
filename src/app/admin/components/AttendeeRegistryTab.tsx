@@ -184,9 +184,13 @@ export default function AttendeeRegistryTab({
             venue: 'GCOERC Nashik',
             batchSchedule: 'September Intake',
             paymentMethod: attendee.payment_mode,
+            workshopId: 'aegis-master-workshop',
+            assignedBatch: attendee.cohort_label || `Batch ${attendee.batch_number || 1}`,
+            batchNumber: attendee.batch_number || 1,
           }),
         });
         toast.success(`Verified & Pass emailed to ${attendee.email}`);
+      
       } else {
         toast.success(`${attendee.name} set to Pending`);
       }
@@ -389,6 +393,9 @@ export default function AttendeeRegistryTab({
       const clearanceId = savedRecord?.clearance_id || savedRecord?.id;
 
       if (manualForm.sendPassEmail) {
+        const rawNum = clearanceId ? parseInt(String(clearanceId).replace(/\D/g, ''), 10) : 1;
+        const assignedBatchNumber = Math.floor((rawNum - 1) / (batchSizeLimit || 30)) + 1;
+
         await fetch('/api/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -401,10 +408,12 @@ export default function AttendeeRegistryTab({
             venue: 'GCOERC Nashik',
             batchSchedule: 'September Intake',
             paymentMethod: 'cash',
+            workshopId: 'aegis-master-workshop',
+            assignedBatch: `Batch ${assignedBatchNumber}`,
+            batchNumber: assignedBatchNumber,
           }),
         });
       }
-
       toast.success(`Manual Intake Added: ${clearanceId} (Cash Confirmed)`);
       setManualForm({
         fullName: '',
