@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const keyId = (
       process.env.RAZORPAY_KEY_ID ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-      'rzp_live_TU0S8UUkdBmnWc'
+      'rzp_live_TW21e2SZeVXjri'
     ).trim();
 
     // Direct fallback to ensure zero runtime drops
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
       process.env.RAZORPAY_KEY_SECRET ||
       process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      'cFwMi64v17YUQgb34zgxy02D' // <- Put your exact full Razorpay Live Secret Key string here
+      'xTIoNbi49LqYmpD4qfive2xA' // <- Put your exact full Razorpay Live Secret Key string here
     ).trim();
 
     if (!keyId || !keySecret) {

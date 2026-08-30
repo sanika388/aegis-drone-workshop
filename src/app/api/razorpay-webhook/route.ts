@@ -14,7 +14,7 @@ export async function POST(req: Request) {
       process.env.RAZORPAY_WEBHOOK_SECRET ||
       process.env.RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      'cFwMi64v17YUQgb34zgxy02D'
+      'xTIoNbi49LqYmpD4qfive2xA'
     ).trim();
 
     if (!secretKey || !signature) {
