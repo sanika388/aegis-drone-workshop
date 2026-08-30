@@ -166,6 +166,15 @@ function WorkshopRegistrationContent() {
           name: 'Aegis Drones',
           description: `${workshop?.title || 'Workshop'} Clearance Pass`,
           order_id: orderData.orderId,
+          // ADD THIS NOTES OBJECT:
+          notes: {
+            workshop_id: requestedWorkshopId || 'aegis-master-workshop',
+            full_name: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            college: formData.college || '',
+            academic_year: formData.academicYear || 'SE - Second Year',
+          },
           handler: async function (paymentResponse: any) {
             try {
               setIsSubmitting(true);
