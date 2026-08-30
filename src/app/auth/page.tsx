@@ -62,24 +62,26 @@ function AuthForm() {
 
   const handleGoogleSignIn = async () => {
     try {
-      const currentOrigin = typeof window !== 'undefined' 
+      const origin = typeof window !== 'undefined' 
         ? window.location.origin 
-        : (process.env.NEXT_PUBLIC_SITE_URL || '');
-      
-      const callbackUrl = `${currentOrigin.replace(/\/+$/, '')}/auth/callback`;
+        : 'https://aegis-drone-workshop-ky4d.vercel.app';
+
+      const redirectTo = `${origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: callbackUrl,
+          redirectTo,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
         },
       });
+
       if (error) throw error;
     } catch (err: any) {
+      console.error('Google OAuth error:', err);
       toast.error(err.message || 'Failed to initiate Google sign-in.');
     }
   };
