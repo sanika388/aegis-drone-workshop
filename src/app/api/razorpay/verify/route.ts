@@ -8,11 +8,11 @@ export async function POST(req: Request) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, registrationData } = await req.json();
 
+    // 1. Get the Live Key Secret
     const keySecret = (
       process.env.RAZORPAY_KEY_SECRET ||
-      process.env.NEXT_PUBLIC_RAZORPAY_KEY_SECRET ||
       process.env.RAZORPAY_SECRET ||
-      'cFwMi64v17YUQgb34zgxy0Xk' // <- Put your exact full Razorpay Live Secret Key string here
+      'cFwMi64v17YUQgb34zgxy02D' // Put your live secret here as fallback
     ).trim();
 
     if (!keySecret) {
@@ -22,33 +22,52 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Verify Razorpay HMAC SHA256 Signature
+    // 2. Validate Order ID & Payment ID presence
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error('Missing Razorpay verification payload:', {
+        razorpay_order_id,
+        razorpay_payment_id,
+        hasSignature: !!razorpay_signature,
+      });
+      return NextResponse.json(
+        { error: 'Incomplete payment response payload from gateway' },
+        { status: 400 }
+      );
+    }
+
+    // 3. Verify Razorpay HMAC SHA256 Signature
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto
       .createHmac('sha256', keySecret)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .update(body)
       .digest('hex');
 
     if (expectedSignature !== razorpay_signature) {
+      console.error('Signature Mismatch:', {
+        expected: expectedSignature,
+        received: razorpay_signature,
+        payloadHashed: body,
+      });
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
     }
 
-    // 2. Fetch workshop data
+    // 4. Fetch workshop data
     const { data: workshop } = await supabase
       .from('workshops')
       .select('*')
-      .eq('id', registrationData.workshop_id || 'aegis-master-workshop')
-      .single();
+      .eq('id', registrationData?.workshop_id || 'aegis-master-workshop')
+      .maybeSingle();
 
-    // 3. Save to Supabase
+    // 5. Save to Supabase
     const { data: inserted, error: dbError } = await supabase
       .from('registrations')
       .insert([
         {
           id: crypto.randomUUID(),
-          workshop_id: registrationData.workshop_id || 'aegis-master-workshop',
-          full_name: registrationData.full_name.trim(),
-          email: registrationData.email.trim().toLowerCase(),
-          phone: registrationData.phone.trim(),
+          workshop_id: registrationData?.workshop_id || 'aegis-master-workshop',
+          full_name: registrationData.full_name?.trim(),
+          email: registrationData.email?.trim().toLowerCase(),
+          phone: registrationData.phone?.trim(),
           college: registrationData.college?.trim() || '',
           academic_year: registrationData.academic_year || 'SE - Second Year',
           payment_mode: 'online',
@@ -62,18 +81,23 @@ export async function POST(req: Request) {
       .select('id')
       .single();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Supabase DB Insert Error:', dbError);
+      throw dbError;
+    }
 
-    // 4. Query the re-indexed record for calculated clearance_id & batch
+    // 6. Query the record for clearance_id & batch
     const { data: registration, error: fetchError } = await supabase
       .from('registrations')
       .select('*')
       .eq('id', inserted.id)
       .single();
 
-    if (fetchError || !registration) throw (fetchError || new Error('Failed to retrieve registration pass'));
+    if (fetchError || !registration) {
+      throw fetchError || new Error('Failed to retrieve registration pass');
+    }
 
-    // 5. Dispatch Email with QR
+    // 7. Dispatch Email with QR
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aegis-drone-workshop.vercel.app';
       await fetch(`${appUrl}/api/send-confirmation`, {
