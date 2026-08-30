@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabaseClient';
 import { Shield, User, Lock, Mail, ArrowRight, Loader2, Phone, School } from 'lucide-react';
@@ -16,6 +16,7 @@ const ADMIN_EMAILS = [
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [role, setRole] = useState<'participant' | 'admin'>('participant');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,9 +29,40 @@ export default function AuthPage() {
     college: '',
   });
 
+  // Check URL query parameters and Hash tokens from OAuth
+  useEffect(() => {
+    const roleParam = searchParams.get('role');
+    if (roleParam === 'admin') {
+      setRole('admin');
+    }
+
+    const errorParam = searchParams.get('error');
+
+    // 1. Check if Supabase passed access tokens via hash fragment
+    if (typeof window !== 'undefined' && window.location.hash) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          toast.success('Logged in successfully!');
+          router.replace('/profile');
+        }
+      });
+      return;
+    }
+
+    // 2. Check if user is already authenticated
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        router.replace('/profile');
+      }
+    });
+
+    if (errorParam === 'auth-code-error' && !window.location.hash) {
+      toast.error('Sign-in session expired or interrupted. Please try again.');
+    }
+  }, [searchParams, router]);
+
   const handleGoogleSignIn = async () => {
     try {
-      // Always use current active browser origin for dynamic preview & production support
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '');
       const callbackUrl = `${currentOrigin.replace(/\/+$/, '')}/auth/callback`;
 
@@ -69,7 +101,6 @@ export default function AuthPage() {
 
         if (error) throw error;
 
-        // Set admin session cookie so middleware & AdminGuard grant access to /admin
         document.cookie = 'aegis_admin_session=authenticated; path=/; max-age=86400; SameSite=Lax; Secure';
         localStorage.setItem('aegis_admin_auth', 'true');
 
@@ -173,7 +204,7 @@ export default function AuthPage() {
           </button>
         </div>
 
-        {/* 1-Click Google Sign-In (For Participants) */}
+        {/* 1-Click Google Sign-In */}
         {role === 'participant' && (
           <>
             <button
