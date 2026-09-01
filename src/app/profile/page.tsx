@@ -26,10 +26,33 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 
+// Helper to resolve the WhatsApp group link
+function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
+  const batchNum = typeof batchStrOrNum === 'number' 
+    ? batchStrOrNum 
+    : Number(String(batchStrOrNum).replace(/\D/g, '') || 1);
+
+  const batchKey = `Batch ${batchNum}`;
+
+  if (workshop?.cohort_whatsapp_links && workshop.cohort_whatsapp_links[batchKey]?.trim()) {
+    return workshop.cohort_whatsapp_links[batchKey].trim();
+  }
+
+  if (Array.isArray(workshop?.whatsapp_links)) {
+    const matched = workshop.whatsapp_links.find(
+      (item: any) => Number(item.batchNumber) === batchNum
+    );
+    if (matched?.url && matched.url.trim() !== '') return matched.url.trim();
+  }
+
+  return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default-aegis-community';
+}
+
 export default function ParticipantProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [workshopsMap, setWorkshopsMap] = useState<{ [key: string]: any }>({});
   const [loading, setLoading] = useState(true);
 
   // Edit Modal State
@@ -49,6 +72,16 @@ export default function ParticipantProfilePage() {
         }
 
         setUser(user);
+
+        // Fetch all workshops metadata
+        const { data: wsData } = await supabase.from('workshops').select('*');
+        const wsMap: { [key: string]: any } = {};
+        if (wsData) {
+          wsData.forEach((w) => {
+            wsMap[w.id] = w;
+          });
+          setWorkshopsMap(wsMap);
+        }
 
         const userEmail = user.email?.toLowerCase().trim();
         if (userEmail) {
@@ -97,7 +130,6 @@ export default function ParticipantProfilePage() {
     const formattedPhone = editPhone.startsWith('+91') ? editPhone : `+91 ${editPhone.trim()}`;
 
     try {
-      // 1. Update Supabase Auth user metadata
       const { data: updatedAuth, error: authUpdateError } = await supabase.auth.updateUser({
         data: {
           full_name: editFullName.trim(),
@@ -109,7 +141,6 @@ export default function ParticipantProfilePage() {
       if (authUpdateError) throw authUpdateError;
       if (updatedAuth.user) setUser(updatedAuth.user);
 
-      // 2. Sync changes across active registration records
       if (user?.email) {
         await supabase
           .from('registrations')
@@ -120,7 +151,6 @@ export default function ParticipantProfilePage() {
           })
           .eq('email', user.email.toLowerCase().trim());
 
-        // Update local state
         setRegistrations((prev) =>
           prev.map((reg) => ({
             ...reg,
@@ -279,16 +309,22 @@ export default function ParticipantProfilePage() {
           <div className="md:col-span-8 space-y-6">
             {registrations.length > 0 ? (
               registrations.map((reg, idx) => {
+                const parentWs = workshopsMap[reg.workshop_id] || {};
+                const isPaid = reg.payment_status === 'confirmed' || reg.payment_status === 'paid';
+                const batchNum = reg.batch_number || 1;
+                const batchLabel = reg.cohort_label || `Batch ${batchNum}`;
+                const waLink = getBatchWhatsAppUrl(parentWs, batchNum);
+
                 const qrPayload = encodeURIComponent(
                   JSON.stringify({
-                    id: reg.clearance_id || reg.id || 'PENDING',
+                    id: reg.clearance_id || reg.id,
                     pilot: reg.full_name || pilotName,
-                    workshop: reg.workshop_title || reg.track || 'Aegis Drone Workshop',
-                    status: reg.payment_status === 'confirmed' || reg.payment_status === 'paid' ? 'VERIFIED_PAID' : 'PENDING_DESK',
-                    batch: reg.cohort_label || (reg.batch_number ? `Batch ${reg.batch_number}` : 'Batch 1'),
+                    workshop: parentWs.title || 'Aegis Drone Workshop',
+                    status: isPaid ? 'VERIFIED_PAID' : 'PENDING_DESK',
+                    batch: batchLabel,
                   })
                 );
-                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&color=00ff66&bgcolor=0c0f17`;
+                const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&color=${isPaid ? '00ff66' : 'f59e0b'}&bgcolor=0c0f17`;
 
                 return (
                   <div 
@@ -300,16 +336,16 @@ export default function ParticipantProfilePage() {
                         <div className="flex items-center gap-2 mb-1">
                           <Ticket className="w-4 h-4 text-[#00ff66]" />
                           <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                            {reg.workshop_title || 'OFFICIAL CLEARANCE PASS'}
+                            {parentWs.title || 'OFFICIAL CLEARANCE PASS'}
                           </span>
                         </div>
                         <span className="text-base font-black text-[#00ff66]">
-                          {reg.clearance_id || 'RESERVATION PENDING'}
+                          {reg.clearance_id || reg.id}
                         </span>
                       </div>
                       <div className="text-right">
                         <span className="px-2.5 py-1 rounded-md bg-[#161c2c] border border-[#2b3752] text-xs font-bold text-white">
-                          {reg.cohort_label || `Batch ${reg.batch_number || 1}`}
+                          {batchLabel}
                         </span>
                       </div>
                     </div>
@@ -325,49 +361,57 @@ export default function ParticipantProfilePage() {
                         />
                         <div className="space-y-2 text-xs">
                           <div className="flex items-center gap-1.5">
-                            {reg.payment_status === 'confirmed' || reg.payment_status === 'paid' ? (
+                            {isPaid ? (
                               <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-400 font-bold flex items-center gap-1 text-[11px]">
                                 <CheckCircle2 className="w-3.5 h-3.5" /> Seat Verified & Confirmed
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-bold flex items-center gap-1 text-[11px]">
-                                <Clock className="w-3.5 h-3.5" /> Spot Cash Pending at Desk
+                                <Clock className="w-3.5 h-3.5" /> Verification / Payment Pending
                               </span>
                             )}
                           </div>
                           <p className="text-[11px] text-gray-400 leading-relaxed">
-                            Present this gate QR pass at the entrance scanner station for biometric/optical verification.
+                            Present this gate QR pass at the entrance scanner station on event day.
                           </p>
+                          <Link
+                            href={`/pass/${reg.clearance_id || reg.id}`}
+                            className="text-[11px] text-neon underline hover:text-white inline-block pt-1"
+                          >
+                            Open Interactive Telemetry Pass →
+                          </Link>
                         </div>
                       </div>
 
-                      {/* WhatsApp Cohort Button */}
-                      <div className="bg-[#0b1f14] border border-[#00ff66]/40 p-4 rounded-xl">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-bold text-[#00ff66]">
-                            <MessageSquare className="w-4 h-4" />
-                            <span>{reg.cohort_label || `Batch ${reg.batch_number || 1}`} Official Cohort</span>
+                      {/* Dynamic Batch WhatsApp Link */}
+                      {waLink && (
+                        <div className="bg-[#0b1f14] border border-[#00ff66]/40 p-4 rounded-xl">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs font-bold text-[#00ff66]">
+                              <MessageSquare className="w-4 h-4" />
+                              <span>{batchLabel} Official Cohort Group</span>
+                            </div>
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 rounded-lg bg-[#00ff66] text-black font-bold text-[11px] hover:bg-[#00cc52] transition-all flex items-center gap-1"
+                            >
+                              <span>Join Group</span>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
                           </div>
-                          <a
-                            href={reg.whatsapp_link || 'https://chat.whatsapp.com/'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-3 py-1.5 rounded-lg bg-[#00ff66] text-black font-bold text-[11px] hover:bg-[#00cc52] transition-all flex items-center gap-1"
-                          >
-                            <span>Join Group</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
                         </div>
-                      </div>
+                      )}
 
                       <div className="grid grid-cols-2 gap-3 text-xs text-gray-400 pt-2 border-t border-[#182033]">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-[#00ff66]" />
-                          <span>{reg.schedule_date || 'September 2026'}</span>
+                          <span>{parentWs.schedule_date || '16th, 17th, 18th September 2026'}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-[#00ff66]" />
-                          <span className="truncate">{reg.venue || 'GCOERC Nashik'}</span>
+                          <span className="truncate">{parentWs.venue || 'GCOERC Nashik'}</span>
                         </div>
                       </div>
                     </div>
@@ -446,7 +490,7 @@ export default function ParticipantProfilePage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. GCOERC Nashik (Comp Engg)"
+                  placeholder="e.g. GCOERC Nashik"
                   value={editCollege}
                   onChange={(e) => setEditCollege(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-[#00ff66] outline-none text-white font-mono"
@@ -457,7 +501,7 @@ export default function ParticipantProfilePage() {
                 <button
                   type="button"
                   onClick={() => setIsEditing(false)}
-                  className="w-1/2 py-2.5 rounded-xl bg-[#141824] text-gray-300 hover:text-white font-bold transition-all"
+                  className="w-1/2 py-2.5 rounded-xl bg-[#141824] text-gray-300 hover:text-white font-bold transition-all cursor-pointer"
                 >
                   Cancel
                 </button>

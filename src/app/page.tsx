@@ -117,9 +117,7 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 space-y-6">
           
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase tracking-wider">
-            <span>AVIONICS MASTERCLASS 2026</span>
-          </div>
+          
 
           <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
             Build The Brain. <br />

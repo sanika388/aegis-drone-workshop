@@ -4,25 +4,46 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { User, Radio, LogOut, Menu, X } from 'lucide-react';
+import { User, Radio, LogOut, Menu, X, Shield } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
+
+const ADMIN_EMAILS = [
+  'admin@aegisdrone.com',
+  'dusanesanika9@gmail.com',
+];
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const verifyAdmin = (user: any) => {
+    const emailClean = user?.email?.toLowerCase().trim();
+    const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('aegis_admin_session=authenticated');
+    const hasAdminStorage = typeof window !== 'undefined' && localStorage.getItem('aegis_admin_auth') === 'true';
+
+    if ((emailClean && ADMIN_EMAILS.includes(emailClean)) || (hasAdminCookie && hasAdminStorage)) {
+      setIsAdmin(true);
+    } else {
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
     async function loadUser() {
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user ?? null);
+      verifyAdmin(user);
     }
     loadUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionUser(session?.user ?? null);
+      const user = session?.user ?? null;
+      setSessionUser(user);
+      verifyAdmin(user);
     });
 
     return () => {
@@ -52,6 +73,7 @@ export default function Navbar() {
     document.cookie = 'aegis_admin_session=; path=/; max-age=0;';
     localStorage.removeItem('aegis_admin_auth');
     setSessionUser(null);
+    setIsAdmin(false);
     setMobileMenuOpen(false);
     toast.success('Logged out successfully');
     router.push('/auth');
@@ -110,12 +132,31 @@ export default function Navbar() {
               );
             })}
 
+            {/* DYNAMIC ADMIN BUTTON (Desktop: Visible only for Logged-In Admin) */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 font-mono text-xs font-bold transition-all ${
+                  pathname.startsWith('/admin')
+                    ? 'bg-amber-400 text-black border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.35)]'
+                    : 'bg-amber-400/10 border-amber-400/40 text-amber-400 hover:bg-amber-400 hover:text-black shadow-[0_0_15px_rgba(251,191,36,0.15)]'
+                }`}
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Admin Center</span>
+              </Link>
+            )}
+
             {/* Dynamic Sign In / Logged-in Profile (Desktop) */}
             {sessionUser ? (
               <div className="flex items-center gap-2">
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0e121c] border border-[#232b3d] hover:border-neon text-neon transition-all hover:shadow-[0_0_15px_rgba(0,255,102,0.2)] font-semibold text-xs font-mono"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0e121c] border transition-all font-semibold text-xs font-mono ${
+                    pathname === '/profile'
+                      ? 'border-neon text-neon shadow-[0_0_15px_rgba(0,255,102,0.25)]'
+                      : 'border-[#232b3d] hover:border-neon text-neon hover:shadow-[0_0_15px_rgba(0,255,102,0.2)]'
+                  }`}
                 >
                   <div className="w-5 h-5 rounded-full bg-neon/20 flex items-center justify-center text-neon text-[10px] font-bold">
                     {sessionUser.user_metadata?.full_name?.[0]?.toUpperCase() || sessionUser.email?.[0]?.toUpperCase() || 'P'}
@@ -205,6 +246,25 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Admin Command Link for Mobile Drawer */}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-4 py-3 rounded-xl font-mono text-sm flex items-center justify-between transition-all mt-2 ${
+                  pathname.startsWith('/admin')
+                    ? 'bg-amber-400 text-black font-bold shadow-[0_0_15px_rgba(251,191,36,0.3)]'
+                    : 'bg-amber-400/10 border border-amber-400/30 text-amber-400 font-bold'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  <span>Admin</span>
+                </div>
+                <span className="text-[10px] bg-amber-400/20 px-2 py-0.5 rounded text-amber-300">HUB</span>
+              </Link>
+            )}
           </nav>
         </div>
 

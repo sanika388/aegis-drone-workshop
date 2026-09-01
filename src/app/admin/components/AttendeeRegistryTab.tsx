@@ -22,7 +22,8 @@ import {
   MessageSquare,
   Copy,
   CreditCard,
-  Zap
+  QrCode,
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,8 +39,9 @@ interface Attendee {
   cohort_label: string;
   amount: number;
   status: 'pending' | 'confirmed';
-  payment_mode: 'online' | 'cash';
+  payment_mode: 'online' | 'cash' | 'upi_qr';
   transaction_id?: string | null;
+  utr_number?: string | null;
   attended: boolean;
   is_deleted: boolean;
   registeredAt: string;
@@ -49,12 +51,14 @@ interface AttendeeRegistryTabProps {
   registrations: Attendee[];
   batchSizeLimit: number;
   onRefresh: () => void;
+  onApprove?: (registrationId: string) => Promise<void> | void;
 }
 
 export default function AttendeeRegistryTab({
   registrations,
   batchSizeLimit,
   onRefresh,
+  onApprove,
 }: AttendeeRegistryTabProps) {
   const [viewScope, setViewScope] = useState<'active' | 'deleted'>('active');
   const [searchQuery, setSearchQuery] = useState('');
@@ -110,10 +114,12 @@ export default function AttendeeRegistryTab({
     return targetDataset.filter((attendee) => {
       const displayId = attendee.clearance_id || attendee.id || '';
       const txId = attendee.transaction_id || '';
+      const utr = attendee.utr_number || '';
       const matchesSearch =
         attendee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         displayId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         txId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        utr.toLowerCase().includes(searchQuery.toLowerCase()) ||
         attendee.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
         attendee.phone.includes(searchQuery) ||
         attendee.college.toLowerCase().includes(searchQuery.toLowerCase());
@@ -133,10 +139,10 @@ export default function AttendeeRegistryTab({
     });
   }, [targetDataset, searchQuery, attendanceFilter, paymentFilter, cohortFilter]);
 
-  // Copy Transaction ID Helper
-  const copyTransactionId = (txId: string) => {
-    navigator.clipboard.writeText(txId);
-    toast.success(`Copied TxID: ${txId}`);
+  // Copy Identifier Helper
+  const copyText = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`Copied ${label}: ${text}`);
   };
 
   // Toggle Attendance
@@ -190,7 +196,6 @@ export default function AttendeeRegistryTab({
           }),
         });
         toast.success(`Verified & Pass emailed to ${attendee.email}`);
-      
       } else {
         toast.success(`${attendee.name} set to Pending`);
       }
@@ -284,7 +289,7 @@ export default function AttendeeRegistryTab({
       'Academic Year',
       'Cohort',
       'Payment Mode',
-      'Transaction ID',
+      'Transaction / UTR',
       'Amount (INR)',
       'Payment Status',
       'Attendance',
@@ -300,7 +305,7 @@ export default function AttendeeRegistryTab({
       `"${r.year}"`,
       `"${r.cohort_label}"`,
       `"${r.payment_mode.toUpperCase()}"`,
-      `"${r.transaction_id || (r.payment_mode === 'cash' ? 'SPOT_CASH' : 'N/A')}"`,
+      `"${r.utr_number || r.transaction_id || (r.payment_mode === 'cash' ? 'SPOT_CASH' : 'N/A')}"`,
       r.amount,
       r.status.toUpperCase(),
       r.attended ? 'PRESENT' : 'ABSENT',
@@ -344,7 +349,8 @@ export default function AttendeeRegistryTab({
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
     const displayId = attendee.clearance_id || (attendee.is_deleted ? '[ARCHIVED]' : attendee.id);
 
-    const messageText = `⚡ *AEGIS DRONE AVIONICS MASTER WORKSHOP* ⚡\n\nHello *${attendee.name}*,\n\nHere are your official flight lab pass details:\n- *Clearance ID:* ${displayId}\n- *Assigned Cohort:* ${attendee.cohort_label}\n- *Payment Mode:* ${attendee.payment_mode === 'online' ? `UPI / Online (TxID: ${attendee.transaction_id || 'VERIFIED'})` : 'SPOT CASH'}\n- *Payment Status:* ${attendee.status === 'confirmed' ? 'PAID (₹300)' : 'PENDING AT DESK'}\n- *Venue:* GCOERC Avionics Research Lab, Nashik\n\nPlease arrive on time and present your Clearance ID at the entrance gate scanner!`;
+    const refText = attendee.utr_number ? `UTR: ${attendee.utr_number}` : (attendee.transaction_id ? `TxID: ${attendee.transaction_id}` : 'SPOT CASH');
+    const messageText = `⚡ *AEGIS DRONE AVIONICS MASTER WORKSHOP* ⚡\n\nHello *${attendee.name}*,\n\nHere are your official flight lab pass details:\n- *Clearance ID:* ${displayId}\n- *Assigned Cohort:* ${attendee.cohort_label}\n- *Payment Mode:* ${attendee.payment_mode.toUpperCase()} (${refText})\n- *Payment Status:* ${attendee.status === 'confirmed' ? 'PAID (₹300) [VERIFIED]' : 'PENDING APPROVAL'}\n- *Venue:* GCOERC Avionics Research Lab, Nashik\n\nPlease arrive on time and present your Clearance ID at the entrance gate scanner!`;
 
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
     window.open(waUrl, '_blank');
@@ -370,7 +376,6 @@ export default function AttendeeRegistryTab({
         is_deleted: false,
       };
 
-      // If admin selected a specific vacant slot to backfill, inject it
       if (manualForm.customClearanceId && manualForm.customClearanceId.trim() !== '') {
         payload.clearance_id = manualForm.customClearanceId.trim();
       }
@@ -383,7 +388,6 @@ export default function AttendeeRegistryTab({
 
       if (insertErr) throw insertErr;
 
-      // Query re-indexed record
       const { data: savedRecord } = await supabase
         .from('registrations')
         .select('*')
@@ -491,7 +495,7 @@ export default function AttendeeRegistryTab({
             <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder={`Search in ${viewScope} registry (ID, TxID, Name, Email, Phone)...`}
+              placeholder={`Search in ${viewScope} registry (ID, UTR, TxID, Name, Email, Phone)...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-white text-xs font-mono placeholder:text-gray-500"
@@ -544,7 +548,7 @@ export default function AttendeeRegistryTab({
             >
               <option value="all" className="bg-[#0e1017] text-white">All Payments</option>
               <option value="confirmed" className="bg-[#0e1017] text-green-400">● Paid / Confirmed</option>
-              <option value="pending" className="bg-[#0e1017] text-amber-400">○ Pending Cash</option>
+              <option value="pending" className="bg-[#0e1017] text-amber-400">○ Pending Cash / UTR</option>
             </select>
           </div>
 
@@ -578,7 +582,7 @@ export default function AttendeeRegistryTab({
                 <th className="p-4">Pilot & Contact</th>
                 <th className="p-4">College & Year</th>
                 <th className="p-4">Cohort</th>
-                <th className="p-4">Transaction / Mode</th>
+                <th className="p-4">Transaction / UTR</th>
                 <th className="p-4 text-center">Payment</th>
                 <th className="p-4 text-center">Attendance</th>
                 <th className="p-4 text-right">Actions</th>
@@ -596,7 +600,7 @@ export default function AttendeeRegistryTab({
                   return (
                     <tr key={attendee.id} className="hover:bg-[#161a24]/50 transition-colors">
                       
-                      {/* Column 1: Clearance ID / [ARCHIVED] */}
+                      {/* Column 1: Clearance ID */}
                       <td className="p-4 whitespace-nowrap">
                         {viewScope === 'deleted' ? (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 border border-red-500/40 text-red-400 font-bold text-xs">
@@ -642,27 +646,42 @@ export default function AttendeeRegistryTab({
                         </span>
                       </td>
 
-                      {/* Column 5: Dedicated Transaction / Payment Mode Column */}
+                      {/* Column 5: Payment / UTR Reference */}
                       <td className="p-4 whitespace-nowrap">
-                        {attendee.payment_mode === 'online' || attendee.transaction_id ? (
+                        {attendee.utr_number ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-neon text-[11px] font-bold">
+                              <QrCode className="w-3.5 h-3.5" />
+                              <span>UPI QR Scan</span>
+                            </div>
+                            <div className="flex items-center gap-1 bg-[#091a12] border border-neon/30 px-2 py-0.5 rounded text-[10px] text-neon w-fit">
+                              <span className="font-mono">UTR: {attendee.utr_number}</span>
+                              <button
+                                onClick={() => copyText(attendee.utr_number!, 'UTR')}
+                                className="hover:text-white transition-colors cursor-pointer"
+                                title="Copy UTR"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : attendee.payment_mode === 'online' || attendee.transaction_id ? (
                           <div className="space-y-1">
                             <div className="flex items-center gap-1 text-blue-400 text-[11px] font-bold">
                               <CreditCard className="w-3.5 h-3.5" />
-                              <span>UPI / Online</span>
+                              <span>UPI / Gateway</span>
                             </div>
-                            {attendee.transaction_id ? (
+                            {attendee.transaction_id && (
                               <div className="flex items-center gap-1 bg-[#09111e] border border-blue-500/30 px-2 py-0.5 rounded text-[10px] text-blue-300 w-fit">
                                 <span className="font-mono">{attendee.transaction_id.slice(0, 14)}...</span>
                                 <button
-                                  onClick={() => copyTransactionId(attendee.transaction_id!)}
+                                  onClick={() => copyText(attendee.transaction_id!, 'TxID')}
                                   className="hover:text-white transition-colors cursor-pointer"
                                   title="Copy Transaction ID"
                                 >
                                   <Copy className="w-3 h-3" />
                                 </button>
                               </div>
-                            ) : (
-                              <span className="text-[10px] text-gray-500">Gateway Verified</span>
                             )}
                           </div>
                         ) : (
@@ -697,7 +716,7 @@ export default function AttendeeRegistryTab({
                           ) : (
                             <>
                               <Clock className="w-3.5 h-3.5 text-amber-400" />
-                              <span>Pending Cash</span>
+                              <span>Pending</span>
                             </>
                           )}
                         </button>
@@ -731,14 +750,26 @@ export default function AttendeeRegistryTab({
                       {/* Column 8: Actions */}
                       <td className="p-4 text-right">
                         {viewScope === 'active' ? (
-                          <button
-                            onClick={() => softDeleteAttendee(attendee)}
-                            disabled={isUpdating === attendee.id}
-                            className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
-                            title="Move to Deleted Vault"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {attendee.status === 'pending' && onApprove && (
+                              <button
+                                onClick={() => onApprove(attendee.id)}
+                                className="px-2.5 py-1 text-[10px] font-bold bg-neon/10 border border-neon/50 text-neon hover:bg-neon hover:text-black rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-[0_0_10px_rgba(0,255,102,0.15)]"
+                                title="Verify payment and issue official clearance pass"
+                              >
+                                <ShieldCheck className="w-3.5 h-3.5" />
+                                <span>Approve</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => softDeleteAttendee(attendee)}
+                              disabled={isUpdating === attendee.id}
+                              className="p-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+                              title="Move to Deleted Vault"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         ) : (
                           <div className="flex items-center justify-end gap-2">
                             <button

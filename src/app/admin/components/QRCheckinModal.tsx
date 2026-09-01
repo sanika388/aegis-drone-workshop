@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { supabase } from '@/lib/supabaseClient';
-import { X, CheckCircle2, AlertCircle, Scan, Camera } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Scan, Camera, Banknote } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface QRCheckinModalProps {
@@ -14,7 +14,7 @@ interface QRCheckinModalProps {
 
 export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckinModalProps) {
   const [lastScanned, setLastScanned] = useState<any>(null);
-  const [scanStatus, setScanStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [scanStatus, setScanStatus] = useState<'idle' | 'processing' | 'success' | 'warning' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
   const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
@@ -31,7 +31,7 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
         html5QrCodeRef.current = html5QrCode;
 
         await html5QrCode.start(
-          { facingMode: 'environment' }, // Back camera on mobile, default webcam on laptop
+          { facingMode: 'environment' },
           {
             fps: 15,
             qrbox: { width: 220, height: 220 },
@@ -41,9 +41,7 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
             if (scanStatus === 'processing') return;
             await handlePassScan(decodedText.trim());
           },
-          () => {
-            // Frame miss (normal while searching for QR)
-          }
+          () => {}
         );
 
         if (isMounted) setCameraActive(true);
@@ -56,7 +54,6 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
       }
     };
 
-    // Small delay to ensure the modal DOM node is mounted before attaching video
     const timeout = setTimeout(startCamera, 150);
 
     return () => {
@@ -78,21 +75,21 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
     try {
       let lookupId = scannedPayload.trim();
 
-      // 1. Try parsing JSON format if generated from confirmation email
+      // 1. Parse JSON payload if available
       try {
         const parsed = JSON.parse(scannedPayload);
         if (parsed.id) {
           lookupId = parsed.id.trim();
         }
       } catch {
-        // Not a JSON string, check for URL paths
+        // Fallback: check for URL paths
         if (scannedPayload.includes('/pass/')) {
           const parts = scannedPayload.split('/pass/');
           lookupId = parts[1]?.split('?')[0]?.trim();
         }
       }
 
-      // 2. Query by clearance_id or uuid
+      // 2. Query attendee in Supabase
       const { data: attendee, error: fetchErr } = await supabase
         .from('registrations')
         .select('*')
@@ -107,30 +104,38 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
         return;
       }
 
-      // 3. Prevent duplicate check-in confusion
       const wasAlreadyAttended = attendee.attended;
+      const isPaid = attendee.payment_status === 'confirmed' || attendee.payment_status === 'paid';
+
+      // 3. Mark attended in database
+      const updatePayload: any = { attended: true };
+      if (!isPaid && attendee.payment_mode === 'cash') {
+        updatePayload.payment_status = 'confirmed'; // Cash collected at desk
+      }
 
       const { error: updateErr } = await supabase
         .from('registrations')
-        .update({ attended: true, payment_status: 'paid' })
+        .update(updatePayload)
         .eq('id', attendee.id);
 
       if (updateErr) throw updateErr;
 
-      setLastScanned(attendee);
-      setScanStatus('success');
+      setLastScanned({ ...attendee, ...updatePayload });
 
-      if (wasAlreadyAttended) {
-        toast.warning(`Already Checked In: ${attendee.full_name} (${attendee.batch || 'Batch 1'})`);
+      if (!isPaid) {
+        setScanStatus('warning');
+        toast.warning(`Spot Cash Desk Check-in: ₹${attendee.amount_paid || 300} verified for ${attendee.full_name}`);
       } else {
-        toast.success(`Verified & Admitted: ${attendee.full_name} (${attendee.batch || 'Batch 1'})`);
+        setScanStatus('success');
+        if (wasAlreadyAttended) {
+          toast.info(`Already Checked In: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
+        } else {
+          toast.success(`Verified & Cleared: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
+        }
       }
 
       onRefresh();
-
-      setTimeout(() => {
-        setScanStatus('idle');
-      }, 2000);
+      setTimeout(() => setScanStatus('idle'), 2200);
 
     } catch (err: any) {
       setScanStatus('error');
@@ -142,14 +147,14 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 font-mono">
       <div className="bg-[#0e1017] border border-[#242b3d] rounded-2xl w-full max-w-md overflow-hidden shadow-[0_0_50px_rgba(0,255,102,0.15)] flex flex-col">
         
         {/* Header */}
         <div className="p-4 border-b border-[#1f2637] flex items-center justify-between bg-[#08090d]">
           <div className="flex items-center gap-2">
             <Scan className="w-4 h-4 text-neon animate-pulse" />
-            <span className="font-mono text-xs font-bold text-white uppercase tracking-wider">
+            <span className="text-xs font-bold text-white uppercase tracking-wider">
               Avionics Gate Scanner
             </span>
           </div>
@@ -161,38 +166,48 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
           </button>
         </div>
 
-        {/* Live Camera Stream */}
+        {/* Live Camera Feed */}
         <div className="p-6 flex flex-col items-center justify-center space-y-4">
           <div className="w-full max-w-[280px] h-[280px] rounded-2xl overflow-hidden border-2 border-neon/40 bg-[#050608] relative shadow-[0_0_30px_rgba(0,255,102,0.1)] flex items-center justify-center">
             <div id="direct-qr-video" className="w-full h-full object-cover"></div>
             {!cameraActive && scanStatus !== 'error' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#08090d] text-gray-400 font-mono text-xs">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#08090d] text-gray-400 text-xs">
                 <Camera className="w-6 h-6 animate-pulse text-neon" />
-                <span>Initializing camera...</span>
+                <span>Initializing camera stream...</span>
               </div>
             )}
           </div>
 
-          {/* Scanned Card Feedback */}
+          {/* Scanned Status */}
           {scanStatus === 'success' && lastScanned && (
-            <div className="w-full bg-[#0a1f14] border border-neon/50 rounded-xl p-3.5 flex items-center gap-3 animate-in fade-in">
+            <div className="w-full bg-[#0a1f14] border border-neon/50 rounded-xl p-3.5 flex items-center gap-3">
               <CheckCircle2 className="w-6 h-6 text-neon shrink-0" />
-              <div className="font-mono text-xs">
+              <div className="text-xs">
                 <p className="text-white font-bold">{lastScanned.full_name}</p>
-                <p className="text-neon text-[11px]">{lastScanned.id} &bull; PRESENT</p>
+                <p className="text-neon text-[11px]">{lastScanned.clearance_id || lastScanned.id} &bull; PRESENT & CLEARED</p>
+              </div>
+            </div>
+          )}
+
+          {scanStatus === 'warning' && lastScanned && (
+            <div className="w-full bg-[#241a08] border border-amber-500/50 rounded-xl p-3.5 flex items-center gap-3">
+              <Banknote className="w-6 h-6 text-amber-400 shrink-0" />
+              <div className="text-xs">
+                <p className="text-white font-bold">{lastScanned.full_name}</p>
+                <p className="text-amber-400 text-[11px]">₹{lastScanned.amount_paid || 300} Cash Confirmed & Checked In</p>
               </div>
             </div>
           )}
 
           {scanStatus === 'error' && (
-            <div className="w-full bg-[#220e0e] border border-red-500/50 rounded-xl p-3.5 flex items-center gap-2.5 animate-in fade-in">
+            <div className="w-full bg-[#220e0e] border border-red-500/50 rounded-xl p-3.5 flex items-center gap-2.5">
               <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-              <p className="font-mono text-xs text-red-200">{errorMessage}</p>
+              <p className="text-xs text-red-200">{errorMessage}</p>
             </div>
           )}
 
-          <p className="text-[11px] font-mono text-gray-400 text-center">
-            Position QR code within frame. Attendance marks automatically.
+          <p className="text-[11px] text-gray-400 text-center">
+            Position flight pass QR code within frame. Attendance records automatically.
           </p>
         </div>
 
@@ -200,7 +215,7 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
         <div className="p-4 border-t border-[#1f2637] bg-[#08090d] flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-[#161a26] text-gray-300 font-mono text-xs font-bold hover:bg-[#1e2436] transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-lg bg-[#161a26] text-gray-300 text-xs font-bold hover:bg-[#1e2436] transition-colors cursor-pointer"
           >
             Close Gate Scanner
           </button>

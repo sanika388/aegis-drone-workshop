@@ -43,11 +43,11 @@ export default function WorkshopLifecycleTab({
   const [title, setTitle] = useState(batchData?.title || '');
   const [subtitle, setSubtitle] = useState(batchData?.subtitle || '');
   const [badge, setBadge] = useState(batchData?.badge || 'CERTIFIED WORKSHOP');
-  const [scheduleDate, setScheduleDate] = useState(batchData?.schedule_date || 'September 2026 Intake');
+  const [scheduleDate, setScheduleDate] = useState(batchData?.schedule_date || '16th, 17th, 18th September 2026 Intake');
   const [venue, setVenue] = useState(batchData?.venue || 'Guru Gobind Singh College of Engineering and Research Centre, Nashik');
   const [fee, setFee] = useState<number>(batchData?.fee || 300);
   
-  // Workshop-Specific Squad Cap Limit
+  // Workshop-Specific Squad Cap Limit (Default: 20 per batch)
   const [batchLimit, setBatchLimit] = useState<number>(batchData?.batch_size_limit || 20);
 
   // Workshop-Specific Posters
@@ -85,18 +85,22 @@ export default function WorkshopLifecycleTab({
   });
   const [isCreating, setIsCreating] = useState(false);
 
-  // Synchronize state whenever a different workshop is picked from dropdown
+  // Synchronize state whenever a different workshop is selected
   useEffect(() => {
     if (batchData) {
       setTitle(batchData.title || '');
       setSubtitle(batchData.subtitle || '');
       setBadge(batchData.badge || 'CERTIFIED WORKSHOP');
-      setScheduleDate(batchData.schedule_date || 'September 2026 Intake');
+      setScheduleDate(batchData.schedule_date || '16th, 17th, 18th September 2026 Intake');
       setVenue(batchData.venue || 'Guru Gobind Singh College of Engineering and Research Centre, Nashik');
-      setFee(batchData.fee || 300);
+      setFee(batchData.fee ?? 300);
       setBatchLimit(batchData.batch_size_limit || 20);
       setPosters(batchData.poster_images || []);
-      setCohortLinks(batchData.cohort_whatsapp_links || { 'Batch 1': '', 'Batch 2': '' });
+      setCohortLinks(
+        batchData.cohort_whatsapp_links && Object.keys(batchData.cohort_whatsapp_links).length > 0
+          ? batchData.cohort_whatsapp_links
+          : { 'Batch 1': '', 'Batch 2': '', 'Batch 3': '' }
+      );
       setFallbackLink(batchData.fallback_whatsapp_link || 'https://chat.whatsapp.com/default-aegis-community');
     }
   }, [batchData, selectedBatch]);
@@ -113,7 +117,7 @@ export default function WorkshopLifecycleTab({
     if (data) setNotices(data);
   };
 
-  // 1. Save Workshop Core Details (Including Squad Partition Cap)
+  // 1. Save Workshop Core Details
   const handleSaveWorkshopDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingWorkshop(true);
@@ -132,7 +136,7 @@ export default function WorkshopLifecycleTab({
         .eq('id', selectedBatch);
 
       if (error) throw error;
-      toast.success(`Workshop configuration & squad limit (${batchLimit}) saved!`);
+      toast.success(`Workshop configuration & batch limit (${batchLimit}) saved!`);
       onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to update workshop');
@@ -141,8 +145,7 @@ export default function WorkshopLifecycleTab({
     }
   };
 
-  // 2. Save Workshop-Specific Dynamic Cohort WhatsApp Links
-  // 2. Save Workshop-Specific Dynamic Cohort WhatsApp Links
+  // 2. Save WhatsApp Cohort Links
   const handleSaveCohortLinks = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSavingLinks(true);
@@ -162,7 +165,7 @@ export default function WorkshopLifecycleTab({
         .eq('id', selectedBatch);
 
       if (error) throw error;
-      toast.success(`Squad WhatsApp routing saved for ${title || selectedBatch}!`);
+      toast.success(`WhatsApp routing saved for ${title || selectedBatch}!`);
       onRefresh();
     } catch (err: any) {
       toast.error(err.message || 'Failed to save links');
@@ -203,7 +206,7 @@ export default function WorkshopLifecycleTab({
           fee: Number(newWs.fee),
           batch_size_limit: Number(newWs.batch_size_limit),
           fallback_whatsapp_link: newWs.fallback_whatsapp_link.trim(),
-          cohort_whatsapp_links: { 'Batch 1': '' },
+          cohort_whatsapp_links: { 'Batch 1': '', 'Batch 2': '', 'Batch 3': '' },
           poster_images: [],
         },
       ]);
@@ -254,7 +257,7 @@ export default function WorkshopLifecycleTab({
     }
   };
 
-  // 5. High-Speed WebP Image Compressor
+  // 5. Image Compressor
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -427,7 +430,7 @@ export default function WorkshopLifecycleTab({
           <Edit3 className="w-5 h-5 text-neon" />
           <div>
             <h3 className="text-sm font-bold text-white font-mono uppercase">
-              Workshop Metadata & Specific Squad Partition Cap
+              Workshop Metadata & Squad Partition Cap
             </h3>
             <p className="text-[11px] text-gray-400 font-mono">
               Configuring track: <span className="text-neon">{selectedBatch}</span>
@@ -466,7 +469,7 @@ export default function WorkshopLifecycleTab({
                 required
                 value={scheduleDate}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                placeholder="e.g. September 2026 Intake"
+                placeholder="e.g. 16th, 17th, 18th September 2026 Intake"
                 className="w-full px-3 py-2 rounded-lg bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-white"
               />
             </div>
@@ -497,7 +500,7 @@ export default function WorkshopLifecycleTab({
             <div className="space-y-1.5">
               <label className="text-neon font-bold flex items-center gap-1.5 uppercase">
                 <Sliders className="w-3.5 h-3.5 text-neon" />
-                <span>Track Squad Limit (Cap for {selectedBatch})</span>
+                <span>Track Batch Capacity Limit (Cap for {selectedBatch})</span>
               </label>
               <input
                 type="number"
@@ -509,7 +512,7 @@ export default function WorkshopLifecycleTab({
                 className="w-full px-3 py-2 rounded-lg bg-[#08090d] border border-[#242b3d] focus:border-neon outline-none text-neon font-bold"
               />
               <span className="text-[10px] text-gray-500">
-                Auto-switches squad when {selectedBatch} reaches this exact seat count.
+                Auto-switches to next batch when this track reaches this exact seat count.
               </span>
             </div>
 
@@ -526,7 +529,7 @@ export default function WorkshopLifecycleTab({
         </form>
       </div>
 
-      {/* 3. Workshop-Specific Automated WhatsApp Squad Routing */}
+      {/* 3. Automated WhatsApp Squad Routing */}
       <div className="bg-[#121212] border border-[#242424] p-6 rounded-2xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#222] pb-4">
           <div className="flex items-center gap-2">
@@ -536,7 +539,7 @@ export default function WorkshopLifecycleTab({
                 Automated WhatsApp Squad Links for {title || selectedBatch}
               </h3>
               <p className="text-[11px] text-gray-400 font-mono">
-                Pilots 1–{batchLimit} receive Batch 1 link, {batchLimit + 1}–{batchLimit * 2} receive Batch 2 link in email passes.
+                Pilots 1–{batchLimit} receive Batch 1 link, {batchLimit + 1}–{batchLimit * 2} receive Batch 2 link automatically.
               </p>
             </div>
           </div>
@@ -564,8 +567,8 @@ export default function WorkshopLifecycleTab({
                 </div>
                 <input
                   type="url"
-                  placeholder={`https://chat.whatsapp.com/${selectedBatch}-${batchKey.toLowerCase().replace(' ', '-')}`}
-                  value={cohortLinks[batchKey]}
+                  placeholder={`https://chat.whatsapp.com/example-link`}
+                  value={cohortLinks[batchKey] || ''}
                   onChange={(e) => updateCohortLink(batchKey, e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-[#11141d] border border-[#242b3d] focus:border-neon outline-none text-white text-[11px]"
                 />
@@ -579,7 +582,7 @@ export default function WorkshopLifecycleTab({
             </span>
             <input
               type="url"
-              placeholder="https://chat.whatsapp.com/master-aegis-community"
+              placeholder="https://chat.whatsapp.com/default-aegis-community"
               value={fallbackLink}
               onChange={(e) => setFallbackLink(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-[#11141d] border border-[#242b3d] focus:border-neon outline-none text-white text-[11px]"

@@ -114,9 +114,7 @@ export default function WorkshopsCatalogPage() {
     <div className="max-w-5xl mx-auto px-6 py-14 space-y-10">
       {/* Page Header */}
       <div className="space-y-3 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase">
-          <span>FLIGHT TRAINING INTAKE</span>
-        </div>
+         
         <h1 className="text-3xl sm:text-4xl font-black text-white font-mono uppercase tracking-tight">
           Aegis Drone Avionics Catalog
         </h1>
@@ -219,7 +217,7 @@ export default function WorkshopsCatalogPage() {
                   <div className="md:col-span-7 space-y-2.5 text-xs font-mono text-gray-300">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-neon shrink-0" />
-                      <span>Schedule: <strong>{workshop.schedule_date || 'September 2026 Intake'}</strong></span>
+                      <span>Schedule: <strong>{workshop.schedule_date || '16th, 17th, 18th September 2026 Intake'}</strong></span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-neon shrink-0" />

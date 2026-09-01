@@ -31,7 +31,7 @@ export default function WorkshopManager() {
     schedule_date: '',
     venue: '',
     fee: 300,
-    batch_size_limit: 30,
+    batch_size_limit: 20,
     fallback_whatsapp_link: '',
     whatsapp_links: [{ batchNumber: 1, url: '' }] as { batchNumber: number; url: string }[],
     syllabusText: '',
@@ -58,10 +58,10 @@ export default function WorkshopManager() {
       id: w.id,
       title: w.title || '',
       badge: w.badge || '',
-      schedule_date: w.schedule_date || '',
+      schedule_date: w.schedule_date || '16th, 17th, 18th September 2026 Intake',
       venue: w.venue || '',
-      fee: Number(w.fee || 300),
-      batch_size_limit: Number(w.batch_size_limit || 30),
+      fee: Number(w.fee ?? 300),
+      batch_size_limit: Number(w.batch_size_limit || 20),
       fallback_whatsapp_link: w.fallback_whatsapp_link || '',
       whatsapp_links: Array.isArray(w.whatsapp_links) && w.whatsapp_links.length > 0
         ? w.whatsapp_links
@@ -76,13 +76,13 @@ export default function WorkshopManager() {
       id: `workshop-${Date.now().toString().slice(-4)}`,
       title: 'New Avionics Master Track',
       badge: 'CERTIFIED WORKSHOP ★ 2026 INTAKE',
-      schedule_date: 'September 2026 Intake',
+      schedule_date: '16th, 17th, 18th September 2026 Intake',
       venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
       fee: 300,
-      batch_size_limit: 30,
+      batch_size_limit: 20,
       fallback_whatsapp_link: '',
       whatsapp_links: [{ batchNumber: 1, url: '' }],
-      syllabusText: '01 Module One\n02 Module Two\n03 Module Three\n100% Hands-on Practical',
+      syllabusText: '01 Build The Brain\n02 Build The Body\n03 Test. Tune. Trust.\n100% Hands-on Practical',
     });
   };
 
@@ -133,7 +133,7 @@ export default function WorkshopManager() {
     setFormData({ ...formData, whatsapp_links: updated });
   };
 
- const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
@@ -142,19 +142,26 @@ export default function WorkshopManager() {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
-    const cleanDate = formData.schedule_date.trim() || 'September 2026 Intake';
+    const cleanDate = formData.schedule_date.trim() || '16th, 17th, 18th September 2026 Intake';
+
+    // Build dictionary map for cohort_whatsapp_links
+    const cohortLinksMap: { [key: string]: string } = {};
+    formData.whatsapp_links.forEach((l) => {
+      cohortLinksMap[`Batch ${l.batchNumber}`] = l.url.trim();
+    });
 
     const payload = {
       id: formData.id.trim().toLowerCase().replace(/\s+/g, '-'),
-      title: formData.title,
-      badge: formData.badge,
-      date: cleanDate,                   // Satisfies legacy "date" NOT NULL column
-      schedule_date: cleanDate,          // Keeps "schedule_date" aligned
-      venue: formData.venue,
+      title: formData.title.trim(),
+      badge: formData.badge.trim(),
+      date: cleanDate,
+      schedule_date: cleanDate,
+      venue: formData.venue.trim(),
       fee: Number(formData.fee),
       batch_size_limit: Number(formData.batch_size_limit),
-      fallback_whatsapp_link: formData.fallback_whatsapp_link,
+      fallback_whatsapp_link: formData.fallback_whatsapp_link.trim(),
       whatsapp_links: formData.whatsapp_links,
+      cohort_whatsapp_links: cohortLinksMap,
       syllabus: syllabusArray,
     };
 
@@ -170,6 +177,7 @@ export default function WorkshopManager() {
     }
     setSaving(false);
   };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
@@ -191,7 +199,7 @@ export default function WorkshopManager() {
         </button>
       </div>
 
-      {/* Editor Drawer */}
+      {/* Editor Box */}
       {editingId && (
         <div className="bg-[#12141a] border border-neon/50 p-6 rounded-2xl space-y-5 shadow-2xl">
           <div className="flex justify-between items-center border-b border-[#242b3b] pb-3">
@@ -252,8 +260,8 @@ export default function WorkshopManager() {
                 <label className="text-gray-400 font-mono text-[11px] block mb-1">Registration Fee (₹) *</label>
                 <input
                   type="number"
-                  required
                   min="0"
+                  required
                   value={formData.fee}
                   onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0c10] border border-[#242b3b] text-white font-mono outline-none focus:border-neon"
@@ -264,8 +272,8 @@ export default function WorkshopManager() {
                 <label className="text-gray-400 font-mono text-[11px] block mb-1">Batch Capacity (Split Limit) *</label>
                 <input
                   type="number"
-                  required
                   min="1"
+                  required
                   value={formData.batch_size_limit}
                   onChange={(e) => setFormData({ ...formData, batch_size_limit: Number(e.target.value) })}
                   className="w-full px-3 py-2 rounded-lg bg-[#0a0c10] border border-[#242b3b] text-white font-mono outline-none focus:border-neon"
@@ -400,7 +408,7 @@ export default function WorkshopManager() {
                 </div>
                 <div className="text-right font-mono">
                   <span className="text-xl font-black text-neon">₹{w.fee}</span>
-                  <span className="text-[10px] text-gray-400 block">{w.batch_size_limit || 30} seats/batch</span>
+                  <span className="text-[10px] text-gray-400 block">{w.batch_size_limit || 20} seats/batch</span>
                 </div>
               </div>
 
@@ -420,7 +428,7 @@ export default function WorkshopManager() {
                   className="text-gray-400 hover:text-neon font-mono text-xs flex items-center gap-1 transition-colors"
                 >
                   <span>Public View</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </Link>
 
                 <div className="flex items-center gap-2">

@@ -29,12 +29,12 @@ import { toast } from 'sonner';
 
 // Configurable UPI Payment Settings
 const UPI_CONFIG = {
-  vpa: 'dusanesanika7@oksbi', // Replace with your primary UPI ID (e.g., yourname@okaxis / phonepe)
+  vpa: 'dusanesanika7@oksbi',
   payeeName: 'Aegis Drone Avionics Lab',
   defaultAmount: 300,
 };
 
-const DEFAULT_BATCH_LIMIT = 30;
+const DEFAULT_BATCH_LIMIT = 20;
 
 // Helper to resolve the WhatsApp group link for the assigned batch
 function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
@@ -44,17 +44,20 @@ function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): str
 
   const batchKey = `Batch ${batchNum}`;
 
-  if (workshop?.cohort_whatsapp_links && workshop.cohort_whatsapp_links[batchKey]) {
-    return workshop.cohort_whatsapp_links[batchKey];
+  // 1. Check dictionary key
+  if (workshop?.cohort_whatsapp_links && workshop.cohort_whatsapp_links[batchKey]?.trim()) {
+    return workshop.cohort_whatsapp_links[batchKey].trim();
   }
 
+  // 2. Check structured array format
   if (Array.isArray(workshop?.whatsapp_links)) {
     const matched = workshop.whatsapp_links.find(
       (item: any) => Number(item.batchNumber) === batchNum
     );
-    if (matched?.url && matched.url.trim() !== '') return matched.url;
+    if (matched?.url && matched.url.trim() !== '') return matched.url.trim();
   }
 
+  // 3. Fallback
   return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default-aegis-community';
 }
 
@@ -126,11 +129,12 @@ function WorkshopRegistrationContent() {
           id: requestedWorkshopId,
           title: 'Aegis Drone Avionics Master Workshop',
           badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
-          schedule_date: 'September 2026 Intake',
+          schedule_date: '16th, 17th, 18th September 2026 Intake',
           venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
           fee: 300,
           batch_size_limit: DEFAULT_BATCH_LIMIT,
           whatsapp_links: [{ batchNumber: 1, url: '' }],
+          cohort_whatsapp_links: { 'Batch 1': '' },
           fallback_whatsapp_link: '',
           syllabus: [
             '01 BUILD THE BRAIN: ESP32 Flight Controller, Gyro & Sensors (MPU6050), Firmware & Motors Wiring',
@@ -141,16 +145,17 @@ function WorkshopRegistrationContent() {
         };
         setWorkshop(ws);
 
-        // 3. Compute dynamic batch allocation
+        // 3. Compute active batch allocation (ignoring deleted rows)
         const { count } = await supabase
           .from('registrations')
           .select('id', { count: 'exact', head: true })
-          .eq('workshop_id', requestedWorkshopId);
+          .eq('workshop_id', requestedWorkshopId)
+          .or('is_deleted.is.null,is_deleted.eq.false');
 
-        const totalRegistered = count || 0;
-        setCurrentCohortCount(totalRegistered);
+        const activeTotal = count || 0;
+        setCurrentCohortCount(activeTotal);
         const batchLimit = ws.batch_size_limit || DEFAULT_BATCH_LIMIT;
-        const calculatedBatch = Math.floor(totalRegistered / batchLimit) + 1;
+        const calculatedBatch = Math.floor(activeTotal / batchLimit) + 1;
         setAssignedBatch(calculatedBatch);
       } catch (err) {
         console.error('Data load error:', err);
@@ -173,11 +178,10 @@ function WorkshopRegistrationContent() {
     toast.success('UPI ID copied to clipboard!');
   };
 
-  // Form Submission
+  // Form Submission Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // If online UPI is selected and user is in step 1, advance to QR display
     if (formData.paymentMode === 'online' && activeStep === 'details') {
       if (!formData.fullName || !formData.email || !formData.phone) {
         toast.error('Please fill in all required pilot details.');
@@ -187,19 +191,16 @@ function WorkshopRegistrationContent() {
       return;
     }
 
-    // Process Final Registration
     setIsSubmitting(true);
 
     try {
       const cleanUtr = formData.utrNumber.trim();
 
-      // Validate UTR if paying online
       if (formData.paymentMode === 'online') {
         if (cleanUtr.length < 8) {
           throw new Error('Please enter a valid 12-digit UPI UTR / Transaction Reference number.');
         }
 
-        // Duplicate UTR check
         const { data: existingUtr } = await supabase
           .from('registrations')
           .select('id')
@@ -211,11 +212,20 @@ function WorkshopRegistrationContent() {
         }
       }
 
-      // Generate Clearance ID
-      const clearanceId = `AEGIS-B${assignedBatch}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const batchLabel = `Batch ${assignedBatch}`;
+      // Re-verify current batch count dynamically at exact time of submission
+      const batchLimit = workshop?.batch_size_limit || DEFAULT_BATCH_LIMIT;
+      const { count } = await supabase
+        .from('registrations')
+        .select('id', { count: 'exact', head: true })
+        .eq('workshop_id', requestedWorkshopId || 'aegis-master-workshop')
+        .or('is_deleted.is.null,is_deleted.eq.false');
 
-      // Insert into Supabase
+      const realTimeCount = count || 0;
+      const realTimeBatchNum = Math.floor(realTimeCount / batchLimit) + 1;
+      const batchLabel = `Batch ${realTimeBatchNum}`;
+      const clearanceId = `AEGIS-B${realTimeBatchNum}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      // Insert record
       const { data: reg, error: regError } = await supabase
         .from('registrations')
         .insert({
@@ -227,19 +237,23 @@ function WorkshopRegistrationContent() {
           college: formData.college.trim(),
           academic_year: formData.academicYear,
           clearance_id: clearanceId,
-          batch_number: assignedBatch,
+          batch_number: realTimeBatchNum,
           cohort_label: batchLabel,
+          assigned_batch: batchLabel,
+          batch: batchLabel,
           amount_paid: workshopFee,
           payment_status: formData.paymentMode === 'online' ? 'pending_verification' : 'pending_desk',
           payment_method: formData.paymentMode === 'online' ? 'upi_qr' : 'cash',
+          payment_mode: formData.paymentMode,
           utr_number: formData.paymentMode === 'online' ? cleanUtr : null,
+          is_deleted: false,
         })
         .select()
         .single();
 
       if (regError) throw regError;
 
-      const waLink = getBatchWhatsAppUrl(workshop, assignedBatch);
+      const waLink = getBatchWhatsAppUrl(workshop, realTimeBatchNum);
 
       toast.success(
         formData.paymentMode === 'online' 
@@ -252,7 +266,7 @@ function WorkshopRegistrationContent() {
         name: formData.fullName,
         email: formData.email,
         cohort: batchLabel,
-        batchNumber: assignedBatch,
+        batchNumber: realTimeBatchNum,
         mode: formData.paymentMode,
         fee: workshopFee,
         utrNumber: cleanUtr || undefined,
@@ -312,7 +326,7 @@ function WorkshopRegistrationContent() {
                       <span>Join Your Official Cohort Group</span>
                     </div>
                     <p className="text-[11px] text-gray-300">
-                      Connect with fellow engineers and receive kit instructions:
+                      Connect with fellow engineers in {registeredNotice.cohort} and receive kit instructions:
                     </p>
                     <a
                       href={registeredNotice.whatsappLink}
@@ -451,13 +465,13 @@ function WorkshopRegistrationContent() {
               {workshop?.title || 'Aegis Drone Avionics Master Workshop'}
             </h1>
             <p className="text-sm font-semibold text-neon font-mono">
-              BUILD. CODE. FLY. NOT JUST A DRONE, BUT YOUR SKILLS.
+              {workshop?.subtitle || 'BUILD. CODE. FLY. NOT JUST A DRONE, BUT YOUR SKILLS.'}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 text-xs text-gray-400 pt-2 font-mono">
               <div className="flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-neon shrink-0" />
-                <span>{workshop?.schedule_date || workshop?.date || 'September 2026 Intake'}</span>
+                <span>{workshop?.schedule_date || '16th, 17th, 18th September 2026 Intake'}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-neon shrink-0" />
@@ -576,7 +590,6 @@ function WorkshopRegistrationContent() {
                     </select>
                   </div>
 
-                  {/* Payment Mode Selection */}
                   <div className="space-y-1.5 pt-1">
                     <label className="text-gray-400 font-mono text-[11px] block uppercase">
                       Payment Mode Selection

@@ -18,12 +18,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 import WorkshopLifecycleTab from './components/WorkshopLifecycleTab';
 import AttendeeRegistryTab from './components/AttendeeRegistryTab';
 import MediaShowcaseTab from './components/MediaShowcaseTab';
 import QRCheckinModal from './components/QRCheckinModal';
 import WorkshopManager from './components/WorkshopManager';
 import AdminGuard from '@/components/AdminGuard';
+
+const DEFAULT_BATCH_CAP = 20;
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -85,11 +88,12 @@ export default function AdminDashboardPage() {
           id: 'aegis-master-workshop',
           title: 'Aegis Drone Avionics Master Workshop',
           badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
-          schedule_date: 'September 2026 Intake',
+          schedule_date: '16th, 17th, 18th September 2026 Intake',
           venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
           fee: 300,
-          batch_size_limit: 30,
+          batch_size_limit: DEFAULT_BATCH_CAP,
           fallback_whatsapp_link: '',
+          cohort_whatsapp_links: { 'Batch 1': '' },
           whatsapp_links: [{ batchNumber: 1, url: '' }],
           syllabus: [
             '01 BUILD THE BRAIN: ESP32 Flight Controller, Gyro & Sensors (MPU6050), Firmware & Motors Wiring',
@@ -113,14 +117,16 @@ export default function AdminDashboardPage() {
       }
 
       const { data: regData } = await query;
-if (regData) {
+      if (regData) {
         setRegistrations(
           regData.map((r) => {
             const rawNum = r.clearance_id ? parseInt(r.clearance_id.replace(/\D/g, ''), 10) : null;
-            const rawBatchStr = r.batch || r.assigned_batch || '';
-            const parsedBatchNum = rawBatchStr
-              ? parseInt(rawBatchStr.replace(/\D/g, ''), 10)
-              : (rawNum ? Math.floor((rawNum - 1) / (activeSelectedWorkshop?.batch_size_limit || 30)) + 1 : 1);
+            const rawBatchStr = r.batch || r.assigned_batch || r.cohort_label || '';
+            const parsedBatchNum = r.batch_number 
+              ? Number(r.batch_number)
+              : (rawBatchStr
+                ? parseInt(rawBatchStr.replace(/\D/g, ''), 10)
+                : (rawNum ? Math.floor((rawNum - 1) / (activeSelectedWorkshop?.batch_size_limit || DEFAULT_BATCH_CAP)) + 1 : 1));
             
             return {
               id: r.id,
@@ -132,11 +138,12 @@ if (regData) {
               college: r.college,
               year: r.academic_year,
               batch_number: parsedBatchNum || 1,
-              cohort_label: r.batch || r.assigned_batch || `Batch ${parsedBatchNum || 1}`,
+              cohort_label: r.cohort_label || r.batch || r.assigned_batch || `Batch ${parsedBatchNum || 1}`,
               amount: Number(r.amount_paid || 0),
               status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'confirmed' : 'pending',
-              payment_mode: r.payment_mode || (r.razorpay_payment_id ? 'online' : 'cash'),
+              payment_mode: r.payment_method || r.payment_mode || (r.utr_number ? 'upi_qr' : (r.razorpay_payment_id ? 'online' : 'cash')),
               transaction_id: r.razorpay_payment_id || null,
+              utr_number: r.utr_number || null,
               attended: !!r.attended,
               is_deleted: !!r.is_deleted,
               registeredAt: r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : 'Recent',
@@ -148,6 +155,60 @@ if (regData) {
       console.error('Failed fetching master data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // One-Click UTR/Clearance Approval + Email Dispatch Trigger
+  const handleApproveClearance = async (registrationId: string) => {
+    try {
+      // 1. Fetch attendee details for email dispatch
+      const { data: targetAttendee, error: fetchErr } = await supabase
+        .from('registrations')
+        .select('*')
+        .eq('id', registrationId)
+        .single();
+
+      if (fetchErr || !targetAttendee) throw new Error('Attendee record not found');
+
+      // 2. Update status in database
+      const { error: updateErr } = await supabase
+        .from('registrations')
+        .update({ 
+          payment_status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', registrationId);
+
+      if (updateErr) throw updateErr;
+
+      toast.success('Registration approved! Clearance pass activated.');
+
+      // 3. Dispatch automated confirmation email
+      try {
+        await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: targetAttendee.email,
+            name: targetAttendee.full_name,
+            clearanceId: targetAttendee.clearance_id || targetAttendee.id,
+            workshopTitle: masterWorkshop?.title,
+            amount: targetAttendee.amount_paid,
+            venue: masterWorkshop?.venue,
+            batchSchedule: masterWorkshop?.schedule_date,
+            paymentMethod: targetAttendee.payment_method || targetAttendee.payment_mode || 'upi_qr',
+            workshopId: targetAttendee.workshop_id,
+            batchNumber: targetAttendee.batch_number || 1,
+            assignedBatch: targetAttendee.cohort_label || targetAttendee.batch || `Batch ${targetAttendee.batch_number || 1}`,
+          }),
+        });
+      } catch (mailErr) {
+        console.warn('Confirmation mail dispatch note:', mailErr);
+      }
+
+      await fetchMasterData();
+    } catch (err: any) {
+      toast.error('Failed to approve registration: ' + err.message);
     }
   };
 
@@ -166,9 +227,9 @@ if (regData) {
     router.replace('/auth?role=admin');
   };
 
-  // Active records calculations
+  // Active records metrics
   const activeRegistrations = registrations.filter((r) => !r.is_deleted);
-  const batchCap = masterWorkshop?.batch_size_limit || 30;
+  const batchCap = masterWorkshop?.batch_size_limit || DEFAULT_BATCH_CAP;
   const confirmedRegs = activeRegistrations.filter((r) => r.status === 'confirmed');
   const pendingRegs = activeRegistrations.filter((r) => r.status === 'pending');
   const grossRevenue = confirmedRegs.reduce((acc, curr) => acc + curr.amount, 0);
@@ -190,14 +251,12 @@ if (regData) {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-2xl font-black text-white uppercase">Aegis Flight Command Center</h1>
-                   
                 </div>
-                 
               </div>
 
               {/* Action Controls & Tab Navigation */}
               <div className="flex flex-wrap items-center gap-3">
-                {/* Active Workshop Selector */}
+                {/* Active Workshop Track Selector */}
                 <div className="relative">
                   <select
                     value={selectedWorkshopId}
@@ -297,7 +356,7 @@ if (regData) {
 
               <div className="bg-[#121212] border border-[#242424] p-4 rounded-xl space-y-1">
                 <div className="flex items-center justify-between text-gray-400">
-                  <span className="text-[11px] font-medium uppercase">Pending Desk Cash</span>
+                  <span className="text-[11px] font-medium uppercase">Pending Verification / Cash</span>
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
                 </div>
                 <p className="text-xl font-black text-amber-400">{pendingRegs.length} Awaiting</p>
@@ -319,6 +378,8 @@ if (regData) {
               <WorkshopLifecycleTab
                 selectedBatch={masterWorkshop.id}
                 batchData={masterWorkshop}
+                allWorkshops={workshopsList}
+                onSelectWorkshop={handleWorkshopSwitch}
                 onRefresh={fetchMasterData}
               />
             )}
@@ -328,6 +389,7 @@ if (regData) {
                 registrations={registrations}
                 batchSizeLimit={batchCap}
                 onRefresh={fetchMasterData}
+                onApprove={handleApproveClearance}
               />
             )}
 
