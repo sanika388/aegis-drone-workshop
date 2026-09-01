@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 
 // Configurable UPI Payment Settings
 const UPI_CONFIG = {
-  vpa: 'aegisdrones.officials@oksbi', // Replace with your primary UPI ID (e.g., yourname@okaxis / phonepe)
+  vpa: 'dusanesanika7@oksbi', // Replace with your primary UPI ID (e.g., yourname@okaxis / phonepe)
   payeeName: 'Aegis Drone Avionics Lab',
   defaultAmount: 300,
 };
