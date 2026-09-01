@@ -73,7 +73,7 @@ function WorkshopRegistrationContent() {
   const [activeStep, setActiveStep] = useState<'details' | 'upi_qr'>('details');
 
   const [assignedBatch, setAssignedBatch] = useState<number>(1);
-  const [currentCohortCount, setCurrentCohortCount] = useState<number>(0);
+  const [nextSerialPreview, setNextSerialPreview] = useState<number>(1);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -145,17 +145,16 @@ function WorkshopRegistrationContent() {
         };
         setWorkshop(ws);
 
-        // 3. Compute active batch allocation (ignoring deleted rows)
-        const { count } = await supabase
-          .from('registrations')
-          .select('id', { count: 'exact', head: true })
-          .eq('workshop_id', requestedWorkshopId)
-          .or('is_deleted.is.null,is_deleted.eq.false');
+        // 3. Query next sequential serial slot for live preview
+        const { data: nextNum } = await supabase.rpc('get_next_workshop_serial', {
+          p_workshop_id: requestedWorkshopId,
+        });
 
-        const activeTotal = count || 0;
-        setCurrentCohortCount(activeTotal);
+        const previewSerial = nextNum || 1;
+        setNextSerialPreview(previewSerial);
+
         const batchLimit = ws.batch_size_limit || DEFAULT_BATCH_LIMIT;
-        const calculatedBatch = Math.floor(activeTotal / batchLimit) + 1;
+        const calculatedBatch = Math.floor((previewSerial - 1) / batchLimit) + 1;
         setAssignedBatch(calculatedBatch);
       } catch (err) {
         console.error('Data load error:', err);
@@ -212,20 +211,24 @@ function WorkshopRegistrationContent() {
         }
       }
 
-      // Re-verify current batch count dynamically at exact time of submission
+      // 1. Fetch lowest available sequential slot in real-time
+      const { data: nextSerialNum, error: serialErr } = await supabase.rpc(
+        'get_next_workshop_serial',
+        { p_workshop_id: requestedWorkshopId || 'aegis-master-workshop' }
+      );
+
+      if (serialErr) throw serialErr;
+
+      const serial = nextSerialNum || 1;
+      const formattedSerial = String(serial).padStart(3, '0');
+
+      // 2. Compute dynamic batch partition
       const batchLimit = workshop?.batch_size_limit || DEFAULT_BATCH_LIMIT;
-      const { count } = await supabase
-        .from('registrations')
-        .select('id', { count: 'exact', head: true })
-        .eq('workshop_id', requestedWorkshopId || 'aegis-master-workshop')
-        .or('is_deleted.is.null,is_deleted.eq.false');
-
-      const realTimeCount = count || 0;
-      const realTimeBatchNum = Math.floor(realTimeCount / batchLimit) + 1;
+      const realTimeBatchNum = Math.floor((serial - 1) / batchLimit) + 1;
       const batchLabel = `Batch ${realTimeBatchNum}`;
-      const clearanceId = `AEGIS-B${realTimeBatchNum}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const clearanceId = `AEGIS-B${realTimeBatchNum}-${formattedSerial}`;
 
-      // Insert record
+      // 3. Insert into Supabase
       const { data: reg, error: regError } = await supabase
         .from('registrations')
         .insert({
@@ -236,6 +239,7 @@ function WorkshopRegistrationContent() {
           phone: formData.phone.trim(),
           college: formData.college.trim(),
           academic_year: formData.academicYear,
+          sequential_num: serial,
           clearance_id: clearanceId,
           batch_number: realTimeBatchNum,
           cohort_label: batchLabel,
@@ -457,7 +461,7 @@ function WorkshopRegistrationContent() {
               </span>
               <span className="px-3 py-1 rounded-full bg-[#162032] border border-[#2a3854] text-gray-300 font-bold text-xs font-mono inline-flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-neon" />
-                Allocated Cohort: Batch {assignedBatch}
+                Next Available: Seat #{String(nextSerialPreview).padStart(3, '0')} (Batch {assignedBatch})
               </span>
             </div>
 
