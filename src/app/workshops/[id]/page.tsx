@@ -257,7 +257,30 @@ function WorkshopRegistrationContent() {
 
       if (regError) throw regError;
 
-      const waLink = getBatchWhatsAppUrl(workshop, realTimeBatchNum);
+      // 1. Dispatch confirmation email using the committed database row (reg)
+      try {
+        await fetch('/api/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: reg.email,
+            name: reg.full_name,
+            clearanceId: reg.clearance_id,      // Uses the true ID committed to Supabase
+            workshopTitle: workshop?.title,
+            amount: workshopFee,
+            venue: workshop?.venue,
+            batchSchedule: workshop?.schedule_date,
+            paymentMethod: reg.payment_mode,
+            workshopId: reg.workshop_id,
+            batchNumber: reg.batch_number,     // Uses the true batch number
+            assignedBatch: reg.cohort_label,
+          }),
+        });
+      } catch (emailErr) {
+        console.error('Email dispatch error:', emailErr);
+      }
+
+      const waLink = getBatchWhatsAppUrl(workshop, reg.batch_number || realTimeBatchNum);
 
       toast.success(
         formData.paymentMode === 'online' 
@@ -265,13 +288,14 @@ function WorkshopRegistrationContent() {
           : 'Spot cash seat reserved successfully!'
       );
 
+      // 2. Set on-screen confirmation card from database row
       setRegisteredNotice({
-        id: reg?.clearance_id || clearanceId,
-        name: formData.fullName,
-        email: formData.email,
-        cohort: batchLabel,
-        batchNumber: realTimeBatchNum,
-        mode: formData.paymentMode,
+        id: reg.clearance_id,
+        name: reg.full_name,
+        email: reg.email,
+        cohort: reg.cohort_label,
+        batchNumber: reg.batch_number,
+        mode: reg.payment_mode,
         fee: workshopFee,
         utrNumber: cleanUtr || undefined,
         whatsappLink: waLink,
