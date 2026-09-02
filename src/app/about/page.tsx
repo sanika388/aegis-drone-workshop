@@ -121,9 +121,9 @@ export default function AboutShowcasePage() {
       icon: Award,
     },
     {
-      title: 'Full ESP32 Flight Firmware Codebase',
-      desc: 'Complete, commented source code for sensor reading, gyro filtering, PID loops, and wireless control.',
-      icon: FileCode2,
+  title: "Complete Pipeline Notes",
+  desc: "End-to-end technical reference and operational architecture of the Aegis Drone Avionics workshop registration, verification, and clearance pass system.",
+  icon: FileCode2,
     },
     {
       title: 'Live Drone Hardware Assembly Experience',
