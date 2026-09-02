@@ -140,7 +140,7 @@ export default function ReceiptPage({
           Pass Verified & Seat Confirmed!
         </h1>
         <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-          Your seat allocation is confirmed. Join your assigned squad cohort below to receive lab prep materials and hardware schematics.
+          Your seat allocation is confirmed. Join your assigned squad cohort below to receive furthur instructions.
         </p>
       </div>
 
@@ -157,9 +157,7 @@ export default function ReceiptPage({
             Assigned Cohort
           </span>
         </div>
-        <p className="text-xs text-gray-300">
-          Connect with lab mentors and receive firmware downloads and schedule updates.
-        </p>
+        
 
         <a
           href={whatsappUrl}
@@ -194,7 +192,7 @@ export default function ReceiptPage({
               <div className="text-neon font-black text-xl tracking-wider">
                 AEGIS<span className="text-white font-light">DRONES</span>
               </div>
-              <p className="text-[10px] text-gray-400">OFFICIAL FLIGHT PASS & RECEIPT</p>
+              <p className="text-[10px] text-gray-400">OFFICIAL PASS & RECEIPT</p>
             </div>
           </div>
           <div className="text-left sm:text-right">

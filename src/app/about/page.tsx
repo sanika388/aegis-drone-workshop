@@ -12,6 +12,7 @@ import {
   Sparkles, 
   Image as ImageIcon, 
   X, 
+  FileText,
   Maximize2,
   PackageCheck,
   ChevronDown,
@@ -123,7 +124,7 @@ export default function AboutShowcasePage() {
     {
   title: "Complete Pipeline Notes",
   desc: "End-to-end technical reference and operational architecture of the Aegis Drone Avionics workshop registration, verification, and clearance pass system.",
-  icon: FileCode2,
+  icon: FileText,
     },
     {
       title: 'Live Drone Hardware Assembly Experience',
@@ -163,9 +164,7 @@ export default function AboutShowcasePage() {
         <div className="absolute top-0 right-0 w-64 h-64 bg-neon/5 rounded-full blur-3xl pointer-events-none" />
         
         <div className="max-w-3xl space-y-4 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold uppercase tracking-wider">
-            <span>STUDENT-LED INITIATIVE</span>
-          </div>
+          
 
           <h2 className="text-2xl md:text-3xl font-black text-white font-mono uppercase tracking-tight">
             Built by Students, for Future Engineers.
@@ -183,9 +182,7 @@ export default function AboutShowcasePage() {
 
       {/* Header Section */}
       <div className="space-y-4 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
-          <span>AEGIS AUTONOMOUS FLIGHT LAB</span>
-        </div>
+         
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Avionics & Lab Engineering
         </h1>
@@ -236,15 +233,11 @@ export default function AboutShowcasePage() {
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-[#202738] pb-4">
           <div>
             <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
-              <span>Live Lab Showcase & Flight Testing</span>
+              <span>Lab Showcase & Flight Testing</span>
             </h2>
-            <p className="text-xs text-gray-400 font-mono mt-1">
-              Field tests, avionics bench setups, and workshop moments.
-            </p>
+             
           </div>
-          <span className="font-mono text-xs text-neon font-semibold self-start sm:self-auto">
-            {galleryImages.length} Asset{galleryImages.length === 1 ? '' : 's'} Published
-          </span>
+          
         </div>
 
         {galleryImages.length > 0 ? (
@@ -307,7 +300,7 @@ export default function AboutShowcasePage() {
       <div className="space-y-6">
         <div className="border-b border-[#202738] pb-4">
           <h2 className="text-xl font-bold text-white font-mono uppercase flex items-center gap-2">
-            <PackageCheck className="w-5 h-5 text-neon" />
+            
             <span>What You Will Take Home</span>
           </h2>
         </div>
@@ -382,10 +375,8 @@ export default function AboutShowcasePage() {
       {/* Call to Action Bar */}
       <div className="bg-gradient-to-r from-[#0c1410] to-[#0e1017] border border-neon/30 p-8 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-6">
         <div className="space-y-1 text-center sm:text-left">
-          <h3 className="text-xl font-bold font-mono text-white">Join the Next Flight Intake</h3>
-          <p className="text-xs text-gray-400 font-mono">
-            Hands-on benches are partitioned into small batches for focused mentorship.
-          </p>
+          <h3 className="text-xl font-bold font-mono text-white">Join the Next Flight Intake...Hurry!</h3>
+           
         </div>
         <Link
           href="/workshops"

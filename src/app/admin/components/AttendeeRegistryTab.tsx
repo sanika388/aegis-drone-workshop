@@ -494,15 +494,6 @@ export default function AttendeeRegistryTab({
             <UserPlus className="w-4 h-4" />
             <span>+ Manual Spot Intake</span>
           </button>
-
-          <button
-            onClick={copyCohortPhoneNumbers}
-            className="px-3.5 py-2 rounded-xl bg-[#0a1f14] border border-green-500/40 hover:bg-green-500 hover:text-black text-green-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,255,102,0.1)]"
-            title="Copy cohort phone numbers for WhatsApp group broadcast"
-          >
-            <Share2 className="w-4 h-4 text-green-400" />
-            <span>Copy WhatsApp ({filteredRegistrations.length})</span>
-          </button>
         </div>
       </div>
 

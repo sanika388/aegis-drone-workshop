@@ -32,13 +32,11 @@ export default function Footer() {
               <span className="text-neon font-black text-2xl sm:text-3xl tracking-wider leading-tight font-mono">
                 AEGIS<span className="text-white font-light">DRONES</span>
               </span>
-              <span className="text-[11px] text-gray-400 font-mono tracking-widest uppercase">
-                Avionics Master Workshop
-              </span>
+               
             </div>
           </div>
           <p className="text-xs text-gray-400 leading-relaxed max-w-sm">
-            Gear Up. Code It. Build It. Fly It. Hands-on aerospace training, flight mechanics, firmware programming, and quadcopter aerodynamics.
+          Code It. Build It. Fly It. Aerospace training, flight mechanics, firmware programming, and quadcopter aerodynamics.
           </p>
         </div>
 
@@ -58,7 +56,7 @@ export default function Footer() {
             </li>
             <li>
               <Link href="/contact" className="hover:text-neon transition-colors">
-                Contact Flight Desk
+                Contact Desk
               </Link>
             </li>
             <li>
@@ -71,7 +69,7 @@ export default function Footer() {
 
         {/* Direct Contact & Support */}
         <div className="md:col-span-4 space-y-3 font-mono">
-          <h3 className="text-white font-bold text-xs uppercase tracking-wider">Support & Flight Desk</h3>
+          <h3 className="text-white font-bold text-xs uppercase tracking-wider">Support Desk</h3>
           <div className="space-y-2.5 text-xs text-gray-300">
             <a
               href="mailto:aegisdrones.official@gmail.com?subject=Aegis%20Workshop%20Inquiry"
@@ -86,6 +84,7 @@ export default function Footer() {
             >
               <Phone className="w-4 h-4 text-neon shrink-0" />
               <span>+91 7620350524 (Sanika Dusane)</span>
+              <span>/ +91 9028788532 (Om Shinde)</span>
             </a>
           </div>
         </div>

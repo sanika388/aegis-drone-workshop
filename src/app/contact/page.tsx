@@ -65,9 +65,7 @@ export default function ContactPage() {
       
       {/* Header Banner */}
       <div className="space-y-4 text-center sm:text-left">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neon/10 border border-neon/30 text-neon font-mono text-xs font-bold">
-          <span>COORDINATOR & FLIGHT DESK</span>
-        </div>
+         
         <h1 className="text-4xl sm:text-5xl font-black text-white font-mono uppercase tracking-tight">
           Get in Touch
         </h1>
@@ -93,8 +91,7 @@ export default function ContactPage() {
 
             <div className="space-y-1.5 font-mono text-xs">
               <p className="text-lg font-black text-white">Sanika Dusane</p>
-              <p className="text-gray-400">Lead Program & Technical Coordinator</p>
-              
+               
               <div className="pt-3 flex flex-col gap-2">
                 <a 
                   href="tel:+917620350524" 
@@ -114,13 +111,36 @@ export default function ContactPage() {
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
+              <div className="space-y-1.5 font-mono text-xs">
+              <p className="text-lg font-black text-white">Om Shinde</p>
+               
+              <div className="pt-3 flex flex-col gap-2">
+                <a 
+                  href="tel:+917620350524" 
+                  className="px-4 py-2.5 rounded-xl bg-[#121826] border border-[#232f48] hover:border-neon text-white font-bold flex items-center justify-between transition-colors"
+                >
+                  <span>📞 +91 90287 88532</span>
+                  <span className="text-[10px] text-neon uppercase">Call Desk</span>
+                </a>
+
+                <a 
+                  href="https://wa.me/919028788532?text=Hello%20Om%2C%20I%20have%20an%20inquiry%20regarding%20the%20Aegis%20Drone%20Avionics%20Workshop" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="px-4 py-2.5 rounded-xl bg-[#00ff66]/10 border border-[#00ff66]/30 hover:bg-[#00ff66]/20 text-[#00ff66] font-bold flex items-center justify-between transition-colors"
+                >
+                  <span>💬 Instant WhatsApp Chat</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+               </div>
+              </div>
             </div>
           </div>
 
           {/* Operational Hours */}
           <div className="bg-[#0b0e14] border border-[#1c2438] rounded-2xl p-6 space-y-3 font-mono text-xs shadow-lg">
             <div className="flex items-center gap-2 text-neon font-bold uppercase tracking-wider">
-              <SunMoon className="w-4 h-4" />
+              
               <span>Desk Availability & Calling Hours</span>
             </div>
             <div className="p-3 rounded-xl bg-[#07090e] border border-[#1a2133] space-y-1 text-gray-300">
@@ -207,7 +227,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Sanika Dusane"
+                    placeholder="Name"
                     value={formData.fullName}
                     onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"
@@ -232,7 +252,7 @@ export default function ContactPage() {
                   <label className="text-gray-400 font-mono text-[11px] block">WhatsApp / Contact Number</label>
                   <input
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="+91 *********"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-[#07090e] border border-[#212b3e] focus:border-neon outline-none text-white text-xs font-mono"

@@ -146,18 +146,16 @@ function AuthForm() {
           <Image 
             src="/logo.png" 
             alt="Aegis Logo" 
-            width={100} 
-            height={100} 
+            width={160} 
+            height={160} 
             className="object-contain drop-shadow-[0_0_20px_rgba(0,255,102,0.35)]" 
             priority
           />
         </div>
         <h1 className="text-xl font-black tracking-wider uppercase pt-2">
-          AEGIS FLIGHT COMMAND
+          AEGIS DRONES WORKSHOP
         </h1>
-        <p className="text-xs text-gray-400">
-          Avionics Master Workshop Portal
-        </p>
+         
       </div>
 
       {/* Role Switcher */}
@@ -224,7 +222,7 @@ function AuthForm() {
                 <input
                   type="text"
                   required
-                  placeholder="Pilot Name"
+                  placeholder="Name"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                   className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
@@ -239,7 +237,7 @@ function AuthForm() {
                 <input
                   type="tel"
                   required
-                  placeholder="+91 9876543210"
+                  placeholder="+91 **********"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
@@ -271,7 +269,7 @@ function AuthForm() {
             <input
               type="email"
               required
-              placeholder={role === 'admin' ? 'admin@aegisdrone.com' : 'pilot@example.com'}
+              placeholder={role === 'admin' ? 'Enter admin email' : 'participant@example.com'}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
@@ -286,7 +284,7 @@ function AuthForm() {
             <input
               type="password"
               required
-              placeholder="••••••••"
+              placeholder="•••••••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-[#07090f] border border-[#1e2538] focus:border-neon outline-none text-white text-xs font-mono"
@@ -311,7 +309,7 @@ function AuthForm() {
                 {role === 'admin'
                   ? 'Verify Admin Access'
                   : isSignUp
-                  ? 'Create Pilot Account'
+                  ? 'Create Account'
                   : 'Log In to Profile'}
               </span>
               <ArrowRight className="w-4 h-4" />

@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrPayload}&color=00ff66&bgcolor=07090f`;
 
     await transporter.sendMail({
-      from: `"AEGIS FLIGHT COMMAND" <${officialEmail}>`,
+      from: `"AEGIS DRONE WORKSHOP" <${officialEmail}>`,
       to: email,
       replyTo: officialEmail,
       subject: `⚡ FLIGHT CLEARANCE CONFIRMED: ${name} [${clearanceId}]`,
@@ -130,8 +130,8 @@ export async function POST(req: Request) {
         <body>
           <div class="container">
             <div class="header">
-              <div class="badge">● SECURE FLIGHT CLEARANCE PASS</div>
-              <h1 class="title">AEGIS DRONE AVIONICS</h1>
+              <div class="badge">● CLEARANCE PASS</div>
+              <h1 class="title">AEGIS DRONE WORKSHOP</h1>
               <p class="subtitle">GEAR UP. CODE IT. BUILD IT. FLY IT.</p>
             </div>
 
@@ -169,7 +169,7 @@ export async function POST(req: Request) {
                   <div class="row">
                     <div class="col">
                       <div class="label">SCHEDULE / DATE</div>
-                      <p class="value">${batchSchedule || workshop?.schedule_date || '16th, 17th, 18th September 2026'}</p>
+                      <p class="value">${batchSchedule || workshop?.schedule_date || '10th, 11th, 12th September Batch- 1&2 16th, 17th, 18th September 2026 BATCH-3&4'}</p>
                     </div>
                     <div class="col" style="text-align: right;">
                       <div class="label">PAYMENT STATUS</div>
@@ -183,7 +183,7 @@ export async function POST(req: Request) {
                 <div class="grid">
                   <div class="row">
                     <div class="col" style="width: 100%;">
-                      <div class="label">VENUE / HANGAR LOCATION</div>
+                      <div class="label">VENUE</div>
                       <p class="value">${venue || workshop?.venue || 'Guru Gobind Singh College of Engineering and Research Centre, Nashik'}</p>
                     </div>
                   </div>
@@ -208,15 +208,18 @@ export async function POST(req: Request) {
             </div>
 
             <div class="footer">
-              <p class="instruction">
-                ${isSpotCash 
-                  ? '⚠️ Present this email pass at the lab desk along with <strong>₹' + (amount || '300') + ' Spot Cash</strong> to activate entrance boarding.' 
-                  : '✅ Your flight pass is confirmed. Present the QR code on your mobile device at the reception scanner.'}
-              </p>
-              <p class="support">
-                Official Flight Desk: <a href="mailto:${officialEmail}" style="color: #00ff66; text-decoration: none;">${officialEmail}</a> | Support: +91 7620350524
-              </p>
-            </div>
+  <p class="instruction">
+    ${isSpotCash 
+      ? '⚠️ Present this email pass at the lab desk along with <strong>₹' + (amount || '300') + ' Spot Cash</strong> to activate entrance boarding.' 
+      : '✅ Your flight pass is confirmed. Present the QR code on your mobile device at the reception scanner.'}
+  </p>
+  <p style="font-size: 11px; color: #9ca3af; background: #0a0d14; border: 1px solid #1c2538; padding: 8px; border-radius: 6px; margin: 10px 0;">
+    🛡️ <strong>Lab Policy Note:</strong> All drone kits, ESP32 boards, and testing hardware are strictly workshop property for on-site assembly and testing (No take-home kits).
+  </p>
+  <p class="support">
+    Official Flight Desk: <a href="mailto:${officialEmail}" style="color: #00ff66; text-decoration: none;">${officialEmail}</a> | Support: +91 7620350524/ +91 9028788532
+  </p>
+</div>
           </div>
         </body>
         </html>

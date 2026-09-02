@@ -92,7 +92,7 @@ export default function HomePage() {
       <div className="bg-[#0e1610] border-b border-neon/30 py-2.5 overflow-hidden relative flex items-center shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
         <div className="z-20 bg-[#0e1610] px-4 flex items-center gap-1.5 border-r border-neon/30 shrink-0 text-neon font-mono text-xs font-bold uppercase tracking-wider shadow-[10px_0_15px_#0e1610]">
           <Radio className="w-3.5 h-3.5 animate-pulse text-neon" />
-          <span>Notice Desk</span>
+          <span>Notice</span>
         </div>
 
         <div className="overflow-hidden flex flex-1">
@@ -138,14 +138,14 @@ export default function HomePage() {
               href="/auth?role=admin"
               className="px-6 py-3.5 rounded-xl bg-[#141824] border border-[#2c364e] hover:border-neon text-gray-200 hover:text-white transition-all text-xs uppercase tracking-wider font-mono font-semibold"
             >
-              Flight Desk Login
+              Pilot Login
             </Link>
           </div>
 
           <div className="pt-2 flex flex-wrap items-center gap-6 text-xs text-gray-400 font-mono">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-neon" />
-              <span>Open to All Branches & Academic Years</span>
+              <span>Open to All Branches, Academic Years & Ages </span>
             </div>
           </div>
         </div>
@@ -210,7 +210,7 @@ export default function HomePage() {
             )}
           </div>
           <p className="text-xs text-center text-gray-400 mt-3 font-mono">
-            Official Aegis Avionics Workshop Intake Bulletin
+          Aegis Workshop Intake Bulletin
           </p>
         </div>
       </div>
@@ -435,7 +435,7 @@ export default function HomePage() {
               Will I receive an official certificate?
             </h4>
             <p className="text-xs text-gray-400 font-sans leading-relaxed pl-6">
-              Yes. Every attendee who completes the hands-on hardware assembly and flight testing tracks receives an official Aegis Certified Drone Avionics Credential.
+              Yes. Every attendee who completes the hands-on hardware assembly and flight testing tracks receives an official Aegis Certification.
             </p>
           </div>
 

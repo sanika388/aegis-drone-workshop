@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { FileText, AlertTriangle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { FileText, AlertTriangle, CheckCircle2, ArrowLeft, ShieldAlert, Award } from 'lucide-react';
 
 export default function TermsAndConditions() {
   return (
@@ -17,14 +17,13 @@ export default function TermsAndConditions() {
 
         {/* Header */}
         <div className="border-b border-[#1f242d] pb-6 space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] text-xs font-mono">
-            <FileText className="w-3.5 h-3.5" />
-            <span> WORKSHOP CODE OF CONDUCT</span>
-          </div>
+           
           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white uppercase">
             Terms & <span className="text-[#00ff66]">Conditions</span>
           </h1>
-           
+          <p className="text-xs text-zinc-400 font-mono">
+            Last Updated: September 2026 • Governing all Aegis Drone Avionics Workshop Intakes
+          </p>
         </div>
 
         {/* Terms Content */}
@@ -32,41 +31,52 @@ export default function TermsAndConditions() {
           
           <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-[#00ff66]" /> 1. Registration & Clearance Passes
+              <CheckCircle2 className="w-4 h-4 text-[#00ff66]" /> 1. Registration, Passes & Spot Cash Policy
             </h2>
-            <ul className="list-disc list-inside space-y-1 text-zinc-400 text-xs font-mono pl-2">
-              
-              <li>Each digital pass QR is unique to the registered individual and is non-transferable.</li>
+            <ul className="list-disc list-inside space-y-1.5 text-zinc-400 text-xs font-mono pl-2">
+              <li>Each digital pass QR and clearance ID is strictly unique to the registered individual and is non-transferable.</li>
+              <li>Selecting <strong className="text-white">Spot Cash</strong> provisionally reserves your workbench slot; payment must be settled in cash at the venue registration desk upon arrival to activate full clearance.</li>
             </ul>
           </section>
 
           <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400" /> 2. Hardware Lab Policy (No Take-Home)
+              <AlertTriangle className="w-4 h-4 text-amber-400" /> 2. Hardware Lab Policy (No Take-Home Kit)
             </h2>
             <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs leading-relaxed">
-              <strong>MANDATORY LAB NOTICE:</strong> Drones, flight controllers, ESP32 chips, motors, and ESC testing rigs are workshop workbench property and will <strong>NOT</strong> be given to participants to take home. All flight testing and assembly tasks are executed on-site.
+              <strong>MANDATORY LAB NOTICE:</strong> Drones, flight controllers, ESP32 development boards, MPU6050 sensors, motors, and ESC testing rigs are specialized workshop property and will <strong>NOT</strong> be given to participants to take home. All hardware assembly, soldering, calibration, and flight testing tasks are executed strictly on-site.
             </div>
           </section>
 
           <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
-            <h2 className="text-lg font-bold text-white">3. Attendance & Certification</h2>
+            <h2 className="text-lg font-bold text-white">3. Attendance & Official Certification</h2>
             <p className="text-zinc-400">
-              100% attendance across all scheduled technical modules is required to receive the verified Aegis Drone Avionics Certificate.
+              100% active attendance across all scheduled theoretical and practical hardware modules is mandatory to qualify for the official Aegis Certified Drone Avionics Credential.
             </p>
           </section>
 
           <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
-            <h2 className="text-lg font-bold text-white">4. Refund & Cancellation Policy</h2>
+            <h2 className="text-lg font-bold text-white">4. Refund & Rescheduling Policy</h2>
             <p className="text-zinc-400">
-              Once an enrollment pass has been generated, registration fees are non-refundable. In the unlikely event that a session is rescheduled by the organizing committee, the pass will automatically remain valid for the next allocated cohort.
+              Once an enrollment pass or provisional clearance ID has been generated, registration fees are strictly non-refundable. In the event of unforeseen schedule adjustments by the organizing committee, your pass remains automatically valid for the newly allocated cohort window.
             </p>
           </section>
 
           <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
-            <h2 className="text-lg font-bold text-white">5. Lab Safety & Discipline</h2>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-red-400" /> 5. Lab Safety, Conduct & Disqualification
+            </h2>
             <p className="text-zinc-400">
-              Participants must strictly adhere to workbench safety procedures during motor spinning, soldering, and battery connection. Organizers reserve the right to revoke clearance passes in cases of misconduct or safety violations.
+              Participants must strictly adhere to workbench safety rules during power distribution, motor arming, and battery handling. The organizing committee reserves the absolute right to revoke clearance passes and expel participants without refund in cases of safety violations, recklessness, or misconduct.
+            </p>
+          </section>
+
+          <section className="space-y-3 bg-[#0e121a] p-6 rounded-xl border border-[#1f242d]">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Award className="w-4 h-4 text-[#00ff66]" /> 6. Evaluation Test & Winner Prize
+            </h2>
+            <p className="text-zinc-400">
+            Participants will undergo a technical evaluation test assessing assembly knowledge, firmware logic, and PID stability concepts. The participant scoring the highest marks will be awarded the official winner prize as determined by the organizing committee. In case of ties, practical execution speed and safety protocols during lab tests will serve as the deciding criteria.
             </p>
           </section>
 

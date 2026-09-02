@@ -126,9 +126,9 @@ function WorkshopRegistrationContent() {
 
         const effectiveWorkshop = workshopData || {
           id: requestedWorkshopId,
-          title: 'Aegis Drone Avionics Master Workshop',
+          title: 'Aegis Drone Workshop',
           badge: 'CERTIFIED WORKSHOP ★ SEPTEMBER INTAKE',
-          schedule_date: '16th, 17th, 18th September 2026 Intake',
+          schedule_date: 'September 2026 Intake',
           venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
           fee: 300,
           batch_size_limit: DEFAULT_BATCH_LIMIT,
@@ -255,13 +255,8 @@ function WorkshopRegistrationContent() {
       const serial = Number(nextSerialNum) || 1;
       const formattedSerial = String(serial).padStart(3, '0');
 
-      // 3. Compute dynamic batch partition and unique clearance ID
+      // 3. Compute dynamic batch partition and unique clearance ID (Supports infinite batches)
       const realTimeBatchNum = Math.floor((serial - 1) / activeBatchLimit) + 1;
-      
-      // Optional safety cap check (e.g. Batch 2 limit)
-      if (realTimeBatchNum > 2) {
-        throw new Error('Registration is closed as Batch 2 capacity has been fully reached.');
-      }
 
       const batchLabel = `Batch ${realTimeBatchNum}`;
       const clearanceId = `${workshopPrefix}-B${realTimeBatchNum}-${formattedSerial}`;

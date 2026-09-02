@@ -98,7 +98,7 @@ export default function Navbar() {
                 src="/logo.png"
                 alt="Aegis Drone Workshop Logo"
                 fill
-                sizes="(max-width: 640px) 56px, (max-width: 768px) 64px, 80px"
+                sizes="(max-width: 690px) 70px, (max-width: 790px) 80px, 100px"
                 className="object-contain drop-shadow-[0_0_14px_rgba(0,255,102,0.4)]"
                 priority
                 unoptimized
@@ -108,9 +108,7 @@ export default function Navbar() {
               <span className="text-neon font-black text-xl sm:text-2xl md:text-3xl tracking-wider leading-none font-mono">
                 AEGIS<span className="text-white font-light">DRONES</span>
               </span>
-              <span className="text-[10px] sm:text-xs text-gray-400 font-mono tracking-widest uppercase mt-0.5">
-                Avionics Master Workshop
-              </span>
+               
             </div>
           </Link>
 

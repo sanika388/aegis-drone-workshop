@@ -39,7 +39,7 @@ export default function WorkshopsCatalogPage() {
         setWorkshops([
           {
             id: 'aegis-master-workshop',
-            title: 'Aegis Drone Avionics Master Workshop',
+            title: 'Aegis Drone Workshop',
             badge: 'CERTIFIED 3-STAGE WORKSHOP',
             schedule_date: 'September 2026 Intake',
             venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
