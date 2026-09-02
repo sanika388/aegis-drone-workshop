@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 
 interface Attendee {
   id: string;
+  workshop_id: string;
   clearance_id?: string | null;
   name: string;
   email: string;
@@ -56,7 +57,7 @@ interface AttendeeRegistryTabProps {
 
 export default function AttendeeRegistryTab({
   registrations,
-  batchSizeLimit,
+  batchSizeLimit = 20,
   onRefresh,
   onApprove,
 }: AttendeeRegistryTabProps) {
@@ -165,43 +166,35 @@ export default function AttendeeRegistryTab({
     }
   };
 
-  // Toggle Payment & Dispatch Confirmation Email
+  // Toggle Payment Status via onApprove or direct DB reset
   const togglePaymentStatus = async (attendee: Attendee) => {
     setIsUpdating(attendee.id);
     try {
-      const nextStatus = attendee.status === 'confirmed' ? 'pending' : 'confirmed';
-      const { error } = await supabase
-        .from('registrations')
-        .update({ payment_status: nextStatus })
-        .eq('id', attendee.id);
+      if (attendee.status !== 'confirmed') {
+        if (onApprove) {
+          await onApprove(attendee.id);
+        } else {
+          const { error } = await supabase
+            .from('registrations')
+            .update({ payment_status: 'confirmed' })
+            .eq('id', attendee.id);
 
-      if (error) throw error;
-
-      if (nextStatus === 'confirmed') {
-        await fetch('/api/send-confirmation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: attendee.name,
-            email: attendee.email,
-            clearanceId: attendee.clearance_id || attendee.id,
-            workshopTitle: 'Aegis Drone Avionics Master Workshop',
-            amount: attendee.amount || 300,
-            venue: 'GCOERC Nashik',
-            batchSchedule: 'September Intake',
-            paymentMethod: attendee.payment_mode,
-            workshopId: 'aegis-master-workshop',
-            assignedBatch: attendee.cohort_label || `Batch ${attendee.batch_number || 1}`,
-            batchNumber: attendee.batch_number || 1,
-          }),
-        });
-        toast.success(`Verified & Pass emailed to ${attendee.email}`);
+          if (error) throw error;
+          toast.success(`Payment confirmed for ${attendee.name}`);
+          onRefresh();
+        }
       } else {
-        toast.success(`${attendee.name} set to Pending`);
+        const { error } = await supabase
+          .from('registrations')
+          .update({ payment_status: 'pending_desk' })
+          .eq('id', attendee.id);
+
+        if (error) throw error;
+        toast.success(`${attendee.name} marked as Pending Desk`);
+        onRefresh();
       }
-      onRefresh();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update payment');
+      toast.error(err.message || 'Failed to update payment status');
     } finally {
       setIsUpdating(null);
     }
@@ -343,7 +336,7 @@ export default function AttendeeRegistryTab({
     toast.success(`Copied ${filteredRegistrations.length} phone numbers for WhatsApp broadcast`);
   };
 
-  // 1-Click Individual WhatsApp Message Dispatch
+  // Individual WhatsApp Message Dispatch
   const sendIndividualWhatsApp = (attendee: Attendee) => {
     const rawPhone = attendee.phone.replace(/[^0-9]/g, '');
     const cleanPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
@@ -362,23 +355,59 @@ export default function AttendeeRegistryTab({
     setIsSubmittingManual(true);
 
     try {
+      // Determine active workshop ID from registrations or default to first available
+      const activeWorkshopId = registrations.length > 0 ? registrations[0].workshop_id : 'workshop-9585';
+
+      // 1. Fetch live batch limit for this workshop
+      const { data: wsData } = await supabase
+        .from('workshops')
+        .select('batch_size_limit')
+        .eq('id', activeWorkshopId)
+        .maybeSingle();
+
+      const batchCapLimit = Number(wsData?.batch_size_limit) > 0 
+        ? Number(wsData?.batch_size_limit) 
+        : (batchSizeLimit || 20);
+
+      // 2. Get next sequential serial strictly scoped to this workshop
+      let serial = 1;
+      if (!manualForm.customClearanceId) {
+        const { data: nextNum } = await supabase.rpc('get_next_workshop_serial', {
+          p_workshop_id: activeWorkshopId,
+        });
+        serial = Number(nextNum) || (registrations.filter(r => !r.is_deleted).length + 1);
+      } else {
+        const match = manualForm.customClearanceId.match(/\d+$/);
+        serial = match ? parseInt(match[0], 10) : 1;
+      }
+
+      const formattedSerial = String(serial).padStart(3, '0');
+      const calculatedBatchNum = Math.floor((serial - 1) / batchCapLimit) + 1;
+      const batchLabel = `Batch ${calculatedBatchNum}`;
+      const clearanceId = manualForm.customClearanceId && manualForm.customClearanceId.trim() !== ''
+        ? manualForm.customClearanceId.trim()
+        : `AEGIS-B${calculatedBatchNum}-${formattedSerial}`;
+
       const payload: any = {
-        workshop_id: 'aegis-master-workshop',
+        workshop_id: activeWorkshopId,
         full_name: manualForm.fullName.trim(),
         email: manualForm.email.trim().toLowerCase(),
         phone: manualForm.phone.trim(),
         college: manualForm.college.trim(),
         academic_year: manualForm.academicYear,
+        sequential_num: serial,
+        clearance_id: clearanceId,
+        batch_number: calculatedBatchNum,
+        cohort_label: batchLabel,
+        assigned_batch: batchLabel,
+        batch: batchLabel,
         payment_mode: 'cash',
+        payment_method: 'cash',
         payment_status: 'confirmed',
         amount_paid: 300,
         attended: true,
         is_deleted: false,
       };
-
-      if (manualForm.customClearanceId && manualForm.customClearanceId.trim() !== '') {
-        payload.clearance_id = manualForm.customClearanceId.trim();
-      }
 
       const { data: newEntry, error: insertErr } = await supabase
         .from('registrations')
@@ -388,18 +417,7 @@ export default function AttendeeRegistryTab({
 
       if (insertErr) throw insertErr;
 
-      const { data: savedRecord } = await supabase
-        .from('registrations')
-        .select('*')
-        .eq('id', newEntry.id)
-        .single();
-
-      const clearanceId = savedRecord?.clearance_id || savedRecord?.id;
-
       if (manualForm.sendPassEmail) {
-        const rawNum = clearanceId ? parseInt(String(clearanceId).replace(/\D/g, ''), 10) : 1;
-        const assignedBatchNumber = Math.floor((rawNum - 1) / (batchSizeLimit || 30)) + 1;
-
         await fetch('/api/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -412,13 +430,14 @@ export default function AttendeeRegistryTab({
             venue: 'GCOERC Nashik',
             batchSchedule: 'September Intake',
             paymentMethod: 'cash',
-            workshopId: 'aegis-master-workshop',
-            assignedBatch: `Batch ${assignedBatchNumber}`,
-            batchNumber: assignedBatchNumber,
+            workshopId: activeWorkshopId,
+            assignedBatch: batchLabel,
+            batchNumber: calculatedBatchNum,
           }),
         });
       }
-      toast.success(`Manual Intake Added: ${clearanceId} (Cash Confirmed)`);
+
+      toast.success(`Manual Intake Added: ${clearanceId} (${batchLabel}) - Cash Confirmed`);
       setManualForm({
         fullName: '',
         email: '',
@@ -439,7 +458,6 @@ export default function AttendeeRegistryTab({
 
   return (
     <div className="space-y-6">
-      
       {/* Top Scope Switcher & Header Actions */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between bg-[#0a0c10] border border-[#1f2430] p-2.5 rounded-2xl">
         <div className="flex items-center gap-2">
@@ -599,7 +617,6 @@ export default function AttendeeRegistryTab({
                 filteredRegistrations.map((attendee) => {
                   return (
                     <tr key={attendee.id} className="hover:bg-[#161a24]/50 transition-colors">
-                      
                       {/* Column 1: Clearance ID */}
                       <td className="p-4 whitespace-nowrap">
                         {viewScope === 'deleted' ? (
@@ -791,7 +808,6 @@ export default function AttendeeRegistryTab({
                           </div>
                         )}
                       </td>
-
                     </tr>
                   );
                 })
@@ -954,7 +970,6 @@ export default function AttendeeRegistryTab({
           </div>
         </div>
       )}
-
     </div>
   );
 }

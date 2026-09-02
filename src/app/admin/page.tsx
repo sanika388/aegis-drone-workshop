@@ -108,25 +108,26 @@ export default function AdminDashboardPage() {
         activeSelectedWorkshop = defaultWorkshop;
       }
 
-      // 2. Fetch registrations for the selected workshop
+      // 2. Fetch registrations strictly scoped for the selected workshop
       const currentWorkshopId = activeSelectedWorkshop ? activeSelectedWorkshop.id : selectedWorkshopId;
-      let query = supabase.from('registrations').select('*').order('created_at', { ascending: false });
+      let query = supabase
+        .from('registrations')
+        .select('*')
+        .eq('workshop_id', currentWorkshopId)
+        .order('created_at', { ascending: false });
       
-      if (currentWorkshopId) {
-        query = query.eq('workshop_id', currentWorkshopId);
-      }
-
       const { data: regData } = await query;
       if (regData) {
+        const currentBatchLimit = Number(activeSelectedWorkshop?.batch_size_limit) > 0 
+          ? Number(activeSelectedWorkshop?.batch_size_limit) 
+          : DEFAULT_BATCH_CAP;
+
         setRegistrations(
           regData.map((r) => {
-            const rawNum = r.clearance_id ? parseInt(r.clearance_id.replace(/\D/g, ''), 10) : null;
-            const rawBatchStr = r.batch || r.assigned_batch || r.cohort_label || '';
+            const rawNum = r.sequential_num || (r.clearance_id ? parseInt(r.clearance_id.replace(/\D/g, ''), 10) : 1);
             const parsedBatchNum = r.batch_number 
               ? Number(r.batch_number)
-              : (rawBatchStr
-                ? parseInt(rawBatchStr.replace(/\D/g, ''), 10)
-                : (rawNum ? Math.floor((rawNum - 1) / (activeSelectedWorkshop?.batch_size_limit || DEFAULT_BATCH_CAP)) + 1 : 1));
+              : Math.floor((rawNum - 1) / currentBatchLimit) + 1;
             
             return {
               id: r.id,
@@ -138,10 +139,10 @@ export default function AdminDashboardPage() {
               college: r.college,
               year: r.academic_year,
               batch_number: parsedBatchNum || 1,
-              cohort_label: r.cohort_label || r.batch || r.assigned_batch || `Batch ${parsedBatchNum || 1}`,
+              cohort_label: r.cohort_label || `Batch ${parsedBatchNum || 1}`,
               amount: Number(r.amount_paid || 0),
               status: r.payment_status === 'paid' || r.payment_status === 'confirmed' ? 'confirmed' : 'pending',
-              payment_mode: r.payment_method || r.payment_mode || (r.utr_number ? 'upi_qr' : (r.razorpay_payment_id ? 'online' : 'cash')),
+              payment_mode: r.payment_method || r.payment_mode || (r.utr_number ? 'upi_qr' : 'cash'),
               transaction_id: r.razorpay_payment_id || null,
               utr_number: r.utr_number || null,
               attended: !!r.attended,
@@ -158,10 +159,10 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // One-Click UTR/Clearance Approval + Email Dispatch Trigger
+  // One-Click Payment Approval -> Unlocks Pass, Validates Clearance ID & Dispatches Confirmation Email
   const handleApproveClearance = async (registrationId: string) => {
     try {
-      // 1. Fetch attendee details for email dispatch
+      // 1. Fetch attendee record directly from Supabase
       const { data: targetAttendee, error: fetchErr } = await supabase
         .from('registrations')
         .select('*')
@@ -170,40 +171,80 @@ export default function AdminDashboardPage() {
 
       if (fetchErr || !targetAttendee) throw new Error('Attendee record not found');
 
-      // 2. Update status in database
+      // 2. Fetch live batch limit for this workshop
+      const { data: wsData } = await supabase
+        .from('workshops')
+        .select('batch_size_limit')
+        .eq('id', targetAttendee.workshop_id)
+        .maybeSingle();
+
+      const batchCapLimit = Number(wsData?.batch_size_limit) > 0 
+        ? Number(wsData?.batch_size_limit) 
+        : DEFAULT_BATCH_CAP;
+
+      // 3. Robust Serial Determination (Fall back to counting existing records if sequential_num is missing)
+      let serialNum = targetAttendee.sequential_num;
+      if (!serialNum || serialNum < 1) {
+        const { count } = await supabase
+          .from('registrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('workshop_id', targetAttendee.workshop_id)
+          .lte('created_at', targetAttendee.created_at || new Date().toISOString());
+        
+        serialNum = count || 1;
+      }
+
+      // 4. Derive correct batch and unique clearance ID
+      const correctBatchNum = Math.floor((serialNum - 1) / batchCapLimit) + 1;
+      const correctCohort = `Batch ${correctBatchNum}`;
+      const formattedSerial = String(serialNum).padStart(3, '0');
+      const finalClearanceId = `AEGIS-B${correctBatchNum}-${formattedSerial}`;
+
+      // 5. Update status and synchronized batch/clearance ID in database
       const { error: updateErr } = await supabase
         .from('registrations')
         .update({ 
           payment_status: 'confirmed',
+          clearance_id: finalClearanceId,
+          sequential_num: serialNum,
+          batch_number: correctBatchNum,
+          cohort_label: correctCohort,
+          assigned_batch: correctCohort,
           updated_at: new Date().toISOString()
         })
         .eq('id', registrationId);
 
       if (updateErr) throw updateErr;
 
-      toast.success('Registration approved! Clearance pass activated.');
+      toast.success(`Cleared payment for ${targetAttendee.full_name} (${finalClearanceId})!`);
 
-      // 3. Dispatch automated confirmation email
+      // 6. Dispatch flight pass email with unlocked QR pass
       try {
-        await fetch('/api/send-confirmation', {
+        const emailRes = await fetch('/api/send-confirmation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: targetAttendee.email,
             name: targetAttendee.full_name,
-            clearanceId: targetAttendee.clearance_id || targetAttendee.id,
+            clearanceId: finalClearanceId,
             workshopTitle: masterWorkshop?.title,
-            amount: targetAttendee.amount_paid,
+            amount: targetAttendee.amount_paid || 300,
             venue: masterWorkshop?.venue,
             batchSchedule: masterWorkshop?.schedule_date,
             paymentMethod: targetAttendee.payment_method || targetAttendee.payment_mode || 'upi_qr',
             workshopId: targetAttendee.workshop_id,
-            batchNumber: targetAttendee.batch_number || 1,
-            assignedBatch: targetAttendee.cohort_label || targetAttendee.batch || `Batch ${targetAttendee.batch_number || 1}`,
+            batchNumber: correctBatchNum,
+            assignedBatch: correctCohort,
           }),
         });
+
+        if (emailRes.ok) {
+          toast.success(`Flight pass email dispatched to ${targetAttendee.email}`);
+        } else {
+          console.error('Email API response not ok:', await emailRes.text());
+        }
       } catch (mailErr) {
-        console.warn('Confirmation mail dispatch note:', mailErr);
+        console.warn('Confirmation email dispatch warning:', mailErr);
       }
 
       await fetchMasterData();
@@ -229,7 +270,7 @@ export default function AdminDashboardPage() {
 
   // Active records metrics
   const activeRegistrations = registrations.filter((r) => !r.is_deleted);
-  const batchCap = masterWorkshop?.batch_size_limit || DEFAULT_BATCH_CAP;
+  const batchCap = Number(masterWorkshop?.batch_size_limit) > 0 ? Number(masterWorkshop?.batch_size_limit) : DEFAULT_BATCH_CAP;
   const confirmedRegs = activeRegistrations.filter((r) => r.status === 'confirmed');
   const pendingRegs = activeRegistrations.filter((r) => r.status === 'pending');
   const grossRevenue = confirmedRegs.reduce((acc, curr) => acc + curr.amount, 0);

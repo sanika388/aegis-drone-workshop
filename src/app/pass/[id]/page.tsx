@@ -16,12 +16,11 @@ import {
   Calendar, 
   MessageSquare, 
   ExternalLink,
-  Users,
-  QrCode as QrCodeIcon
+  Lock,
+  Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Helper to resolve the WhatsApp group link for the assigned batch
 function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
   const batchNum = typeof batchStrOrNum === 'number' 
     ? batchStrOrNum 
@@ -60,27 +59,58 @@ export default function InteractivePassPage() {
       }
 
       try {
-        // 1. Query registration by clearance_id or id
-        const { data: reg, error: regErr } = await supabase
+        let cleanId = decodeURIComponent(passId).trim();
+        console.log("Looking up pass for identifier:", cleanId);
+
+        // 1. Normalize short clearance IDs (e.g., AEGIS-B1-01 -> AEGIS-B1-001)
+        const match = cleanId.match(/^(AEGIS-B(\d+)-)(\d+)$/i);
+        if (match) {
+          const [, , batchNum, serialStr] = match;
+          cleanId = `AEGIS-B${batchNum}-${String(parseInt(serialStr, 10)).padStart(3, '0')}`;
+        }
+let reg = null;
+
+        // 1. Safe query using .limit(1) to avoid multiple-row errors across workshops
+        const { data: regList } = await supabase
           .from('registrations')
           .select('*')
-          .or(`clearance_id.eq.${passId},id.eq.${passId}`)
-          .maybeSingle();
+          .ilike('clearance_id', cleanId)
+          .limit(1);
+
+        if (regList && regList.length > 0) {
+          reg = regList[0];
+        } else {
+          // 2. Fallback: Try partial / suffix match
+          const { data: regLike } = await supabase
+            .from('registrations')
+            .select('*')
+            .ilike('clearance_id', `%${cleanId}%`)
+            .limit(1);
+          
+          if (regLike && regLike.length > 0) {
+            reg = regLike[0];
+          } else if (cleanId.length >= 6) {
+            // 3. Fallback: Try lookup by partial UUID
+            const { data: regByUuid } = await supabase
+              .from('registrations')
+              .select('*')
+              .ilike('id', `%${cleanId}%`)
+              .limit(1);
+            
+            if (regByUuid && regByUuid.length > 0) reg = regByUuid[0];
+          }
+        }
 
         if (reg) {
           setRegistration(reg);
-
-          // 2. Fetch parent workshop data for dynamic links and venue details
-          const targetWorkshopId = reg.workshop_id || 'aegis-master-workshop';
+          const targetWorkshopId = reg.workshop_id || 'workshop-9585';
           const { data: ws } = await supabase
             .from('workshops')
             .select('*')
             .eq('id', targetWorkshopId)
             .maybeSingle();
 
-          if (ws) {
-            setWorkshop(ws);
-          }
+          if (ws) setWorkshop(ws);
         }
       } catch (err) {
         console.error('Pass retrieval error:', err);
@@ -94,57 +124,37 @@ export default function InteractivePassPage() {
 
   const triggerBlast = () => {
     setIsUnlocked(true);
-
-    // 1. Center burst
     confetti({
-      particleCount: 130,
-      spread: 90,
+      particleCount: 120,
+      spread: 80,
       origin: { y: 0.6 },
-      colors: ['#00ff66', '#00e5ff', '#ffffff', '#7000ff'],
+      colors: ['#00ff66', '#00e5ff', '#ffffff'],
     });
-
-    // 2. Dual Side Cannons
-    setTimeout(() => {
-      confetti({
-        particleCount: 80,
-        angle: 60,
-        spread: 60,
-        origin: { x: 0 },
-        colors: ['#00ff66', '#ffffff'],
-      });
-      confetti({
-        particleCount: 80,
-        angle: 120,
-        spread: 60,
-        origin: { x: 1 },
-        colors: ['#00ff66', '#ffffff'],
-      });
-    }, 200);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050508] flex items-center justify-center font-mono text-neon text-sm">
-        <div className="w-8 h-8 border-2 border-neon border-t-transparent rounded-full animate-spin mr-3"></div>
-        DECRYPTING CLEARANCE PASS...
+      <div style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace', color: '#00ff66', gap: '12px' }}>
+        <Loader2 className="w-8 h-8 animate-spin" />
+        <span style={{ fontSize: '12px', letterSpacing: '2px' }}>DECRYPTING CLEARANCE PASS...</span>
       </div>
     );
   }
 
   if (!registration) {
     return (
-      <div className="min-h-screen bg-[#06070a] text-white flex flex-col items-center justify-center p-4 font-mono">
-        <div className="max-w-md w-full bg-[#0d0f14] border border-red-500/30 rounded-3xl p-8 text-center space-y-4">
-          <div className="w-16 h-16 mx-auto rounded-full bg-red-500/10 border border-red-500 flex items-center justify-center text-red-400">
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'monospace' }}>
+        <div style={{ maxWidth: '420px', width: '100%', backgroundColor: '#0d0f14', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '20px', padding: '32px', textAlign: 'center' }}>
+          <div style={{ width: '48px', height: '48px', margin: '0 auto 16px', borderRadius: '50%', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontSize: '18px', fontWeight: 'bold' }}>
             ✕
           </div>
-          <h1 className="text-xl font-black uppercase text-white">Pass Record Not Found</h1>
-          <p className="text-xs text-gray-400">
-            No active flight clearance could be located for identifier: <span className="text-neon">{passId}</span>
+          <h1 style={{ color: '#fff', fontSize: '16px', fontWeight: 900, textTransform: 'uppercase', marginBottom: '8px' }}>Pass Record Not Found</h1>
+          <p style={{ color: '#9ca3af', fontSize: '12px', marginBottom: '20px' }}>
+            No active flight clearance located for identifier: <span style={{ color: '#00ff66' }}>{passId}</span>
           </p>
           <Link
             href="/"
-            className="inline-block px-5 py-2.5 rounded-xl bg-[#141824] border border-[#232b3d] text-gray-300 hover:text-white text-xs font-bold uppercase transition-all"
+            style={{ display: 'inline-block', padding: '10px 18px', backgroundColor: '#141824', border: '1px solid #232b3d', borderRadius: '10px', color: '#d1d5db', fontSize: '12px', fontWeight: 'bold', textDecoration: 'none' }}
           >
             ← Return to Command Home
           </Link>
@@ -157,180 +167,268 @@ export default function InteractivePassPage() {
   const batchNumber = registration?.batch_number || 1;
   const cohort = registration?.cohort_label || `Batch ${batchNumber}`;
   const bookingId = registration?.clearance_id || registration?.id || passId;
-  const isConfirmed = registration?.payment_status === 'confirmed' || registration?.payment_status === 'paid';
+
+  const normalizedStatus = (registration?.payment_status || '').toLowerCase();
+  const isApproved = 
+    normalizedStatus === 'verified_paid' || 
+    normalizedStatus === 'paid' || 
+    normalizedStatus === 'confirmed' || 
+    normalizedStatus === 'verified';
+
   const waLink = getBatchWhatsAppUrl(workshop, batchNumber);
-
-  // Standardized QR payload compatible with Gate Scanner
-  const qrPayload = JSON.stringify({
-    id: bookingId,
-    pilot: studentName,
-    batch: cohort,
-    status: isConfirmed ? 'VERIFIED_PAID' : 'PENDING',
-    org: 'AEGIS_FLIGHT_LAB',
-  });
-
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    qrPayload
-  )}&bgcolor=08090d&color=${isConfirmed ? '00ff66' : 'f59e0b'}`;
+    bookingId
+  )}&bgcolor=08090d&color=00ff66`;
 
   return (
-    <div className="min-h-screen bg-[#06070a] text-white flex flex-col items-center justify-center p-4 selection:bg-neon selection:text-black font-sans relative overflow-hidden">
-      {/* Dynamic Background Glow */}
+    <div style={{ width: '100%', minHeight: '85vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', boxSizing: 'border-box' }}>
+      
+      {/* Centered Pass Card */}
       <div 
-        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full blur-[140px] pointer-events-none transition-all duration-700 ${
-          isConfirmed ? 'bg-neon/10' : 'bg-amber-500/10'
-        }`} 
-      />
-
-      {/* Pass Container */}
-      <div className="relative z-10 max-w-md w-full bg-[#0d0f14] border border-[#1f2430] rounded-3xl p-6 sm:p-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl space-y-6">
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          backgroundColor: '#0d0f14',
+          border: '1px solid #1f2430',
+          borderRadius: '24px',
+          padding: '24px',
+          boxShadow: isApproved ? '0 0 50px rgba(0, 255, 102, 0.08)' : '0 0 50px rgba(245, 158, 11, 0.08)',
+          fontFamily: 'monospace',
+          boxSizing: 'border-box'
+        }}
+      >
         
-        {/* Top Header */}
-        <div className="flex justify-between items-start border-b border-[#1b202c] pb-5">
+        {/* Pass Top Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #1b202c', paddingBottom: '16px', marginBottom: '20px' }}>
           <div>
-            <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold w-fit uppercase border ${
-              isConfirmed 
-                ? 'bg-neon/10 border-neon/30 text-neon' 
-                : 'bg-amber-500/10 border-amber-500/40 text-amber-400'
-            }`}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 8px',
+              borderRadius: '999px',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              backgroundColor: isApproved ? 'rgba(0, 255, 102, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+              border: isApproved ? '1px solid rgba(0, 255, 102, 0.3)' : '1px solid rgba(245, 158, 11, 0.4)',
+              color: isApproved ? '#00ff66' : '#fbbf24',
+              marginBottom: '6px'
+            }}>
               <Radio className="w-3 h-3 animate-pulse" />
-              <span>{isConfirmed ? 'Live Telemetry Active' : 'Awaiting Gate Verification'}</span>
+              <span>{isApproved ? 'Live Telemetry Active' : 'Awaiting Gate Approval'}</span>
             </div>
-            <h1 className="text-xl font-black mt-2 tracking-tight text-white uppercase font-mono">
+            <h1 style={{ color: '#ffffff', fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
               {workshop?.title || 'Aegis Avionics Pass'}
             </h1>
           </div>
 
-          <div className="bg-[#131722] border border-[#272f44] px-3 py-1.5 rounded-xl text-center shrink-0">
-            <span className="text-[9px] font-mono text-gray-500 uppercase block">Cohort</span>
-            <span className="text-sm font-black font-mono text-neon">{cohort}</span>
+          <div style={{ backgroundColor: '#131722', border: '1px solid #272f44', padding: '6px 12px', borderRadius: '12px', textAlign: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: '9px', color: '#6b7280', textTransform: 'uppercase', display: 'block' }}>Cohort</span>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: '#00ff66' }}>{cohort}</span>
           </div>
         </div>
 
-        {/* State: Locked vs Unlocked */}
-        {!isUnlocked ? (
-          <div className="py-8 text-center space-y-5">
-            <div className={`w-20 h-20 mx-auto rounded-2xl bg-[#131722] border border-dashed flex items-center justify-center animate-pulse ${
-              isConfirmed ? 'border-neon/50 text-neon shadow-[0_0_30px_rgba(0,255,102,0.15)]' : 'border-amber-500/50 text-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.15)]'
-            }`}>
-              <ShieldCheck className="w-10 h-10" />
-            </div>
-
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-white font-mono">{studentName}</h2>
-              <p className="text-xs text-gray-400 font-mono">
-                Clearance ID: <span className="text-neon font-bold">{bookingId}</span>
+        {/* LOCKED STATE */}
+        {!isApproved ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ textAlign: 'center', padding: '12px 0 6px' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 12px', borderRadius: '16px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px dashed rgba(245, 158, 11, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
+                <Lock className="w-7 h-7" />
+              </div>
+              <h2 style={{ color: '#ffffff', fontSize: '16px', fontWeight: 800, margin: '0 0 4px', textTransform: 'uppercase' }}>{studentName}</h2>
+              <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '6px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', fontSize: '10px', fontWeight: 'bold', letterSpacing: '1px' }}>
+                PAYMENT PENDING APPROVAL
+              </span>
+              <p style={{ color: '#9ca3af', fontSize: '11px', margin: '8px 0 0', lineHeight: 1.4, fontFamily: 'sans-serif' }}>
+                Your boarding QR code unlocks once the desk verifies your payment (UPI / Spot Cash).
               </p>
             </div>
 
-            <button
-              onClick={triggerBlast}
-              className="w-full py-4 rounded-xl bg-neon text-black font-black text-xs uppercase tracking-widest font-mono hover:bg-[#00cc52] transition-all transform active:scale-95 shadow-[0_0_30px_rgba(0,255,102,0.4)] cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 fill-black" />
-              <span>Unlock Pass & Launch Telemetry</span>
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-5 animate-in fade-in zoom-in-95 duration-500">
-            
-            {/* Telemetry Metrics Box */}
-            <div className="bg-[#08090d] border border-[#1e2538] rounded-2xl p-4 space-y-2.5 font-mono text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">PILOT:</span>
-                <span className="text-white font-bold">{studentName}</span>
+            <div style={{ backgroundColor: '#08090d', border: '1px solid #1e2538', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#6b7280' }}>CLEARANCE ID:</span>
+                <span style={{ color: '#fbbf24', fontWeight: 900 }}>{bookingId}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">CLEARANCE ID:</span>
-                <span className="text-neon font-black">{bookingId}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#6b7280' }}>ASSIGNED SQUAD:</span>
+                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{cohort}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-500">ASSIGNED SQUAD:</span>
-                <span className="text-white font-bold">{cohort}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[#1a202c]">
-                <span className="text-gray-500">GATE STATUS:</span>
-                {isConfirmed ? (
-                  <span className="text-neon font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED / CLEARED
-                  </span>
-                ) : (
-                  <span className="text-amber-400 font-bold flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" /> PENDING VERIFICATION
-                  </span>
-                )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1a202c', paddingTop: '8px' }}>
+                <span style={{ color: '#6b7280' }}>GATE STATUS:</span>
+                <span style={{ color: '#fbbf24', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Clock className="w-3.5 h-3.5" /> PENDING DESK APPROVAL
+                </span>
               </div>
             </div>
 
-            {/* Official Batch WhatsApp Group Button */}
             {waLink && (
-              <div className="bg-[#0a1f14] border border-[#00ff66]/40 p-4 rounded-2xl space-y-2 font-mono">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#00ff66]">
+              <div style={{ backgroundColor: '#181508', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 'bold', color: '#fbbf24' }}>
                   <MessageSquare className="w-4 h-4" />
                   <span>Official {cohort} WhatsApp Group</span>
                 </div>
-                <p className="text-[11px] text-gray-300 font-sans leading-relaxed">
-                  Join your assigned cohort channel to receive lab schedules, firmware configs, and kit instructions:
-                </p>
                 <a
                   href={waLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#00ff66] hover:bg-[#00cc52] text-black font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-[0_0_15px_rgba(0,255,102,0.3)] cursor-pointer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    padding: '10px',
+                    backgroundColor: '#fbbf24',
+                    borderRadius: '10px',
+                    color: '#000000',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    textDecoration: 'none',
+                    boxSizing: 'border-box'
+                  }}
                 >
-                  <span>Connect to {cohort} WhatsApp Channel</span>
+                  <span>Connect to {cohort} Channel</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
             )}
 
-            {/* Event Venue & Date Info */}
-            <div className="space-y-2 text-xs font-mono text-gray-300 bg-[#12151d] p-3.5 rounded-xl border border-[#1e2330]">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-neon shrink-0" />
+            <div style={{ backgroundColor: '#12151d', border: '1px solid #1e2330', borderRadius: '14px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#d1d5db' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar className="w-3.5 h-3.5" style={{ color: '#fbbf24', flexShrink: 0 }} />
                 <span>{workshop?.schedule_date || '16th, 17th, 18th September 2026 Intake'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-neon shrink-0" />
-                <span>{workshop?.venue || 'Guru Gobind Singh College of Engineering and Research Centre, Nashik'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin className="w-3.5 h-3.5" style={{ color: '#fbbf24', flexShrink: 0 }} />
+                <span>{workshop?.venue || 'Guru Gobind Singh College of Engineering, Nashik'}</span>
+              </div>
+            </div>
+          </div>
+        ) : !isUnlocked ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ width: '64px', height: '64px', margin: '0 auto', borderRadius: '18px', backgroundColor: '#131722', border: '1px solid rgba(0,255,102,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#00ff66' }}>
+              <ShieldCheck className="w-9 h-9" />
+            </div>
+
+            <div>
+              <h2 style={{ color: '#ffffff', fontSize: '16px', fontWeight: 800, margin: '0 0 4px' }}>{studentName}</h2>
+              <p style={{ color: '#9ca3af', fontSize: '11px', margin: 0 }}>
+                Clearance ID: <span style={{ color: '#00ff66', fontWeight: 'bold' }}>{bookingId}</span>
+              </p>
+            </div>
+
+            <button
+              onClick={triggerBlast}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '12px',
+                backgroundColor: '#00ff66',
+                color: '#000000',
+                fontWeight: 900,
+                fontSize: '11px',
+                letterSpacing: '1.5px',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 0 25px rgba(0,255,102,0.35)'
+              }}
+            >
+              <Zap className="w-4 h-4 fill-black" />
+              <span>Unlock Flight Pass</span>
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ backgroundColor: '#08090d', border: '1px solid #1e2538', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#6b7280' }}>PILOT:</span>
+                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{studentName}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#6b7280' }}>CLEARANCE ID:</span>
+                <span style={{ color: '#00ff66', fontWeight: 900 }}>{bookingId}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#6b7280' }}>ASSIGNED SQUAD:</span>
+                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{cohort}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1a202c', paddingTop: '8px' }}>
+                <span style={{ color: '#6b7280' }}>GATE STATUS:</span>
+                <span style={{ color: '#00ff66', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 className="w-3.5 h-3.5" /> VERIFIED / CLEARED
+                </span>
               </div>
             </div>
 
-            {/* Dynamic Entry QR Code */}
-            <div className="bg-[#08090d] border border-[#1b202c] p-4 rounded-xl flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] font-mono text-neon block uppercase font-bold">● Entry Gate Pass QR</span>
-                <span className="text-xs font-bold font-mono text-white">Present at Reception Desk</span>
-                <p className="text-[10px] text-gray-500 font-mono">
-                  {isConfirmed ? 'Scannable by Desk Terminal' : 'Will activate upon desk payment'}
-                </p>
+            {waLink && (
+              <div style={{ backgroundColor: '#0a1f14', border: '1px solid rgba(0, 255, 102, 0.3)', borderRadius: '14px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 'bold', color: '#00ff66' }}>
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Official {cohort} WhatsApp Group</span>
+                </div>
+                <a
+                  href={waLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    width: '100%',
+                    padding: '10px',
+                    backgroundColor: '#00ff66',
+                    borderRadius: '10px',
+                    color: '#000000',
+                    fontSize: '11px',
+                    fontWeight: 'bold',
+                    textDecoration: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <span>Connect to {cohort} Channel</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+
+            <div style={{ backgroundColor: '#12151d', border: '1px solid #1e2330', borderRadius: '14px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#d1d5db' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar className="w-3.5 h-3.5 text-neon" style={{ flexShrink: 0 }} />
+                <span>{workshop?.schedule_date || '16th, 17th, 18th September 2026 Intake'}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin className="w-3.5 h-3.5 text-neon" style={{ flexShrink: 0 }} />
+                <span>{workshop?.venue || 'Guru Gobind Singh College of Engineering, Nashik'}</span>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: '#08090d', border: '1px solid #1b202c', borderRadius: '14px', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <span style={{ fontSize: '10px', color: '#00ff66', fontWeight: 'bold', display: 'block', textTransform: 'uppercase' }}>● Entry Gate Pass QR</span>
+                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#ffffff' }}>Present at Reception Desk</span>
               </div>
               <img 
                 src={qrUrl} 
                 alt="Pass QR" 
-                className="w-16 h-16 rounded-lg border border-neon/40 shadow-[0_0_15px_rgba(0,255,102,0.2)] shrink-0 ml-2" 
+                style={{ width: '64px', height: '64px', borderRadius: '10px', border: '1px solid rgba(0,255,102,0.4)', marginLeft: '12px', flexShrink: 0 }} 
               />
             </div>
-
-            {/* Re-trigger Confetti */}
-            <button
-              onClick={triggerBlast}
-              className="w-full py-2.5 rounded-lg bg-[#141822] hover:bg-[#1a202e] border border-[#272f44] text-gray-300 hover:text-neon font-mono text-[11px] font-bold transition-all cursor-pointer"
-            >
-              ⚡ Re-fire Particles
-            </button>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="border-t border-[#1b202c] pt-4 text-center">
-          <Link
-            href="/"
-            className="text-[10px] font-mono text-gray-500 hover:text-neon transition-colors"
-          >
+        <div style={{ borderTop: '1px solid #1b202c', paddingTop: '16px', marginTop: '20px', textAlign: 'center' }}>
+          <Link href="/" style={{ fontSize: '11px', color: '#6b7280', textDecoration: 'none' }}>
             ← Back to Aegis Command Home
           </Link>
         </div>
+
       </div>
     </div>
   );

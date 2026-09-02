@@ -85,8 +85,6 @@ export default function HomePage() {
     setCurrentPosterIdx((prev) => (prev + 1) % posters.length);
   };
 
-  const workshopSlug = workshop?.id || 'aegis-master-workshop';
-
   return (
     <div className="min-h-screen bg-[#050508] text-white flex flex-col justify-between selection:bg-neon selection:text-black font-sans">
       
@@ -117,8 +115,6 @@ export default function HomePage() {
       <div className="max-w-7xl mx-auto px-6 pt-12 pb-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 space-y-6">
           
-          
-
           <h1 className="text-4xl sm:text-6xl font-black text-white leading-tight font-mono tracking-tight">
             Build The Brain. <br />
             Assemble The Frame. <br />
@@ -131,7 +127,7 @@ export default function HomePage() {
 
           <div className="flex flex-wrap gap-4 pt-2">
             <Link
-              href={`/workshops/${workshopSlug}`}
+              href="/workshops"
               className="px-6 py-3.5 rounded-xl bg-neon font-bold flex items-center gap-2 hover:bg-[#00cc52] transition-all text-black text-xs uppercase tracking-wider cursor-pointer shadow-[0_0_25px_rgba(0,255,102,0.3)] font-mono"
             >
               <span>Register Now</span>

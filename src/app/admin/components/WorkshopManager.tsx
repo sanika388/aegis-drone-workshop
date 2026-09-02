@@ -15,6 +15,7 @@ import {
   AlertOctagon
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function WorkshopManager() {
   const [workshops, setWorkshops] = useState<any[]>([]);
@@ -51,6 +52,24 @@ export default function WorkshopManager() {
   useEffect(() => {
     fetchWorkshops();
   }, []);
+
+  // Handler to toggle individual workshop registration status
+  const handleToggleRegistrationStatus = async (workshopId: string, currentStatus: boolean) => {
+    try {
+      const nextState = !currentStatus;
+      const { error } = await supabase
+        .from('workshops')
+        .update({ is_registration_open: nextState })
+        .eq('id', workshopId);
+
+      if (error) throw error;
+
+      toast.success(`Registrations successfully ${nextState ? 'OPENED' : 'PAUSED'}!`);
+      await fetchWorkshops();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update workshop registration status');
+    }
+  };
 
   const handleEdit = (w: any) => {
     setEditingId(w.id);
@@ -393,70 +412,94 @@ export default function WorkshopManager() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {workshops.map((w) => (
-            <div
-              key={w.id}
-              className="bg-[#10131a] border border-[#202838] hover:border-neon/40 rounded-2xl p-5 space-y-4 transition-all relative overflow-hidden"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-neon/10 text-neon font-mono text-[10px] font-bold border border-neon/30">
-                    {w.badge || 'ACTIVE TRACK'}
-                  </span>
-                  <h3 className="text-base font-bold text-white font-mono mt-1.5">{w.title}</h3>
-                  <p className="text-xs text-gray-400 font-mono">ID: <code className="text-gray-300">{w.id}</code></p>
-                </div>
-                <div className="text-right font-mono">
-                  <span className="text-xl font-black text-neon">₹{w.fee}</span>
-                  <span className="text-[10px] text-gray-400 block">{w.batch_size_limit || 20} seats/batch</span>
-                </div>
-              </div>
+          {workshops.map((w) => {
+            const isOpen = w.is_registration_open !== false;
 
-              <div className="bg-[#0b0e14] p-3 rounded-xl border border-[#1b2333] space-y-1.5 text-[11px] font-mono text-gray-400">
-                <div>📍 {w.venue || 'GCOERC Nashik'}</div>
-                <div>📅 {w.schedule_date || 'Upcoming'}</div>
-                <div className="text-neon flex items-center gap-1">
-                  <MessageSquare className="w-3 h-3" />
-                  <span>{(w.whatsapp_links || []).length} Batch WhatsApp Link(s)</span>
+            return (
+              <div
+                key={w.id}
+                className="bg-[#10131a] border border-[#202838] hover:border-neon/40 rounded-2xl p-5 space-y-4 transition-all relative overflow-hidden"
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded-full bg-neon/10 text-neon font-mono text-[10px] font-bold border border-neon/30">
+                        {w.badge || 'ACTIVE TRACK'}
+                      </span>
+                      {/* Registration status badge */}
+                      <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold border ${
+                        isOpen ? 'bg-neon/10 border-neon/30 text-neon' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                      }`}>
+                        {isOpen ? '● ACTIVE' : '■ PAUSED'}
+                      </span>
+                    </div>
+                    <h3 className="text-base font-bold text-white font-mono mt-1.5">{w.title}</h3>
+                    <p className="text-xs text-gray-400 font-mono">ID: <code className="text-gray-300">{w.id}</code></p>
+                  </div>
+                  <div className="text-right font-mono">
+                    <span className="text-xl font-black text-neon">₹{w.fee}</span>
+                    <span className="text-[10px] text-gray-400 block">{w.batch_size_limit || 20} seats/batch</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-[#1e2636]">
-                <Link
-                  href={`/workshops/${w.id}`}
-                  target="_blank"
-                  className="text-gray-400 hover:text-neon font-mono text-xs flex items-center gap-1 transition-colors"
-                >
-                  <span>Public View</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
+                <div className="bg-[#0b0e14] p-3 rounded-xl border border-[#1b2333] space-y-1.5 text-[11px] font-mono text-gray-400">
+                  <div>📍 {w.venue || 'GCOERC Nashik'}</div>
+                  <div>📅 {w.schedule_date || 'Upcoming'}</div>
+                  <div className="text-neon flex items-center gap-1">
+                    <MessageSquare className="w-3 h-3" />
+                    <span>{(w.whatsapp_links || []).length} Batch WhatsApp Link(s)</span>
+                  </div>
+                </div>
 
-                <div className="flex items-center gap-2">
+                {/* Individual Stop / Open Registration Button */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#1e2636]">
                   <button
-                    onClick={() => handleDeleteWorkshop(w.id, w.title)}
-                    disabled={deletingId === w.id}
-                    className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 font-mono text-xs flex items-center gap-1 transition-colors cursor-pointer border border-red-500/30 disabled:opacity-50"
-                    title="Delete Workshop Track"
+                    type="button"
+                    onClick={() => handleToggleRegistrationStatus(w.id, isOpen)}
+                    className={`px-3 py-1.5 rounded-lg font-mono text-xs font-bold uppercase transition-all cursor-pointer ${
+                      isOpen
+                        ? 'bg-red-500/15 border border-red-500/40 text-red-400 hover:bg-red-500 hover:text-white'
+                        : 'bg-neon/15 border border-neon/40 text-neon hover:bg-neon hover:text-black'
+                    }`}
                   >
-                    {deletingId === w.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                    <span>Delete</span>
+                    {isOpen ? '🛑 Stop Registrations' : '▶ Open Registrations'}
                   </button>
 
-                  <button
-                    onClick={() => handleEdit(w)}
-                    className="px-3 py-1.5 rounded-lg bg-[#182030] hover:bg-neon hover:text-black text-gray-200 font-mono text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/workshops/${w.id}`}
+                      target="_blank"
+                      className="text-gray-400 hover:text-neon font-mono text-xs flex items-center gap-1 transition-colors"
+                      title="Public View"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+
+                    <button
+                      onClick={() => handleDeleteWorkshop(w.id, w.title)}
+                      disabled={deletingId === w.id}
+                      className="px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 font-mono text-xs flex items-center gap-1 transition-colors cursor-pointer border border-red-500/30 disabled:opacity-50"
+                      title="Delete Workshop Track"
+                    >
+                      {deletingId === w.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => handleEdit(w)}
+                      className="px-3 py-1.5 rounded-lg bg-[#182030] hover:bg-neon hover:text-black text-gray-200 font-mono text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

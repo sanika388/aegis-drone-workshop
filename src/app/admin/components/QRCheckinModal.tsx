@@ -69,27 +69,27 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
     };
   }, [isOpen]);
 
-  const handlePassScan = async (scannedPayload: string) => {
+const handlePassScan = async (scannedPayload: string) => {
     setScanStatus('processing');
 
     try {
       let lookupId = scannedPayload.trim();
 
-      // 1. Parse JSON payload if available
+      // 1. Parse JSON payload if encoded as JSON
       try {
         const parsed = JSON.parse(scannedPayload);
         if (parsed.id) {
           lookupId = parsed.id.trim();
         }
       } catch {
-        // Fallback: check for URL paths
+        // Fallback: check for URL paths like /pass/AEGIS-B1-001
         if (scannedPayload.includes('/pass/')) {
           const parts = scannedPayload.split('/pass/');
           lookupId = parts[1]?.split('?')[0]?.trim();
         }
       }
 
-      // 2. Query attendee in Supabase
+      // 2. Query attendee in Supabase by clearance_id or id
       const { data: attendee, error: fetchErr } = await supabase
         .from('registrations')
         .select('*')
@@ -104,13 +104,30 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
         return;
       }
 
-      const wasAlreadyAttended = attendee.attended;
-      const isPaid = attendee.payment_status === 'confirmed' || attendee.payment_status === 'paid';
+      // Normalize current attendance string
+      const currentAttendance = String(attendee.attendance || '').trim().toUpperCase();
+      const isAlreadyPresent = currentAttendance === 'PRESENT' || attendee.attended === true;
 
-      // 3. Mark attended in database
-      const updatePayload: any = { attended: true };
+      // 3. Prevent false duplicate trigger; only trigger warning if already PRESENT
+      if (isAlreadyPresent) {
+        setScanStatus('warning');
+        setLastScanned(attendee);
+        toast.info(`Already Checked In: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
+        setTimeout(() => setScanStatus('idle'), 2200);
+        return;
+      }
+
+      // 4. Mark student PRESENT (updates both columns to sync registry UI)
+      const updatePayload: any = { 
+        attendance: 'PRESENT',
+        attended: true 
+      };
+
+      // Spot cash auto-confirmation at gate entry
+      const normPayment = String(attendee.payment_status || '').toLowerCase();
+      const isPaid = normPayment === 'confirmed' || normPayment === 'paid' || normPayment === 'verified_paid';
       if (!isPaid && attendee.payment_mode === 'cash') {
-        updatePayload.payment_status = 'confirmed'; // Cash collected at desk
+        updatePayload.payment_status = 'confirmed';
       }
 
       const { error: updateErr } = await supabase
@@ -121,18 +138,8 @@ export default function QRCheckinModal({ isOpen, onClose, onRefresh }: QRCheckin
       if (updateErr) throw updateErr;
 
       setLastScanned({ ...attendee, ...updatePayload });
-
-      if (!isPaid) {
-        setScanStatus('warning');
-        toast.warning(`Spot Cash Desk Check-in: ₹${attendee.amount_paid || 300} verified for ${attendee.full_name}`);
-      } else {
-        setScanStatus('success');
-        if (wasAlreadyAttended) {
-          toast.info(`Already Checked In: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
-        } else {
-          toast.success(`Verified & Cleared: ${attendee.full_name} (${attendee.cohort_label || 'Batch 1'})`);
-        }
-      }
+      setScanStatus('success');
+      toast.success(`GATE CLEARANCE: ${attendee.full_name} marked PRESENT!`);
 
       onRefresh();
       setTimeout(() => setScanStatus('idle'), 2200);

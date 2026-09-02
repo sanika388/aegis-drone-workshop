@@ -17,6 +17,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 export default function WorkshopsCatalogPage() {
   const [workshops, setWorkshops] = useState<any[]>([]);
@@ -44,6 +45,7 @@ export default function WorkshopsCatalogPage() {
             venue: 'Guru Gobind Singh College of Engineering & Research Centre, Nashik',
             fee: 300,
             batch_size_limit: 30,
+            is_registration_open: true,
             syllabus: [
               '01 BUILD THE BRAIN: ESP32 Flight Controller & Gyro Wiring',
               '02 BUILD THE BODY: Quadcopter Chassis & 3kg+ Aero Dynamics',
@@ -77,7 +79,7 @@ export default function WorkshopsCatalogPage() {
   useEffect(() => {
     fetchCatalogData();
 
-    // Real-time listener for updates when someone registers
+    // Real-time listener for updates when someone registers or admin updates workshop
     const channel = supabase
       .channel('catalog_realtime')
       .on(
@@ -114,7 +116,6 @@ export default function WorkshopsCatalogPage() {
     <div className="max-w-5xl mx-auto px-6 py-14 space-y-10">
       {/* Page Header */}
       <div className="space-y-3 text-center sm:text-left">
-         
         <h1 className="text-3xl sm:text-4xl font-black text-white font-mono uppercase tracking-tight">
           Aegis Drone Avionics Catalog
         </h1>
@@ -136,6 +137,7 @@ export default function WorkshopsCatalogPage() {
             const batchCap = workshop.batch_size_limit || 30;
             const currentBatchNum = Math.floor(activeCount / batchCap) + 1;
             const fee = Number(workshop.fee ?? 300);
+            const isOpen = workshop.is_registration_open !== false;
 
             return (
               <div
@@ -151,17 +153,27 @@ export default function WorkshopsCatalogPage() {
                     <span className="px-3 py-1 rounded-md bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono uppercase">
                       {workshop.badge || 'CERTIFIED WORKSHOP'}
                     </span>
+                    {/* Registration Status Badge */}
+                    <span className={`px-3 py-1 rounded-md font-bold text-xs font-mono uppercase border ${
+                      isOpen ? 'bg-neon/10 border-neon/30 text-neon' : 'bg-red-500/10 border-red-500/30 text-red-400'
+                    }`}>
+                      {isOpen ? '● REGISTRATION OPEN' : '■ REGISTRATION PAUSED'}
+                    </span>
                   </div>
 
                   {/* Dynamic Batch Status Indicator based on Admin Capacity */}
                   <div className="bg-[#121622] border border-[#242b3d] px-3.5 py-1.5 rounded-xl font-mono text-xs flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-neon animate-ping"></span>
-                    {currentBatchNum === 1 ? (
-                      <span className="text-neon font-bold">Batch 1 Active (Enrolling Now)</span>
+                    <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-neon animate-ping' : 'bg-red-500'}`}></span>
+                    {isOpen ? (
+                      currentBatchNum === 1 ? (
+                        <span className="text-neon font-bold">Batch 1 Active (Enrolling Now)</span>
+                      ) : (
+                        <span className="text-neon font-bold">
+                          Batch {currentBatchNum - 1} Full • Batch {currentBatchNum} Enrolling
+                        </span>
+                      )
                     ) : (
-                      <span className="text-neon font-bold">
-                        Batch {currentBatchNum - 1} Full • Batch {currentBatchNum} Enrolling
-                      </span>
+                      <span className="text-red-400 font-bold">Registrations Paused by Admin</span>
                     )}
                   </div>
                 </div>
@@ -248,11 +260,21 @@ export default function WorkshopsCatalogPage() {
                     </div>
 
                     <Link
-                      href={`/workshops/${workshop.id}`}
-                      className="px-5 py-3 rounded-xl bg-neon text-black font-mono font-bold text-xs uppercase tracking-wider hover:bg-[#00cc52] transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(0,255,102,0.25)] shrink-0 cursor-pointer"
+                      href={isOpen ? `/workshops/${workshop.id}` : '#'}
+                      onClick={(e) => {
+                        if (!isOpen) {
+                          e.preventDefault();
+                          toast.error('Registrations for this workshop are currently paused. Contact admin.');
+                        }
+                      }}
+                      className={`px-5 py-3 rounded-xl font-mono font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 ${
+                        isOpen 
+                          ? 'bg-neon text-black hover:bg-[#00cc52] shadow-[0_0_20px_rgba(0,255,102,0.25)] cursor-pointer' 
+                          : 'bg-[#141824] border border-red-500/40 text-red-400 hover:bg-red-500/10 cursor-not-allowed'
+                      }`}
                     >
-                      <span>Claim Pass</span>
-                      <ArrowRight className="w-4 h-4" />
+                      <span>{isOpen ? 'Claim Pass' : 'Registrations Paused'}</span>
+                      {isOpen && <ArrowRight className="w-4 h-4" />}
                     </Link>
                   </div>
                 </div>

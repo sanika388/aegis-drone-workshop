@@ -36,7 +36,6 @@ const UPI_CONFIG = {
 
 const DEFAULT_BATCH_LIMIT = 20;
 
-// Helper to resolve the WhatsApp group link for the assigned batch
 function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): string {
   const batchNum = typeof batchStrOrNum === 'number' 
     ? batchStrOrNum 
@@ -44,12 +43,10 @@ function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): str
 
   const batchKey = `Batch ${batchNum}`;
 
-  // 1. Check dictionary key
   if (workshop?.cohort_whatsapp_links && workshop.cohort_whatsapp_links[batchKey]?.trim()) {
     return workshop.cohort_whatsapp_links[batchKey].trim();
   }
 
-  // 2. Check structured array format
   if (Array.isArray(workshop?.whatsapp_links)) {
     const matched = workshop.whatsapp_links.find(
       (item: any) => Number(item.batchNumber) === batchNum
@@ -57,14 +54,14 @@ function getBatchWhatsAppUrl(workshop: any, batchStrOrNum: string | number): str
     if (matched?.url && matched.url.trim() !== '') return matched.url.trim();
   }
 
-  // 3. Fallback
   return workshop?.fallback_whatsapp_link || 'https://chat.whatsapp.com/default-aegis-community';
 }
 
 function WorkshopRegistrationContent() {
   const routeParams = useParams();
   const router = useRouter();
-  const requestedWorkshopId = typeof routeParams?.id === 'string' ? routeParams.id : '';
+  const rawId = routeParams?.id;
+  const requestedWorkshopId = typeof rawId === 'string' ? rawId.trim() : '';
 
   const [workshop, setWorkshop] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -99,6 +96,11 @@ function WorkshopRegistrationContent() {
 
   useEffect(() => {
     async function loadData() {
+      if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
+        setLoading(false);
+        return;
+      }
+
       try {
         // 1. Get logged-in user profile
         const { data: { user } } = await supabase.auth.getUser();
@@ -113,26 +115,24 @@ function WorkshopRegistrationContent() {
           }));
         }
 
-        if (!requestedWorkshopId || requestedWorkshopId === 'undefined') {
-          setLoading(false);
-          return;
-        }
-
-        // 2. Fetch workshop data
-        const { data: workshopData } = await supabase
+        // 2. Fetch specific workshop data
+        const { data: workshopData, error: wsError } = await supabase
           .from('workshops')
           .select('*')
           .eq('id', requestedWorkshopId)
           .maybeSingle();
 
-        const ws = workshopData || {
+        if (wsError) throw wsError;
+
+        const effectiveWorkshop = workshopData || {
           id: requestedWorkshopId,
           title: 'Aegis Drone Avionics Master Workshop',
-          badge: 'CERTIFIED WORKSHOP ★ DESIGN. BUILD. TEST. FLY. MASTER.',
+          badge: 'CERTIFIED WORKSHOP ★ SEPTEMBER INTAKE',
           schedule_date: '16th, 17th, 18th September 2026 Intake',
           venue: 'Guru Gobind Singh College of Engineering and Research Centre, Nashik',
           fee: 300,
           batch_size_limit: DEFAULT_BATCH_LIMIT,
+          is_registration_open: true,
           whatsapp_links: [{ batchNumber: 1, url: '' }],
           cohort_whatsapp_links: { 'Batch 1': '' },
           fallback_whatsapp_link: '',
@@ -143,18 +143,22 @@ function WorkshopRegistrationContent() {
             '100% Hands-on Practical with Live Demonstration Drone',
           ],
         };
-        setWorkshop(ws);
 
-        // 3. Query next sequential serial slot for live preview
+        setWorkshop(effectiveWorkshop);
+
+        // 3. Query next sequential slot strictly for this workshop
         const { data: nextNum } = await supabase.rpc('get_next_workshop_serial', {
           p_workshop_id: requestedWorkshopId,
         });
 
-        const previewSerial = nextNum || 1;
+        const previewSerial = Number(nextNum) || 1;
         setNextSerialPreview(previewSerial);
 
-        const batchLimit = ws.batch_size_limit || DEFAULT_BATCH_LIMIT;
-        const calculatedBatch = Math.floor((previewSerial - 1) / batchLimit) + 1;
+        const currentLimit = Number(effectiveWorkshop.batch_size_limit) > 0 
+          ? Number(effectiveWorkshop.batch_size_limit) 
+          : DEFAULT_BATCH_LIMIT;
+
+        const calculatedBatch = Math.floor((previewSerial - 1) / currentLimit) + 1;
         setAssignedBatch(calculatedBatch);
       } catch (err) {
         console.error('Data load error:', err);
@@ -181,6 +185,17 @@ function WorkshopRegistrationContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!requestedWorkshopId) {
+      toast.error('Invalid workshop identifier. Please refresh the page.');
+      return;
+    }
+
+    // Guard: Prevent submission if registration is paused by admin
+    if (workshop?.is_registration_open === false) {
+      toast.error('Registrations for this workshop are currently paused. Please contact admin.');
+      return;
+    }
+
     if (formData.paymentMode === 'online' && activeStep === 'details') {
       if (!formData.fullName || !formData.email || !formData.phone) {
         toast.error('Please fill in all required pilot details.');
@@ -193,11 +208,22 @@ function WorkshopRegistrationContent() {
     setIsSubmitting(true);
 
     try {
+      // Re-verify latest registration status from live DB
+      const { data: liveWs } = await supabase
+        .from('workshops')
+        .select('batch_size_limit, prefix, is_registration_open')
+        .eq('id', requestedWorkshopId)
+        .maybeSingle();
+
+      if (liveWs?.is_registration_open === false) {
+        throw new Error('Registrations for this workshop are currently paused. Contact admin.');
+      }
+
       const cleanUtr = formData.utrNumber.trim();
 
       if (formData.paymentMode === 'online') {
         if (cleanUtr.length < 8) {
-          throw new Error('Please enter a valid 12-digit UPI UTR / Transaction Reference number.');
+          throw new Error('Please enter a valid UPI UTR / Transaction Reference number.');
         }
 
         const { data: existingUtr } = await supabase
@@ -211,28 +237,40 @@ function WorkshopRegistrationContent() {
         }
       }
 
-      // 1. Fetch lowest available sequential slot in real-time
+      const activeBatchLimit = Number(liveWs?.batch_size_limit) > 0 
+        ? Number(liveWs?.batch_size_limit) 
+        : (Number(workshop?.batch_size_limit) > 0 ? Number(workshop?.batch_size_limit) : DEFAULT_BATCH_LIMIT);
+
+      // Extract unique prefix (fallback to 'AEGIS' if not set)
+      const workshopPrefix = liveWs?.prefix ? liveWs.prefix.toUpperCase() : (workshop?.prefix ? workshop.prefix.toUpperCase() : 'AEGIS');
+
+      // 2. Fetch lowest available sequential slot scoped strictly to this workshop
       const { data: nextSerialNum, error: serialErr } = await supabase.rpc(
         'get_next_workshop_serial',
-        { p_workshop_id: requestedWorkshopId || 'aegis-master-workshop' }
+        { p_workshop_id: requestedWorkshopId }
       );
 
       if (serialErr) throw serialErr;
 
-      const serial = nextSerialNum || 1;
+      const serial = Number(nextSerialNum) || 1;
       const formattedSerial = String(serial).padStart(3, '0');
 
-      // 2. Compute dynamic batch partition
-      const batchLimit = workshop?.batch_size_limit || DEFAULT_BATCH_LIMIT;
-      const realTimeBatchNum = Math.floor((serial - 1) / batchLimit) + 1;
-      const batchLabel = `Batch ${realTimeBatchNum}`;
-      const clearanceId = `AEGIS-B${realTimeBatchNum}-${formattedSerial}`;
+      // 3. Compute dynamic batch partition and unique clearance ID
+      const realTimeBatchNum = Math.floor((serial - 1) / activeBatchLimit) + 1;
+      
+      // Optional safety cap check (e.g. Batch 2 limit)
+      if (realTimeBatchNum > 2) {
+        throw new Error('Registration is closed as Batch 2 capacity has been fully reached.');
+      }
 
-      // 3. Insert into Supabase
+      const batchLabel = `Batch ${realTimeBatchNum}`;
+      const clearanceId = `${workshopPrefix}-B${realTimeBatchNum}-${formattedSerial}`;
+
+      // 4. Insert strictly into Supabase
       const { data: reg, error: regError } = await supabase
         .from('registrations')
         .insert({
-          workshop_id: requestedWorkshopId || 'aegis-master-workshop',
+          workshop_id: requestedWorkshopId,
           user_id: currentUser?.id || null,
           full_name: formData.fullName.trim(),
           email: formData.email.trim().toLowerCase(),
@@ -257,29 +295,6 @@ function WorkshopRegistrationContent() {
 
       if (regError) throw regError;
 
-      // 1. Dispatch confirmation email using the committed database row (reg)
-      try {
-        await fetch('/api/send-confirmation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: reg.email,
-            name: reg.full_name,
-            clearanceId: reg.clearance_id,      // Uses the true ID committed to Supabase
-            workshopTitle: workshop?.title,
-            amount: workshopFee,
-            venue: workshop?.venue,
-            batchSchedule: workshop?.schedule_date,
-            paymentMethod: reg.payment_mode,
-            workshopId: reg.workshop_id,
-            batchNumber: reg.batch_number,     // Uses the true batch number
-            assignedBatch: reg.cohort_label,
-          }),
-        });
-      } catch (emailErr) {
-        console.error('Email dispatch error:', emailErr);
-      }
-
       const waLink = getBatchWhatsAppUrl(workshop, reg.batch_number || realTimeBatchNum);
 
       toast.success(
@@ -288,7 +303,6 @@ function WorkshopRegistrationContent() {
           : 'Spot cash seat reserved successfully!'
       );
 
-      // 2. Set on-screen confirmation card from database row
       setRegisteredNotice({
         id: reg.clearance_id,
         name: reg.full_name,
@@ -374,7 +388,7 @@ function WorkshopRegistrationContent() {
                     <span>Venue Entry Instructions</span>
                   </div>
                   <p className="text-[11px] text-gray-300 leading-relaxed">
-                    Once verified by the flight desk, your boarding pass QR code will be dispatched to <strong className="text-neon">{registeredNotice.email}</strong> for scanning at the reception desk on event day.
+                    Once verified by the flight desk, your boarding pass QR code will be unlocked and dispatched to <strong className="text-neon">{registeredNotice.email}</strong>.
                   </p>
                 </div>
 
@@ -475,17 +489,17 @@ function WorkshopRegistrationContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-        
         {/* Left Column: Workshop Details */}
         <div className="lg:col-span-7 space-y-6">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-neon/10 border border-neon/30 text-neon font-bold text-xs font-mono inline-block">
-                {workshop?.badge || 'CERTIFIED WORKSHOP ★ SEPTEMBER 2026'}
+                {workshop?.badge || 'CERTIFIED WORKSHOP ★ SEPTEMBER INTAKE'}
               </span>
-              <span className="px-3 py-1 rounded-full bg-[#162032] border border-[#2a3854] text-gray-300 font-bold text-xs font-mono inline-flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-neon" />
-                Next Available: Seat #{String(nextSerialPreview).padStart(3, '0')} (Batch {assignedBatch})
+              <span className={`px-3 py-1 rounded-full font-bold text-xs font-mono inline-flex items-center gap-1.5 border ${
+                workshop?.is_registration_open !== false ? 'bg-neon/10 border-neon/30 text-neon' : 'bg-red-500/10 border-red-500/30 text-red-400'
+              }`}>
+                {workshop?.is_registration_open !== false ? '● REGISTRATION OPEN' : '■ REGISTRATION PAUSED'}
               </span>
             </div>
 
@@ -533,9 +547,21 @@ function WorkshopRegistrationContent() {
           </div>
         </div>
 
-        {/* Right Column: Registration & Payment Box */}
+        {/* Right Column: Registration Box */}
         <div className="lg:col-span-5">
           <div className="bg-[#121212] border border-neon/40 rounded-2xl p-6 space-y-6 shadow-[0_0_30px_rgba(0,255,102,0.08)]">
+            
+            {/* Registration Paused Warning Banner */}
+            {workshop?.is_registration_open === false && (
+              <div className="bg-red-500/10 border border-red-500/40 rounded-xl p-4 flex items-center gap-3 text-red-400 font-mono text-xs">
+                <AlertTriangle className="w-5 h-5 shrink-0" />
+                <div>
+                  <strong className="block uppercase font-bold">Registrations Paused</strong>
+                  <span>Registrations for this workshop are currently closed. Please contact administrator.</span>
+                </div>
+              </div>
+            )}
+
             <div className="border-b border-[#242424] pb-4 flex justify-between items-center">
               <div>
                 <h2 className="text-base font-bold text-white font-mono uppercase">
@@ -551,8 +577,6 @@ function WorkshopRegistrationContent() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs font-sans">
-              
-              {/* STEP 1: PILOT DETAILS */}
               {activeStep === 'details' && (
                 <>
                   <div className="space-y-1">
@@ -560,10 +584,11 @@ function WorkshopRegistrationContent() {
                     <input
                       type="text"
                       required
+                      disabled={workshop?.is_registration_open === false}
                       placeholder="e.g. Pilot Name"
                       value={formData.fullName}
                       onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono disabled:opacity-50"
                     />
                   </div>
 
@@ -572,10 +597,11 @@ function WorkshopRegistrationContent() {
                     <input
                       type="email"
                       required
+                      disabled={workshop?.is_registration_open === false}
                       placeholder="student@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono disabled:opacity-50"
                     />
                   </div>
 
@@ -584,10 +610,11 @@ function WorkshopRegistrationContent() {
                     <input
                       type="tel"
                       required
+                      disabled={workshop?.is_registration_open === false}
                       placeholder="+91 9876543210"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono disabled:opacity-50"
                     />
                   </div>
 
@@ -596,10 +623,11 @@ function WorkshopRegistrationContent() {
                     <input
                       type="text"
                       required
+                      disabled={workshop?.is_registration_open === false}
                       placeholder="e.g. Engineering Institute"
                       value={formData.college}
                       onChange={(e) => setFormData({ ...formData, college: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono disabled:opacity-50"
                     />
                   </div>
 
@@ -607,8 +635,9 @@ function WorkshopRegistrationContent() {
                     <label className="text-gray-400 font-mono text-[11px]">Academic Year *</label>
                     <select
                       value={formData.academicYear}
+                      disabled={workshop?.is_registration_open === false}
                       onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#242424] focus:border-neon outline-none text-white text-xs font-mono disabled:opacity-50"
                     >
                       <option value="FE - First Year">FE - First Year</option>
                       <option value="SE - Second Year">SE - Second Year</option>
@@ -624,11 +653,13 @@ function WorkshopRegistrationContent() {
                     </label>
                     <div className="grid grid-cols-2 gap-2">
                       <div
-                        onClick={() => setFormData({ ...formData, paymentMode: 'online' })}
-                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        onClick={() => workshop?.is_registration_open !== false && setFormData({ ...formData, paymentMode: 'online' })}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          workshop?.is_registration_open === false ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                        } ${
                           formData.paymentMode === 'online'
                             ? 'bg-[#141824] border-neon shadow-[0_0_15px_rgba(0,255,102,0.15)]'
-                            : 'bg-[#0a0c10] border-[#222736] opacity-70'
+                            : 'bg-[#0a0c10] border-[#222736]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
@@ -639,11 +670,13 @@ function WorkshopRegistrationContent() {
                       </div>
 
                       <div
-                        onClick={() => setFormData({ ...formData, paymentMode: 'cash' })}
-                        className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                        onClick={() => workshop?.is_registration_open !== false && setFormData({ ...formData, paymentMode: 'cash' })}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          workshop?.is_registration_open === false ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
+                        } ${
                           formData.paymentMode === 'cash'
                             ? 'bg-[#141824] border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
-                            : 'bg-[#0a0c10] border-[#222736] opacity-70'
+                            : 'bg-[#0a0c10] border-[#222736]'
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
@@ -657,10 +690,16 @@ function WorkshopRegistrationContent() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-3 rounded-lg bg-neon text-black font-bold text-xs hover:bg-[#00cc52] transition-all tracking-wider uppercase disabled:opacity-50 mt-4 flex items-center justify-center gap-2 cursor-pointer font-mono shadow-[0_0_20px_rgba(0,255,102,0.25)]"
+                    disabled={isSubmitting || workshop?.is_registration_open === false}
+                    className={`w-full py-3 rounded-lg font-bold text-xs uppercase transition-all tracking-wider flex items-center justify-center gap-2 font-mono ${
+                      workshop?.is_registration_open === false
+                        ? 'bg-[#141824] border border-red-500/40 text-red-400 cursor-not-allowed opacity-90'
+                        : 'bg-neon text-black hover:bg-[#00cc52] shadow-[0_0_20px_rgba(0,255,102,0.25)] cursor-pointer'
+                    }`}
                   >
-                    {isSubmitting ? (
+                    {workshop?.is_registration_open === false ? (
+                      <span>Registrations Paused - Contact Admin</span>
+                    ) : isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin text-black" />
                         <span>Processing Reservation...</span>
@@ -677,7 +716,6 @@ function WorkshopRegistrationContent() {
                 </>
               )}
 
-              {/* STEP 2: UPI QR DISPLAY & UTR INPUT */}
               {activeStep === 'upi_qr' && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between pb-1">
@@ -691,7 +729,6 @@ function WorkshopRegistrationContent() {
                     </button>
                   </div>
 
-                  {/* QR Code Container */}
                   <div className="flex flex-col items-center justify-center p-4 bg-[#08090d] border border-[#1e2538] rounded-2xl space-y-3 text-center">
                     <div className="p-2 bg-white rounded-xl shadow-[0_0_20px_rgba(0,255,102,0.2)]">
                       <Image
@@ -723,7 +760,6 @@ function WorkshopRegistrationContent() {
                     </div>
                   </div>
 
-                  {/* UTR Input */}
                   <div className="space-y-1.5 font-mono">
                     <label className="text-gray-300 font-bold text-[11px] flex justify-between">
                       <span>12-Digit UPI Reference (UTR) *</span>
@@ -762,11 +798,9 @@ function WorkshopRegistrationContent() {
                   </button>
                 </div>
               )}
-
             </form>
           </div>
         </div>
-
       </div>
     </div>
   );
